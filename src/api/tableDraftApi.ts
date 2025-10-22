@@ -11,6 +11,7 @@ export interface TableDraft {
     name: string;
     price: number;
     quantity: number;
+    note?: string;
   }>;
   subtotal: number;
   tax: number;
@@ -26,12 +27,12 @@ export const saveTableDraft = async (draftData: Partial<TableDraft>) => {
 };
 
 export const getTableDraft = async (tableId: string, restaurantId: string) => {
-  const response = await makeApi(`/api/table-draft/get?tableId=${tableId}&restaurantId=${restaurantId}`, 'GET');
+  const response = await makeApi(`/api/table-draft/get?tableId=${tableId}&restaurantId=${restaurantId}`, 'GET', undefined);
   return response.data;
 };
 
 export const getAllTableDrafts = async (restaurantId: string) => {
-  const response = await makeApi(`/api/table-draft/all?restaurantId=${restaurantId}`, 'GET');
+  const response = await makeApi(`/api/table-draft/all?restaurantId=${restaurantId}`, 'GET', undefined);
   return response.data;
 };
 

@@ -4,6 +4,7 @@ import { Input } from "./ui/input";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { 
   ArrowLeft, 
   Search, 
@@ -20,6 +21,7 @@ import { toast } from "sonner";
 import { getMenuItems, getCategories } from "../api/menuApi";
 import { saveTableDraft, getTableDraft, clearTableDraft, TableDraft } from "../api/tableDraftApi";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
 interface MenuItem {
   _id: string;
@@ -37,6 +39,7 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  note?: string;
 }
 
 interface Category {
@@ -69,65 +72,69 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
   const [tableDraft, setTableDraft] = useState<TableDraft | null>(null);
   const [saving, setSaving] = useState(false);
+  const [useCustomPersons, setUseCustomPersons] = useState(persons > 10);
 
-  // Load menu data and table draft from API
-  useEffect(() => {
-    const loadMenuData = async () => {
-      if (!user?.restaurantId) {
-        setError("No restaurant ID found");
-        setLoading(false);
-        return;
-      }
+  // Loader function (callable and used on mount)
+  const loadMenuData = async () => {
+    if (!user?.restaurantId) {
+      setError("No restaurant ID found");
+      setLoading(false);
+      return;
+    }
 
-      try {
-        setLoading(true);
-        setError(null);
+    try {
+      setLoading(true);
+      setError(null);
 
-        // Load categories, menu items, and table draft in parallel
-        const [categoriesData, menuItemsData, draftData] = await Promise.all([
-          getCategories(user.restaurantId),
-          getMenuItems(user.restaurantId),
-          getTableDraft(tableId.toString(), user.restaurantId)
-        ]);
+      // Load categories, menu items, and table draft in parallel
+      const [categoriesData, menuItemsData, draftData] = await Promise.all([
+        getCategories(user.restaurantId),
+        getMenuItems(user.restaurantId),
+        getTableDraft(tableId.toString(), user.restaurantId)
+      ]);
 
-        setCategories(categoriesData);
-        setMenuItems(menuItemsData);
+      setCategories(categoriesData);
+      setMenuItems(menuItemsData);
+      
+      // Load existing draft if available
+      if (draftData) {
+        setTableDraft(draftData);
+        setPersons(draftData.persons);
         
-        // Load existing draft if available
-        if (draftData) {
-          setTableDraft(draftData);
-          setPersons(draftData.persons);
-          
-          // Restore cart items and quantities
-          const restoredCart: CartItem[] = [];
-          const restoredQuantities: Record<string, number> = {};
-          
-          draftData.cartItems.forEach(item => {
-            restoredCart.push({
-              id: item.itemId,
-              name: item.name,
-              price: item.price,
-              quantity: item.quantity
-            });
-            restoredQuantities[item.itemId] = item.quantity;
+        // Restore cart items and quantities
+        const restoredCart: CartItem[] = [];
+        const restoredQuantities: Record<string, number> = {};
+        
+        draftData.cartItems.forEach(item => {
+          restoredCart.push({
+            id: item.itemId,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            note: (item as any).note || ""
           });
-          
-          setCart(restoredCart);
-          setItemQuantities(restoredQuantities);
-          
-          toast.success("Table draft loaded successfully");
-        }
-      } catch (err) {
-        console.error("Error loading menu data:", err);
-        setError("Failed to load menu data");
-        toast.error("Failed to load menu data");
-      } finally {
-        setLoading(false);
+          restoredQuantities[item.itemId] = item.quantity;
+        });
+        
+        setCart(restoredCart);
+        setItemQuantities(restoredQuantities);
+        
+        toast.success("Table draft loaded successfully");
       }
-    };
+    } catch (err) {
+      console.error("Error loading menu data:", err);
+      setError("Failed to load menu data");
+      toast.error("Failed to load menu data");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadMenuData();
   }, [user?.restaurantId, tableId]);
+
+  // Removed page-level refresh control per request
 
   // Auto-save when cart or persons change
   useEffect(() => {
@@ -167,7 +174,8 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           itemId: item.id,
           name: item.name,
           price: item.price,
-          quantity: item.quantity
+          quantity: item.quantity,
+          note: item.note || ""
         })),
         updatedBy: user.username
       };
@@ -212,12 +220,16 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         return prev.map(cartItem =>
           cartItem.id === itemId
             ? { ...cartItem, quantity: newQuantity }
-            : cartItem
+          : cartItem
         );
       } else {
-        return [...prev, { id: item._id, name: item.name, price: item.price, quantity: newQuantity }];
+        return [...prev, { id: item._id, name: item.name, price: item.price, quantity: newQuantity, note: "" }];
       }
     });
+  };
+
+  const handleNoteChange = (itemId: string, note: string) => {
+    setCart(prev => prev.map(ci => ci.id === itemId ? { ...ci, note } : ci));
   };
 
   // Add item to cart (legacy function for compatibility)
@@ -317,25 +329,38 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                <Input
-                  type="number"
-                  min="1"
-                  value={persons}
-                  onChange={(e) => setPersons(parseInt(e.target.value) || 1)}
-                  className="w-20"
-                />
+                <Select
+                  value={persons <= 10 && !useCustomPersons ? String(persons) : "custom"}
+                  onValueChange={(v) => {
+                    if (v === "custom") {
+                      setUseCustomPersons(true);
+                    } else {
+                      setUseCustomPersons(false);
+                      setPersons(parseInt(v));
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-28 h-8">
+                    <SelectValue placeholder="Persons" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                      <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                    ))}
+                    <SelectItem value="custom">Custom…</SelectItem>
+                  </SelectContent>
+                </Select>
+                {useCustomPersons && (
+                  <Input
+                    type="number"
+                    min="1"
+                    value={persons}
+                    onChange={(e) => setPersons(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-20 h-8 text-sm px-2"
+                    placeholder="Enter"
+                  />
+                )}
               </div>
-              <Badge variant="secondary" className="gap-2">
-                <ShoppingCart className="h-4 w-4" />
-                {cart.length} items
-              </Badge>
-              {saving && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving...
-                </div>
-              )}
-              
             </div>
           </div>
         </div>
@@ -407,8 +432,13 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
             {!loading && !error && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {filteredItems.map((item) => (
+                <motion.div
+                  key={item._id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
                 <Card 
-                  key={item._id} 
                   className={`p-4 hover:shadow-md transition-shadow ${
                     getItemQuantity(item._id) > 0 
                       ? 'border-2 border-primary bg-primary/5' 
@@ -504,6 +534,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                     </div>
                   </div>
                 </Card>
+                </motion.div>
               ))}
               </div>
             )}
@@ -540,13 +571,24 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                     <ScrollArea className="max-h-96 mb-4">
                       <div className="space-y-3">
                         {cart.map((item) => (
-                          <div key={item.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                            <div className="flex-1">
-                              <p className="font-medium">{item.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                ₹{item.price} each
-                              </p>
-                            </div>
+                          <motion.div
+                            key={item.id}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.15 }}
+                            className="p-3 bg-muted rounded-lg"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 pr-3">
+                                <p className="font-medium">{item.name}</p>
+                                <p className="text-sm text-muted-foreground">₹{item.price} each</p>
+                                <Input
+                                  placeholder="Add note (optional)"
+                                  value={item.note || ""}
+                                  onChange={(e) => handleNoteChange(item.id, e.target.value)}
+                                  className="mt-2 h-8 text-sm"
+                                />
+                              </div>
                             <div className="flex items-center gap-2">
                               <Button
                                 size="icon"
@@ -575,6 +617,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                               </Button>
                             </div>
                           </div>
+                          </motion.div>
                         ))}
                       </div>
                     </ScrollArea>

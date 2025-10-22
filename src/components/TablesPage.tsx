@@ -7,6 +7,7 @@ import { getCurrentUser, getRestaurantKey } from "../utils/auth";
 import { toast } from "sonner";
 import { TableCard } from "./TableCard";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
 interface Table {
   _id: string;
@@ -46,6 +47,7 @@ export function TablesPage({
   const [activeFilter, setActiveFilter] = useState(propActiveFilter);
   const [loading, setLoading] = useState(!propTables);
   const [tableDrafts, setTableDrafts] = useState<any[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [selectedSpace, setSelectedSpace] = useState<string>(() => {
     const u = getCurrentUser();
     if (!u?.restaurantId) return "all";
@@ -86,6 +88,15 @@ export function TablesPage({
       setTableDrafts(drafts);
     } catch (error) {
       console.error("Error loading table drafts:", error);
+    }
+  };
+
+  const handleRefreshClick = async () => {
+    try {
+      setIsRefreshing(true);
+      await loadTableDrafts();
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -233,35 +244,42 @@ export function TablesPage({
         </div>
 
         {/* Refresh (right aligned) */}
-        <div className="mb-4 p-4 bg-yellow-50 rounded-lg flex w-full items-center justify-end">
+        <div className="fixed bottom-4 right-4 z-50"
+        style={{ bottom: "50px" }}
+        >
           <Button
             variant="outline"
-            size="sm"
-            onClick={loadTableDrafts}
-            className="flex items-center gap-2"
+            size="icon"
+            onClick={handleRefreshClick}
+            className="h-10 w-10 rounded-full shadow-md"
           >
-            <RefreshCw className="w-4 h-4" />
-            Refresh Drafts
+            <motion.span
+              animate={isRefreshing ? { rotate: 360 } : { rotate: 0 }}
+              transition={isRefreshing ? { repeat: Infinity, duration: 1, ease: "linear" } : {}}
+              className="inline-flex"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </motion.span>
           </Button>
         </div>
 
         {/* Stats Summary for current space */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="p-4 rounded-lg bg-card border">
-            <p className="text-sm text-muted-foreground">Total</p>
-            <p className="text-2xl mt-1">{statusCounts.total}</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
+          <div className="p-3 rounded-md bg-card border">
+            <p className="text-xs text-muted-foreground">Total</p>
+            <p className="text-xl mt-0.5">{statusCounts.total}</p>
           </div>
-          <div className="p-4 rounded-lg bg-card border">
-            <p className="text-sm text-muted-foreground">Available</p>
-            <p className="text-2xl mt-1 text-green-600">{statusCounts.available}</p>
+          <div className="p-3 rounded-md bg-card border">
+            <p className="text-xs text-muted-foreground">Available</p>
+            <p className="text-xl mt-0.5 text-green-600">{statusCounts.available}</p>
           </div>
-          <div className="p-4 rounded-lg bg-card border">
-            <p className="text-sm text-muted-foreground">Occupied</p>
-            <p className="text-2xl mt-1 text-amber-600">{statusCounts.occupied}</p>
+          <div className="p-3 rounded-md bg-card border">
+            <p className="text-xs text-muted-foreground">Occupied</p>
+            <p className="text-xl mt-0.5 text-amber-600">{statusCounts.occupied}</p>
           </div>
-          <div className="p-4 rounded-lg bg-card border">
-            <p className="text-sm text-muted-foreground">Reserved</p>
-            <p className="text-2xl mt-1 text-blue-600">{statusCounts.reserved}</p>
+          <div className="p-3 rounded-md bg-card border">
+            <p className="text-xs text-muted-foreground">Reserved</p>
+            <p className="text-xl mt-0.5 text-blue-600">{statusCounts.reserved}</p>
           </div>
         </div>
 
@@ -304,7 +322,7 @@ export function TablesPage({
                   location={table.locationId?.name || "Unknown Location"}
                   lastOrderTime={lastOrderTime}
                   persons={draft?.persons || 0}
-                  totalAmount={draft?.total || 0}
+                  totalAmount={Math.round(draft?.total || 0)}
                   status={getTableStatus(table)}
                   onClick={() => handleTableSelect(table)}
                 />
