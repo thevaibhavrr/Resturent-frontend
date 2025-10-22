@@ -20,7 +20,8 @@ export const makeApi = async (
 
     const config = {
       method,
-      url:"http://localhost:3000"+endpoint,
+      // url:"http://localhost:3000"+endpoint,
+      url:"https://resturent-backend-l8jk.onrender.com"+endpoint,
       headers,
       data
     };
