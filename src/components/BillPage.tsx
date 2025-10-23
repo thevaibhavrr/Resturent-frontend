@@ -37,6 +37,9 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  note?: string;
+  spicePercent?: number;
+  isJain?: boolean;
 }
 
 interface BillPageProps {
@@ -108,7 +111,7 @@ export function BillPage({
             : cartItem
         );
       } else {
-        return [...prev, { id: item._id, name: item.name, price: item.price, quantity: 1 }];
+        return [...prev, { id: item._id, name: item.name, price: item.price, quantity: 1, note: "", spicePercent: 50, isJain: false }];
       }
     });
     toast.success(`${item.name} added to cart`);
@@ -285,6 +288,16 @@ export function BillPage({
                         <div className="flex-1">
                           <h3 className="font-medium">{item.name}</h3>
                           <p className="text-sm text-muted-foreground">₹{item.price} each</p>
+                          {(item.spicePercent || item.isJain) && (
+                            <div className="flex items-center gap-2 mt-1">
+                              {item.spicePercent && (
+                                <span className="text-xs text-muted-foreground">Spice: {item.spicePercent}%</span>
+                              )}
+                              {item.isJain && (
+                                <Badge variant="secondary" className="text-xs">Jain</Badge>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <Button

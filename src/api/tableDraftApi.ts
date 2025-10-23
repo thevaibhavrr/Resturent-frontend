@@ -12,6 +12,8 @@ export interface TableDraft {
     price: number;
     quantity: number;
     note?: string;
+    spiceLevel?: number;
+    spicePercent?: number;
   }>;
   subtotal: number;
   tax: number;

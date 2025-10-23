@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card } from "./ui/card";
@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import { getMenuItems, getCategories } from "../api/menuApi";
 import { saveTableDraft, getTableDraft, clearTableDraft, TableDraft } from "../api/tableDraftApi";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, useScroll, useMotionValueEvent, useSpring } from "framer-motion";
 
 interface MenuItem {
   _id: string;
@@ -40,6 +40,9 @@ interface CartItem {
   price: number;
   quantity: number;
   note?: string;
+  spiceLevel?: number;
+  spicePercent?: number;
+  isJain?: boolean;
 }
 
 interface Category {
@@ -73,6 +76,29 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const [tableDraft, setTableDraft] = useState<TableDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [useCustomPersons, setUseCustomPersons] = useState(persons > 10);
+  const [selectedSpicePercent, setSelectedSpicePercent] = useState<Record<string, number>>({}); // per-menu-item (1-100)
+  const [selectedIsJain, setSelectedIsJain] = useState<Record<string, boolean>>({}); // per-menu-item
+
+  const setSpicePercent = (itemId: string, percent: number) => {
+    setSelectedSpicePercent(prev => ({ ...prev, [itemId]: percent }));
+  };
+
+  const setIsJain = (itemId: string, isJain: boolean) => {
+    setSelectedIsJain(prev => ({ ...prev, [itemId]: isJain }));
+  };
+  const lastYRef = useRef(0);
+  const { scrollY } = useScroll();
+  const localHeaderY = useSpring(0, { stiffness: 400, damping: 36 });
+
+  useMotionValueEvent(scrollY, 'change', (latest) => {
+    const last = lastYRef.current;
+    if (latest > last && latest > 10) {
+      localHeaderY.set(-100);
+    } else {
+      localHeaderY.set(0);
+    }
+    lastYRef.current = latest;
+  });
 
   // Loader function (callable and used on mount)
   const loadMenuData = async () => {
@@ -111,7 +137,10 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
             name: item.name,
             price: item.price,
             quantity: item.quantity,
-            note: (item as any).note || ""
+            note: (item as any).note || "",
+            spiceLevel: (item as any).spiceLevel ?? 0,
+            spicePercent: (item as any).spicePercent ?? 50,
+            isJain: (item as any).isJain ?? false
           });
           restoredQuantities[item.itemId] = item.quantity;
         });
@@ -175,7 +204,10 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           name: item.name,
           price: item.price,
           quantity: item.quantity,
-          note: item.note || ""
+          note: item.note || "",
+          spiceLevel: item.spiceLevel ?? 0,
+          spicePercent: item.spicePercent ?? 50,
+          isJain: item.isJain ?? false
         })),
         updatedBy: user.username
       };
@@ -223,13 +255,56 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           : cartItem
         );
       } else {
-        return [...prev, { id: item._id, name: item.name, price: item.price, quantity: newQuantity, note: "" }];
+        const percent = selectedSpicePercent[item._id] ?? 50;
+        const level = Math.min(5, Math.max(1, Math.round(percent / 20)));
+        const isJain = selectedIsJain[item._id] ?? false;
+        return [...prev, { id: item._id, name: item.name, price: item.price, quantity: newQuantity, note: "", spiceLevel: level, spicePercent: percent, isJain: isJain }];
       }
     });
   };
 
-  const handleNoteChange = (itemId: string, note: string) => {
-    setCart(prev => prev.map(ci => ci.id === itemId ? { ...ci, note } : ci));
+  const handleNoteChangeAt = (index: number, note: string) => {
+    setCart(prev => prev.map((ci, i) => i === index ? { ...ci, note } : ci));
+  };
+
+  const handleSpiceChangeAt = (index: number, level: number) => {
+    setCart(prev => prev.map((ci, i) => i === index ? { ...ci, spiceLevel: level } : ci));
+  };
+
+  // Keep itemId-based spice change for menu cards (applies to all lines of that item)
+  const handleSpiceChange = (itemId: string, level: number) => {
+    setCart(prev => prev.map(ci => ci.id === itemId ? { ...ci, spiceLevel: level } : ci));
+  };
+
+  const updateQuantityAt = (index: number, change: number) => {
+    setCart(prev => {
+      const next = [...prev];
+      const item = next[index];
+      if (!item) return prev;
+      const newQty = item.quantity + change;
+      if (newQty <= 0) {
+        next.splice(index, 1);
+      } else {
+        next[index] = { ...item, quantity: newQty };
+      }
+      return next;
+    });
+  };
+
+  const removeFromCartAt = (index: number) => {
+    setCart(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const splitLineAt = (index: number) => {
+    setCart(prev => {
+      const next = [...prev];
+      const item = next[index];
+      if (!item || item.quantity <= 1) return prev;
+      // Decrease current line by 1 and push a new line with qty 1 (same spice/note)
+      next[index] = { ...item, quantity: item.quantity - 1 };
+      next.splice(index + 1, 0, { ...item, quantity: 1 });
+      return next;
+    });
   };
 
   // Add item to cart (legacy function for compatibility)
@@ -312,12 +387,35 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     navigate("/order-tables/bill", { state: billData });
   };
 
+  // Print draft (compact) directly from menu
+  const handlePrintDraft = () => {
+    if (cart.length === 0) {
+      toast.error("Please add items to cart");
+      return;
+    }
+    if (persons < 1) {
+      toast.error("Please enter number of persons");
+      return;
+    }
+
+    const draftData = {
+      table: {
+        id: tableId,
+        tableName: tableName,
+      },
+      cart: cart,
+      persons: persons,
+    };
+
+    navigate("/order-tables/print-draft", { state: draftData });
+  };
+
   return (
     <div className="min-h-screen bg-background ">
       {/* Header */}
-      <header className="border-b bg-card shadow-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4 " style={{ marginTop: '100px' }}>
-          <div className="flex items-center justify-between">
+      <motion.header style={{ y: localHeaderY }} className={`fixed left-0 right-0 top-20 z-40 border-b bg-card shadow-sm`}>
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" onClick={onBack}>
                 <ArrowLeft className="h-5 w-5" />
@@ -364,7 +462,9 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
             </div>
           </div>
         </div>
-      </header>
+      </motion.header>
+      {/* Spacer below fixed header */}
+      <div className={'h-16'} />
 
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -461,23 +561,47 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                     <div className="flex-1">
                       <div className="flex items-start justify-between mb-2">
                         <h3 className="font-semibold">{item.name}</h3>
-                        <span className="font-bold text-lg">${item.price}</span>
+                        <span className="font-bold text-lg">₹{item.price}</span>
                       </div>
                       <div className="flex items-center gap-2 mb-3">
                         <Badge variant="outline" className="text-xs">
                           {item.category.replace("-", " ")}
                         </Badge>
-                        <div className="flex">
-                          {[...Array(5)].map((_, i) => (
-                            <span
-                              key={i}
-                              className={`text-xs ${
-                                i < item.spiceLevel ? "text-red-500" : "text-gray-300"
-                              }`}
-                            >
-                              🌶️
-                            </span>
-                          ))}
+                      </div>
+                      {/* Spice level dropdown */}
+                      <div className="mb-3 flex gap-3">
+                        <div className="flex-1">
+                          <label className="text-xs text-muted-foreground mb-1 block">Spice Level</label>
+                          <Select
+                            value={String(selectedSpicePercent[item._id] ?? 50)}
+                            onValueChange={(v) => setSpicePercent(item._id, parseInt(v))}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="50%" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="10">10%</SelectItem>
+                              <SelectItem value="25">25%</SelectItem>
+                              <SelectItem value="50">50%</SelectItem>
+                              <SelectItem value="75">75%</SelectItem>
+                              <SelectItem value="100">100%</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-xs text-muted-foreground mb-1 block">Jain</label>
+                          <Select
+                            value={selectedIsJain[item._id] ? "true" : "false"}
+                            onValueChange={(v) => setIsJain(item._id, v === "true")}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="No" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="false">No</SelectItem>
+                              <SelectItem value="true">Yes</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                       {/* Quantity Controls */}
@@ -514,6 +638,21 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Spice:</span>
+                            <div className="flex items-center gap-1">
+                              {[1,2,3,4,5].map((lvl) => (
+                                <button
+                                  key={lvl}
+                                  type="button"
+                                  onClick={() => handleSpiceChange(item._id, lvl)}
+                                  className={`text-sm ${ (cart.find(ci=>ci.id===item._id)?.spiceLevel ?? 0) >= lvl ? 'text-red-500' : 'text-gray-300'}`}
+                                >
+                                  🌶️
+                                </button>
+                              ))}
+                            </div>
                           </div>
                          
                         </div>
@@ -570,7 +709,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                   <>
                     <ScrollArea className="max-h-96 mb-4">
                       <div className="space-y-3">
-                        {cart.map((item) => (
+                        {cart.map((item, index) => (
                           <motion.div
                             key={item.id}
                             initial={{ opacity: 0, y: 8 }}
@@ -585,38 +724,50 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                                 <Input
                                   placeholder="Add note (optional)"
                                   value={item.note || ""}
-                                  onChange={(e) => handleNoteChange(item.id, e.target.value)}
+                                  onChange={(e) => handleNoteChangeAt(index, e.target.value)}
                                   className="mt-2 h-8 text-sm"
                                 />
+                                <div className="mt-2 flex items-center gap-3">
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs text-muted-foreground">Spice:</span>
+                                    <span className="text-sm font-medium">{(item.spicePercent ?? 50)}%</span>
+                                  </div>
+                                  {item.isJain && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      Jain
+                                    </Badge>
+                                  )}
+                                </div>
+
                               </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                onClick={() => updateQuantity(item.id, -1)}
-                                className="h-8 w-8"
-                              >
-                                <Minus className="h-4 w-4" />
-                              </Button>
-                              <span className="w-8 text-center">{item.quantity}</span>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                onClick={() => updateQuantity(item.id, 1)}
-                                className="h-8 w-8"
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => removeFromCart(item.id)}
-                                className="h-8 w-8 text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  onClick={() => updateQuantityAt(index, -1)}
+                                  className="h-8 w-8"
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </Button>
+                                <span className="w-8 text-center">{item.quantity}</span>
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  onClick={() => updateQuantityAt(index, 1)}
+                                  className="h-8 w-8"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => removeFromCartAt(index)}
+                                  className="h-8 w-8 text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
-                          </div>
                           </motion.div>
                         ))}
                       </div>
@@ -630,7 +781,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                       </div>
                       <div className="flex justify-between font-bold text-lg border-t pt-2">
                         <span>Total:</span>
-                        <span>${total.toFixed(2)}</span>
+                        <span>₹{total.toFixed(2)}</span>
                       </div>
                     </div>
 
@@ -642,6 +793,14 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                     >
                       <Check className="h-5 w-5 mr-2" />
                       Go to Bill
+                    </Button>
+                    <Button
+                      onClick={handlePrintDraft}
+                      className="w-full mt-2"
+                      variant="outline"
+                      size="sm"
+                    >
+                      Print Draft
                     </Button>
                   </>
                 )}

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, useScroll, useMotionValueEvent, useSpring } from 'framer-motion';
 import { Menu, LogOut } from 'lucide-react';
 import { getCurrentUser, logout } from '../utils/auth';
 
@@ -9,6 +10,25 @@ interface HeaderProps {
 
 export default function Header({ onToggleMenu, onLogout }: HeaderProps) {
   const user = getCurrentUser();
+
+  const [hidden, setHidden] = useState(false);
+  const lastYRef = useRef(0);
+  const { scrollY } = useScroll();
+  const y = useSpring(0, { stiffness: 400, damping: 36 });
+
+  useMotionValueEvent(scrollY, 'change', (latest) => {
+    const last = lastYRef.current;
+    if (latest > last && latest > 10) {
+      setHidden(true);
+    } else {
+      setHidden(false);
+    }
+    lastYRef.current = latest;
+  });
+
+  useEffect(() => {
+    y.set(hidden ? -100 : 0);
+  }, [hidden, y]);
 
   const handleLogout = () => {
     logout();
@@ -31,7 +51,7 @@ export default function Header({ onToggleMenu, onLogout }: HeaderProps) {
   };
 
   return (
-    <header className="fixed top-0 left-0 w-full z-50 bg-card border-b shadow-sm">
+    <motion.header style={{ y }} className={`fixed top-0 left-0 w-full z-50 bg-card border-b shadow-sm`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20"> {/* increased header height */}
           <div className="flex items-center gap-4">
@@ -65,6 +85,6 @@ export default function Header({ onToggleMenu, onLogout }: HeaderProps) {
           </div>
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 }
