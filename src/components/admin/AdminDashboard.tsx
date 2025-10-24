@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 import {
   DollarSign,
   ShoppingCart,
@@ -8,11 +11,19 @@ import {
   Users,
   TableProperties,
   UtensilsCrossed,
+  Calendar,
+  AlertCircle,
+  CreditCard,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
+import { getRestaurantSubscription, Subscription } from "../../api/planApi";
+import { toast } from "sonner";
 
 export function AdminDashboard() {
   const user = getCurrentUser();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalTables: 0,
     occupiedTables: 0,
@@ -21,9 +32,13 @@ export function AdminDashboard() {
     totalMenuItems: 0,
     totalStaff: 0,
   });
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(true);
+  const [isPlanExpanded, setIsPlanExpanded] = useState(false);
 
   useEffect(() => {
     loadStats();
+    loadSubscription();
   }, []);
 
   const loadStats = () => {
@@ -62,10 +77,155 @@ export function AdminDashboard() {
     });
   };
 
+  const loadSubscription = async () => {
+    if (!user?.restaurantId) return;
+    
+    try {
+      setLoadingSubscription(true);
+      const data = await getRestaurantSubscription(user.restaurantId);
+      setSubscription(data.subscription);
+    } catch (error) {
+      console.error('Failed to load subscription:', error);
+      toast.error('Failed to load subscription information');
+    } finally {
+      setLoadingSubscription(false);
+    }
+  };
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6">
+      {/* Subscription Status Card */}
+      {!loadingSubscription && subscription && (
+        <Card className={`shadow-md md:shadow-xl border-2 transition-all ${
+          subscription.daysRemaining <= 3 ? 'border-red-500 bg-red-50' :
+          subscription.daysRemaining <= 7 ? 'border-yellow-500 bg-yellow-50' :
+          'border-green-500 bg-green-50'
+        }`}>
+          {/* Clickable Header - Always Visible */}
+          <div 
+            className="p-3 sm:p-4 md:p-6 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => setIsPlanExpanded(!isPlanExpanded)}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <CreditCard className={`w-6 h-6 sm:w-7 sm:h-7 flex-shrink-0 ${
+                  subscription.daysRemaining <= 3 ? 'text-red-600' :
+                  subscription.daysRemaining <= 7 ? 'text-yellow-600' :
+                  'text-green-600'
+                }`} />
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base sm:text-lg md:text-xl font-bold truncate">{subscription.planName}</h2>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Current Plan</p>
+                    <span className="text-muted-foreground">•</span>
+                    <p className={`text-xs sm:text-sm font-semibold ${
+                      subscription.daysRemaining <= 3 ? 'text-red-600' :
+                      subscription.daysRemaining <= 7 ? 'text-yellow-600' :
+                      'text-green-600'
+                    }`}>{subscription.daysRemaining} days remaining</p>
+                    <Badge 
+                      variant={subscription.isActive ? "default" : "destructive"}
+                      className="text-xs"
+                    >
+                      {subscription.isActive ? "Active" : "Expired"}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              <div className="flex-shrink-0">
+                {isPlanExpanded ? (
+                  <ChevronUp className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground" />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Expandable Content */}
+          <AnimatePresence>
+            {isPlanExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="overflow-hidden"
+              >
+                <div className="px-3 pb-4 sm:px-4 sm:pb-5 md:px-6 md:pb-8 pt-0">
+                  <div className="border-t pt-4 space-y-3">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                  <div className="space-y-2.5 sm:space-y-3 flex-1 min-w-0">
+              
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+                      <div className="flex items-center gap-2.5 sm:gap-3 p-3 sm:p-3.5 bg-white rounded-lg border border-gray-200">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-muted-foreground mb-0.5">Days Remaining</p>
+                          <p className={`text-xl sm:text-2xl font-bold leading-tight ${
+                            subscription.daysRemaining <= 3 ? 'text-red-600' :
+                            subscription.daysRemaining <= 7 ? 'text-yellow-600' :
+                            'text-green-600'
+                          }`}>{subscription.daysRemaining}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col justify-center p-3 sm:p-3.5 bg-white rounded-lg border border-gray-200">
+                        <p className="text-xs text-muted-foreground mb-0.5">Start Date</p>
+                        <p className="text-sm font-semibold leading-tight">
+                          {new Date(subscription.startDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                      
+                      <div className="flex flex-col justify-center p-3 sm:p-3.5 bg-white rounded-lg border border-gray-200">
+                        <p className="text-xs text-muted-foreground mb-0.5">End Date</p>
+                        <p className="text-sm font-semibold leading-tight">
+                          {new Date(subscription.endDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {subscription.daysRemaining <= 7 && subscription.isActive && (
+                      <div className="flex items-start gap-2.5 p-3 sm:p-3.5 bg-white rounded-lg border border-yellow-300">
+                        <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm sm:text-base font-semibold text-yellow-900">Plan Expiring Soon!</p>
+                          <p className="text-xs sm:text-sm text-yellow-800 mt-0.5">
+                            Your plan will expire in {subscription.daysRemaining} days. Please recharge to continue using all features.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {!subscription.isActive && (
+                      <div className="flex items-start gap-2.5 p-3 sm:p-3.5 bg-white rounded-lg border border-red-300">
+                        <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm sm:text-base font-semibold text-red-900">Plan Expired!</p>
+                          <p className="text-xs sm:text-sm text-red-800 mt-0.5">
+                            Your plan has expired. Please recharge immediately to restore access.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <Button 
+                    size="default"
+                    className="w-full sm:w-auto md:ml-4 shrink-0"
+                    variant={subscription.daysRemaining <= 7 ? "destructive" : "default"}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                    <span className="text-sm sm:text-base">Upgrade / Recharge</span>
+                  </Button>
+                </div>
+              </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Card>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -151,27 +311,39 @@ export function AdminDashboard() {
 
   {/* Quick Actions */}
   <Card className="p-6 shadow-lg">
-        <h2 className="text-xl mb-4">Quick Actions</h2>
+        <h2 className="text-xl mb-4 font-bold">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="p-4 rounded-lg border hover:border-primary transition-colors cursor-pointer">
+          <div 
+            onClick={() => navigate('/admin/tables')}
+            className="p-4 rounded-lg border hover:border-primary hover:shadow-md transition-all cursor-pointer bg-white hover:bg-primary/5"
+          >
             <TableProperties className="w-6 h-6 mb-2 text-primary" />
-            <p className="font-medium">Add Table</p>
-            <p className="text-xs text-muted-foreground">Create new table</p>
+            <p className="font-medium">Manage Tables</p>
+            <p className="text-xs text-muted-foreground">View & add tables</p>
           </div>
-          <div className="p-4 rounded-lg border hover:border-primary transition-colors cursor-pointer">
+          <div 
+            onClick={() => navigate('/admin/users')}
+            className="p-4 rounded-lg border hover:border-primary hover:shadow-md transition-all cursor-pointer bg-white hover:bg-primary/5"
+          >
             <Users className="w-6 h-6 mb-2 text-primary" />
-            <p className="font-medium">Add Staff</p>
-            <p className="text-xs text-muted-foreground">Create staff account</p>
+            <p className="font-medium">Manage Staff</p>
+            <p className="text-xs text-muted-foreground">View & add staff</p>
           </div>
-          <div className="p-4 rounded-lg border hover:border-primary transition-colors cursor-pointer">
+          <div 
+            onClick={() => navigate('/admin/menu')}
+            className="p-4 rounded-lg border hover:border-primary hover:shadow-md transition-all cursor-pointer bg-white hover:bg-primary/5"
+          >
             <UtensilsCrossed className="w-6 h-6 mb-2 text-primary" />
-            <p className="font-medium">Add Menu Item</p>
-            <p className="text-xs text-muted-foreground">Add to menu</p>
+            <p className="font-medium">Manage Menu</p>
+            <p className="text-xs text-muted-foreground">View & add items</p>
           </div>
-          <div className="p-4 rounded-lg border hover:border-primary transition-colors cursor-pointer">
+          <div 
+            onClick={() => navigate('/admin/bills')}
+            className="p-4 rounded-lg border hover:border-primary hover:shadow-md transition-all cursor-pointer bg-white hover:bg-primary/5"
+          >
             <ShoppingCart className="w-6 h-6 mb-2 text-primary" />
-            <p className="font-medium">View Orders</p>
-            <p className="text-xs text-muted-foreground">Check bill history</p>
+            <p className="font-medium">Bill History</p>
+            <p className="text-xs text-muted-foreground">View all bills</p>
           </div>
         </div>
       </Card>

@@ -16,7 +16,7 @@ interface StaffSidebarProps {
   onCloseMenu?: () => void;
 }
 
-export function StaffSidebar({ onLogout, menuOpen, onCloseMenu }: StaffSidebarProps) {
+export function   StaffSidebar({ onLogout, menuOpen, onCloseMenu }: StaffSidebarProps) {
   const user = getCurrentUser();
   const [isOpen, setIsOpen] = useState(false);
   const visible = typeof menuOpen === 'boolean' ? menuOpen : isOpen;

@@ -16,6 +16,7 @@ import {
   Settings,
   ChevronDown,
   ChevronRight,
+  CreditCard,
 } from "lucide-react";
 import { getCurrentUser, logout } from "../utils/auth";
 import { useState, useEffect } from "react";
@@ -115,6 +116,7 @@ export function AdminSidebar({
       label: "Reports",
       icon: FileText,
     },
+   
     {
       id: "settings",
       label: "Settings",

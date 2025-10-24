@@ -25,6 +25,9 @@ import { TestNavigation } from "./components/TestNavigation";
 import { colorThemes } from "./components/ThemeCustomizer";
 import { Toaster } from "./components/ui/sonner";
 import { getCurrentUser, getRestaurantKey } from "./utils/auth";
+import { SubscriptionAlert } from "./components/SubscriptionAlert";
+import { SubscriptionExpiredModal } from "./components/SubscriptionExpiredModal";
+import { getRestaurantSubscription } from "./api/planApi";
 
 interface TableData {
   id: number;
@@ -84,6 +87,33 @@ function AppContent() {
   const [billData, setBillData] = useState<BillData | null>(null);
   const [printData, setPrintData] = useState<PrintData | null>(null);
   const [tableUpdates, setTableUpdates] = useState(0);
+  
+  // Subscription state
+  const [subscriptionExpired, setSubscriptionExpired] = useState(false);
+  const [subscriptionData, setSubscriptionData] = useState<any>(null);
+
+  // Check subscription status
+  const checkSubscription = async (restaurantId: string) => {
+    try {
+      const response = await getRestaurantSubscription(restaurantId);
+      const subscription = response.subscription;
+      
+      if (!subscription.isActive || subscription.daysRemaining <= 0) {
+        setSubscriptionExpired(true);
+        setSubscriptionData({
+          restaurantName: response.restaurantName,
+          planName: subscription.planName,
+          endDate: subscription.endDate,
+          daysRemaining: subscription.daysRemaining
+        });
+      } else {
+        setSubscriptionExpired(false);
+        setSubscriptionData(null);
+      }
+    } catch (error) {
+      console.error('Error checking subscription:', error);
+    }
+  };
 
   // Check if user is logged in on mount
   useEffect(() => {
@@ -91,6 +121,10 @@ function AppContent() {
     if (user) {
       setIsLoggedIn(true);
       setCurrentUser(user);
+      // Check subscription status
+      if (user.restaurantId) {
+        checkSubscription(user.restaurantId);
+      }
     }
   }, []);
 
@@ -130,6 +164,11 @@ function AppContent() {
     const user = getCurrentUser();
     setCurrentUser(user);
     setIsLoggedIn(true);
+    
+    // Check subscription status after login
+    if (user && user.restaurantId) {
+      checkSubscription(user.restaurantId);
+    }
   };
 
   const handleLogout = () => {
@@ -263,9 +302,21 @@ function AppContent() {
     return (
       <div className="min-h-screen bg-background">
         <Toaster />
-        <Header onToggleMenu={() => setMenuOpen((s) => !s)} onLogout={handleLogout} />
+        <SubscriptionAlert />
+        {/* Show subscription expired modal */}
+        {subscriptionExpired && subscriptionData && (
+          <SubscriptionExpiredModal
+            restaurantName={subscriptionData.restaurantName}
+            planName={subscriptionData.planName}
+            endDate={subscriptionData.endDate}
+            daysRemaining={subscriptionData.daysRemaining}
+          />
+        )}
+        <div className="lg:hidden">
+          <Header onToggleMenu={() => setMenuOpen((s) => !s)} onLogout={handleLogout} />
+        </div>
         <AdminSidebar onLogout={handleLogout} menuOpen={menuOpen} onCloseMenu={() => setMenuOpen(false)} />
-        <main className="lg:ml-64 pt-20">
+        <main className="lg:ml-64 pt-20 lg:pt-0">
           <Routes>
             <Route path="/admin" element={<DashboardPage />} />
             <Route path="/admin/tables" element={<ManageTablesPage />} />
@@ -287,9 +338,21 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-background">
       <Toaster />
-      <Header onToggleMenu={() => setMenuOpen((s) => !s)} onLogout={handleLogout} />
+      <SubscriptionAlert />
+      {/* Show subscription expired modal */}
+      {subscriptionExpired && subscriptionData && (
+        <SubscriptionExpiredModal
+          restaurantName={subscriptionData.restaurantName}
+          planName={subscriptionData.planName}
+          endDate={subscriptionData.endDate}
+          daysRemaining={subscriptionData.daysRemaining}
+        />
+      )}
+      <div className="lg:hidden">
+        <Header onToggleMenu={() => setMenuOpen((s) => !s)} onLogout={handleLogout} />
+      </div>
       <StaffSidebar onLogout={handleLogout} menuOpen={menuOpen} onCloseMenu={() => setMenuOpen(false)} />
-      <main className="lg:ml-64 pt-20">
+      <main className="lg:ml-64 pt-20 lg:pt-0">
         <Routes>
       <Route path="/order-tables" element={
         <TablesPage

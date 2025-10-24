@@ -14,7 +14,8 @@ import {
   Minus,
   Trash2,
   Check,
-  Loader2
+  Loader2,
+  Printer
 } from "lucide-react";
 import { getCurrentUser } from "../utils/auth";
 import { toast } from "sonner";
@@ -214,8 +215,20 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       
       const savedDraft = await saveTableDraft(draftData);
       setTableDraft(savedDraft);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error auto-saving draft:", error);
+      
+      // Check if error is subscription expired
+      if (error?.response?.data?.subscriptionExpired) {
+        toast.error("Subscription Expired!", {
+          description: error.response.data.error || "Please recharge your plan to continue using the system.",
+          duration: 5000,
+        });
+      } else {
+        toast.error("Failed to save draft", {
+          description: "Please try again",
+        });
+      }
     } finally {
       setSaving(false);
     }
@@ -530,7 +543,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
             {/* Menu Items */}
             {!loading && !error && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {filteredItems.map((item) => (
                 <motion.div
                   key={item._id}
@@ -539,92 +552,101 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                   transition={{ duration: 0.2 }}
                 >
                 <Card 
-                  className={`p-4 hover:shadow-md transition-shadow ${
+                  className={`overflow-hidden hover:shadow-xl transition-all duration-300 ${
                     getItemQuantity(item._id) > 0 
-                      ? 'border-2 border-primary bg-primary/5' 
-                      : ''
+                      ? 'ring-2 ring-primary shadow-lg' 
+                      : 'hover:scale-[1.02]'
                   }`}
                 >
-                  <div className="flex gap-4">
-                    <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 relative">
+                  <div className="relative">
+                    <div className="relative h-40 max-h-48 w-full overflow-hidden bg-gradient-to-br from-orange-50 to-amber-50">
                       <img
                         src={item.image}
                         alt={item.name}
-                        className="w-full h-full object-cover"
+                        style={{
+                          maxHeight:"200px",
+                          objectFit:"cover"
+                        }}
+                        className="w-full h-full max-h-48 object-cover hover:scale-110 transition-transform duration-500"
                       />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                       {getItemQuantity(item._id) > 0 && (
-                        <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                        <div className="absolute top-3 right-3 bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-lg animate-pulse">
                           {getItemQuantity(item._id)}
                         </div>
                       )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-semibold">{item.name}</h3>
-                        <span className="font-bold text-lg">₹{item.price}</span>
-                      </div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Badge variant="outline" className="text-xs">
+                      <div className="absolute bottom-3 left-3">
+                        <Badge variant="secondary" className="text-xs shadow-md backdrop-blur-sm bg-white/90">
                           {item.category.replace("-", " ")}
                         </Badge>
                       </div>
-                      {/* Spice level dropdown */}
-                      <div className="mb-3 flex gap-3">
-                        <div className="flex-1">
-                          <label className="text-xs text-muted-foreground mb-1 block">Spice Level</label>
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="font-bold text-lg">{item.name}</h3>
+                        <span className="font-bold text-xl text-primary">₹{item.price}</span>
+                      </div>
+                      {/* Spice level and Jain options */}
+                      <div className="mb-4 grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                            🌶️ Spice Level
+                          </label>
                           <Select
                             value={String(selectedSpicePercent[item._id] ?? 50)}
                             onValueChange={(v) => setSpicePercent(item._id, parseInt(v))}
                           >
-                            <SelectTrigger className="h-8">
+                            <SelectTrigger className="h-9 border-2 hover:border-primary/50 transition-colors">
                               <SelectValue placeholder="50%" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="10">10%</SelectItem>
-                              <SelectItem value="25">25%</SelectItem>
-                              <SelectItem value="50">50%</SelectItem>
-                              <SelectItem value="75">75%</SelectItem>
-                              <SelectItem value="100">100%</SelectItem>
+                              <SelectItem value="10">🟢 10% Mild</SelectItem>
+                              <SelectItem value="25">🟡 25% Low</SelectItem>
+                              <SelectItem value="50">🟠 50% Medium</SelectItem>
+                              <SelectItem value="75">🔴 75% Hot</SelectItem>
+                              <SelectItem value="100">🔥 100% Extra Hot</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="flex-1">
-                          <label className="text-xs text-muted-foreground mb-1 block">Jain</label>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                            🥗 Jain Option
+                          </label>
                           <Select
                             value={selectedIsJain[item._id] ? "true" : "false"}
                             onValueChange={(v) => setIsJain(item._id, v === "true")}
                           >
-                            <SelectTrigger className="h-8">
+                            <SelectTrigger className="h-9 border-2 hover:border-primary/50 transition-colors">
                               <SelectValue placeholder="No" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="false">No</SelectItem>
-                              <SelectItem value="true">Yes</SelectItem>
+                              <SelectItem value="false">❌ No</SelectItem>
+                              <SelectItem value="true">✅ Yes</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                       </div>
                       {/* Quantity Controls */}
                       {getItemQuantity(item._id) > 0 ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between w-full">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between w-full bg-primary/5 rounded-lg p-2">
                             <div className="flex items-center gap-2">
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => updateItemQuantity(item._id, -1)}
-                                className="h-8 w-8 p-0"
+                                className="h-9 w-9 p-0 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
                               >
                                 <Minus className="h-4 w-4" />
                               </Button>
-                              <span className="w-8 text-center font-medium">
+                              <span className="min-w-[2rem] text-center font-bold text-lg">
                                 {getItemQuantity(item._id)}
                               </span>
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => updateItemQuantity(item._id, 1)}
-                                className="h-8 w-8 p-0"
+                                className="h-9 w-9 p-0 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
                                 disabled={!item.isAvailable}
                               >
                                 <Plus className="h-4 w-4" />
@@ -632,43 +654,24 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                             </div>
                             <Button
                               size="sm"
-                              variant="destructive"
+                              variant="ghost"
                               onClick={() => updateItemQuantity(item._id, -getItemQuantity(item._id))}
-                              className="h-8 px-2"
+                              className="h-9 px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Spice:</span>
-                            <div className="flex items-center gap-1">
-                              {[1,2,3,4,5].map((lvl) => (
-                                <button
-                                  key={lvl}
-                                  type="button"
-                                  onClick={() => handleSpiceChange(item._id, lvl)}
-                                  className={`text-sm ${ (cart.find(ci=>ci.id===item._id)?.spiceLevel ?? 0) >= lvl ? 'text-red-500' : 'text-gray-300'}`}
-                                >
-                                  🌶️
-                                </button>
-                              ))}
-                            </div>
-                          </div>
                          
                         </div>
                       ) : (
-                        <div className="space-y-2">
-                          <Button
-                            size="sm"
-                            onClick={() => updateItemQuantity(item._id, 1)}
-                            className="w-full"
-                            disabled={!item.isAvailable}
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            {item.isAvailable ? "Add to Cart" : "Not Available"}
-                          </Button>
-
-                        </div>
+                        <Button
+                          onClick={() => updateItemQuantity(item._id, 1)}
+                          className="w-full h-10 font-semibold shadow-md hover:shadow-lg transition-all"
+                          disabled={!item.isAvailable}
+                        >
+                          <Plus className="h-5 w-5 mr-2" />
+                          {item.isAvailable ? "Add to Cart" : "Not Available"}
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -715,57 +718,63 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.15 }}
-                            className="p-3 bg-muted rounded-lg"
+                            className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border border-primary/20 shadow-sm hover:shadow-md transition-shadow"
                           >
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1 pr-3">
-                                <p className="font-medium">{item.name}</p>
-                                <p className="text-sm text-muted-foreground">₹{item.price} each</p>
-                                <Input
-                                  placeholder="Add note (optional)"
-                                  value={item.note || ""}
-                                  onChange={(e) => handleNoteChangeAt(index, e.target.value)}
-                                  className="mt-2 h-8 text-sm"
-                                />
-                                <div className="mt-2 flex items-center gap-3">
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-xs text-muted-foreground">Spice:</span>
-                                    <span className="text-sm font-medium">{(item.spicePercent ?? 50)}%</span>
-                                  </div>
-                                  {item.isJain && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      Jain
-                                    </Badge>
-                                  )}
+                            <div className="space-y-3">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 pr-3">
+                                  <p className="font-bold text-base">{item.name}</p>
+                                  <p className="text-sm text-muted-foreground">₹{item.price} × {item.quantity} = ₹{(item.price * item.quantity).toFixed(2)}</p>
                                 </div>
-
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="icon"
-                                  variant="outline"
-                                  onClick={() => updateQuantityAt(index, -1)}
-                                  className="h-8 w-8"
-                                >
-                                  <Minus className="h-4 w-4" />
-                                </Button>
-                                <span className="w-8 text-center">{item.quantity}</span>
-                                <Button
-                                  size="icon"
-                                  variant="outline"
-                                  onClick={() => updateQuantityAt(index, 1)}
-                                  className="h-8 w-8"
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
                                 <Button
                                   size="icon"
                                   variant="ghost"
                                   onClick={() => removeFromCartAt(index)}
-                                  className="h-8 w-8 text-destructive"
+                                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
+                              </div>
+                              
+                              <Input
+                                placeholder="Add note (optional)"
+                                value={item.note || ""}
+                                onChange={(e) => handleNoteChangeAt(index, e.target.value)}
+                                className="h-9 text-sm bg-white/80 border-primary/30 focus:border-primary"
+                              />
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center gap-1.5 px-2 py-1 bg-white/60 rounded-md">
+                                    <span className="text-xs font-medium text-muted-foreground">🌶️</span>
+                                    <span className="text-sm font-semibold">{(item.spicePercent ?? 50)}%</span>
+                                  </div>
+                                  {item.isJain && (
+                                    <Badge variant="secondary" className="text-xs shadow-sm">
+                                      🥗 Jain
+                                    </Badge>
+                                  )}
+                                </div>
+                                
+                                <div className="flex items-center gap-2 bg-white/60 rounded-lg p-1">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => updateQuantityAt(index, -1)}
+                                    className="h-7 w-7 hover:bg-primary/20"
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="w-6 text-center font-bold text-sm">{item.quantity}</span>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => updateQuantityAt(index, 1)}
+                                    className="h-7 w-7 hover:bg-primary/20"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           </motion.div>
@@ -774,34 +783,37 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                     </ScrollArea>
 
                     {/* Totals */}
-                    <div className="space-y-2 mb-4">
-                      <div className="flex justify-between">
-                        <span>Subtotal:</span>
-                        <span>₹{subtotal.toFixed(2)}</span>
+                    <div className="space-y-3 mb-6 p-4 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl border-2 border-primary/20">
+                      <div className="flex justify-between text-base">
+                        <span className="text-muted-foreground">Subtotal:</span>
+                        <span className="font-semibold">₹{subtotal.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between font-bold text-lg border-t pt-2">
+                      <div className="flex justify-between font-bold text-xl border-t-2 border-primary/30 pt-3">
                         <span>Total:</span>
-                        <span>₹{total.toFixed(2)}</span>
+                        <span className="text-primary">₹{total.toFixed(2)}</span>
                       </div>
                     </div>
 
-                    {/* Place Order Button */}
-                    <Button
-                      onClick={handleGoToBill}
-                      className="w-full"
-                      size="lg"
-                    >
-                      <Check className="h-5 w-5 mr-2" />
-                      Go to Bill
-                    </Button>
-                    <Button
-                      onClick={handlePrintDraft}
-                      className="w-full mt-2"
-                      variant="outline"
-                      size="sm"
-                    >
-                      Print Draft
-                    </Button>
+                    {/* Action Buttons */}
+                    <div className="space-y-3">
+                      <Button
+                        onClick={handleGoToBill}
+                        className="w-full h-12 text-base font-bold shadow-lg hover:shadow-xl transition-all"
+                        size="lg"
+                      >
+                        <Check className="h-5 w-5 mr-2" />
+                        Go to Bill
+                      </Button>
+                      <Button
+                        onClick={handlePrintDraft}
+                        className="w-full h-10"
+                        variant="outline"
+                        size="default"
+                      >
+                        <Printer className="h-4 w-4 mr-2" />
+                        Print Draft
+                      </Button>
+                    </div>
                   </>
                 )}
               </div>

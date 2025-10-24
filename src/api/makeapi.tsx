@@ -29,12 +29,17 @@ export const makeApi = async (
     const response = await axios(config);
     return response;
   } catch (error) {
-    const message = error.response.data
-		if(message.error === "Invalid Token.") {
-			localStorage.clear()
+    const message = error.response?.data;
+		if(message?.error === "Invalid Token.") {
+			localStorage.clear();
 			window.location.href = "/";
 		}
-    console.error("API request failed:", error.response.data);
+		// Handle subscription expired error
+		if(message?.subscriptionExpired === true) {
+			console.error("Subscription expired:", message);
+			// Error will be caught and handled by the calling component
+		}
+    console.error("API request failed:", error.response?.data);
     throw error;
   }
 };
