@@ -1,4 +1,5 @@
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000/api';
+// const API_BASE = 'http://localhost:3000/api';
+const API_BASE = 'https://resturent-backend-l8jk.onrender.com/api';
 
 export interface Plan {
   _id: string;
