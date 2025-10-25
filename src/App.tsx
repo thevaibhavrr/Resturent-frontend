@@ -13,6 +13,7 @@ import CategoryManagementPage from "./pages/admin/CategoryManagementPage";
 import BillHistoryPage from "./pages/admin/BillHistoryPage";
 import ReportsPage from "./pages/admin/ReportsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
+import { Plans } from "./pages/admin/Plans";
 import { TablesPage } from "./components/TablesPage";
 import { MenuPage } from "./components/MenuPage";
 import { BillPage } from "./components/BillPage";
@@ -327,6 +328,7 @@ function AppContent() {
             <Route path="/admin/bills" element={<BillHistoryPage />} />
             <Route path="/admin/reports" element={<ReportsPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
+            <Route path="/admin/plans" element={<Plans />} />
             <Route path="*" element={<Navigate to="/admin" />} />
           </Routes>
         </main>

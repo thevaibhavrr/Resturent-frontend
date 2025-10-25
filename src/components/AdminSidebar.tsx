@@ -116,7 +116,11 @@ export function AdminSidebar({
       label: "Reports",
       icon: FileText,
     },
-   
+    {
+      id: "plans",
+      label: "Subscription Plans",
+      icon: CreditCard,
+    },
     {
       id: "settings",
       label: "Settings",
@@ -135,6 +139,7 @@ export function AdminSidebar({
     "menu-item-management": "/admin/menu",
     "bill-history": "/admin/bills",
     "reports": "/admin/reports",
+    "plans": "/admin/plans",
     "settings": "/admin/settings",
   };
 

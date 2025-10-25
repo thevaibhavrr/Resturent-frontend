@@ -209,15 +209,20 @@ export function AdminDashboard() {
                     )}
                   </div>
                   
-                  <Button 
-                    size="default"
-                    className="w-full sm:w-auto md:ml-4 shrink-0"
-                    variant={subscription.daysRemaining <= 7 ? "destructive" : "default"}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                    <span className="text-sm sm:text-base">Upgrade / Recharge</span>
-                  </Button>
+                  {subscription.daysRemaining <= 15 && (
+                    <Button 
+                      size="default"
+                      className="w-full sm:w-auto md:ml-4 shrink-0"
+                      variant={subscription.daysRemaining <= 7 ? "destructive" : "default"}
+                      onClick={(e: React.MouseEvent) => {
+                        e.stopPropagation();
+                        navigate('/admin/plans');
+                      }}
+                    >
+                      <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                      <span className="text-sm sm:text-base">Upgrade / Recharge</span>
+                    </Button>
+                  )}
                 </div>
               </div>
                 </div>
