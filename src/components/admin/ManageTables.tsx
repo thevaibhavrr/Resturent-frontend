@@ -79,16 +79,16 @@ export function ManageTables() {
   const fetchLocations = async () => {
     if (!user?.restaurantId) return;
     try {
-      const res = await makeApi(`/api/space?restaurantId=${user.restaurantId}`, 'GET');
+      const res = await makeApi(`/api/space?restaurantId=${user.restaurantId}`, 'GET', undefined);
       const locationsData = Array.isArray(res.data) ? res.data : [];
       setLocations(locationsData);
       
-      // Set default location if none selected and locations exist
+      // Set default space if none selected and spaces exist
       if (locationsData.length > 0 && !formData.locationId) {
         setFormData(prev => ({ ...prev, locationId: locationsData[0]._id }));
       }
     } catch (err) {
-      toast.error("Failed to load locations");
+      toast.error("Failed to load spaces");
     }
   };
 
@@ -163,9 +163,9 @@ export function ManageTables() {
       return table.location.name.replace(/-/g, " ").toUpperCase();
     }
     
-    // Fallback: find location from locations array
+    // Fallback: find space from locations array
     const location = locations.find(loc => loc._id === table.locationId);
-    return location ? location.name.replace(/-/g, " ").toUpperCase() : "Unknown Location";
+    return location ? location.name.replace(/-/g, " ").toUpperCase() : "Unknown Space";
   };
 
   return (
@@ -187,10 +187,10 @@ export function ManageTables() {
           <Filter className="w-5 h-5 text-muted-foreground" />
           <Select value={filterLocation} onValueChange={setFilterLocation}>
             <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Select location" />
+              <SelectValue placeholder="Select space" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Locations</SelectItem>
+              <SelectItem value="all">All Spaces</SelectItem>
               {locations.map((loc) => (
                 <SelectItem key={loc._id} value={loc._id}>
                   {loc.name.replace(/-/g, " ").toUpperCase()}
@@ -272,7 +272,7 @@ export function ManageTables() {
               />
             </div>
             <div>
-              <Label htmlFor="location">Location *</Label>
+              <Label htmlFor="location">Space *</Label>
               <Select
                 value={formData.locationId}
                 onValueChange={(value: string) =>
@@ -280,7 +280,7 @@ export function ManageTables() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a location" />
+                  <SelectValue placeholder="Select a space" />
                 </SelectTrigger>
                 <SelectContent>
                   {locations.map((loc) => (

@@ -9,6 +9,7 @@ interface BillItem {
   name: string;
   price: number;
   quantity: number;
+  note?: string;
 }
 
 interface PrintBillProps {
@@ -144,7 +145,16 @@ export function PrintBill({
               <tbody>
                 {items.map((item) => (
                   <tr key={item.id}>
-                    <td className="py-1">{item.name}</td>
+                    <td className="py-1">
+                      <div>
+                        <span>{item.name}</span>
+                        {item.note && (
+                          <div className="text-[10px] text-gray-600 italic mt-0.5">
+                            Note: {item.note}
+                          </div>
+                        )}
+                      </div>
+                    </td>
                     <td className="text-center">{item.quantity}</td>
                     <td className="text-right">{item.price}</td>
                     <td className="text-right">{item.price * item.quantity}</td>

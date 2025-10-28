@@ -80,7 +80,10 @@ export function CategoryManagement() {
   };
 
   const handleSave = async () => {
-    if (!user?.restaurantId) return;
+    if (!user?.restaurantId) {
+      toast.error("Restaurant ID not found");
+      return;
+    }
     if (!formData.name.trim()) {
       toast.error("Please enter a category name");
       return;
@@ -88,10 +91,18 @@ export function CategoryManagement() {
 
     try {
       if (editingCategory) {
-        await updateCategory(editingCategory._id!, {
+        if (!editingCategory._id) {
+          toast.error("Category ID not found");
+          return;
+        }
+        const updateData = {
           name: formData.name,
-          description: formData.description
-        });
+          description: formData.description,
+          restaurantId: user.restaurantId
+        };
+        console.log('Updating category with data:', updateData);
+        const response = await updateCategory(editingCategory._id, updateData);
+        console.log('Update response:', response);
         toast.success("Category updated successfully");
       } else {
         await createCategory({
@@ -103,29 +114,34 @@ export function CategoryManagement() {
       }
       
       setIsDialogOpen(false);
-      loadCategories();
-    } catch (err) {
-      toast.error("Failed to save category");
+      await loadCategories();
+    } catch (err: any) {
+      console.error("Error saving category:", err);
+      toast.error(err?.response?.data?.error || err?.message || "Failed to save category");
     }
   };
 
   const handleDelete = async (category: MenuCategory) => {
-    if (!category._id) return;
+    if (!category._id) {
+      toast.error("Category ID not found");
+      return;
+    }
     
     try {
       const itemCount = await getCategoryItemCount(category._id);
       if (itemCount > 0) {
-        toast.error(`Cannot delete category with ${itemCount} menu items`);
+        toast.error(`Cannot delete category with ${itemCount} menu items. Please remove them first.`);
         return;
       }
 
-      if (confirm("Are you sure you want to delete this category?")) {
+      if (confirm(`Are you sure you want to delete "${category.name}"?`)) {
         await deleteCategory(category._id);
         toast.success("Category deleted successfully");
-        loadCategories();
+        await loadCategories();
       }
-    } catch (err) {
-      toast.error("Failed to delete category");
+    } catch (err: any) {
+      console.error("Error deleting category:", err);
+      toast.error(err?.message || "Failed to delete category");
     }
   };
 

@@ -14,13 +14,15 @@ export interface MenuItem {
   name: string;
   description?: string;
   price: number;
-  categoryId: string | MenuCategory;
+  categoryId?: string | MenuCategory;
+  category?: string;
   restaurantId: string;
   image?: string;
   status: 'active' | 'inactive';
   isVeg: boolean;
-  displayOrder: number;
+  displayOrder?: number;
   preparationTime: number;
+  spiceLevel?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -29,11 +31,12 @@ export interface MenuItemCreateInput {
   name: string;
   description?: string;
   price: number;
-  categoryId: string;
+  category: string;
   restaurantId: string;
   image?: string;
   isVeg?: boolean;
   preparationTime?: number;
+  spiceLevel?: number;
 }
 
 export interface MenuCategoryCreateInput {

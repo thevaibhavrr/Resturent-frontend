@@ -1,3 +1,5 @@
+import { LocationManagement } from "../../components/admin/LocationManagement";
+
 export default function SpaceManagementPage() {
-  return <div>Space Management</div>;
+  return <LocationManagement />;
 }

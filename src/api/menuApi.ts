@@ -47,6 +47,6 @@ export const deleteCategory = async (id: string) => {
 };
 
 export const updateCategoryOrder = async (categories: any[]) => {
-  const response = await makeApi('/api/menu/categories/order', 'PUT', { categories });
+  const response = await makeApi('/api/menu/categories/order', 'PUT', { orders: categories });
   return response.data;
 };

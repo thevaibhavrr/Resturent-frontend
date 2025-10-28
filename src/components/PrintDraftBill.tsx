@@ -10,6 +10,7 @@ interface DraftBillItem {
   spiceLevel?: number;
   spicePercent?: number;
   isJain?: boolean;
+  note?: string;
 }
 
 interface PrintDraftBillProps {
@@ -69,12 +70,19 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
                 {items.map((item) => (
                   <tr key={item.id}>
                     <td className="py-0.5 pr-1">
-                      <span>{item.name}</span>
-                      {typeof item.spicePercent === 'number' && (
-                        <span className="ml-1 text-[10px] text-gray-700">({Math.round(item.spicePercent)}%)</span>
-                      )}
-                      {item.isJain && (
-                        <span className="ml-1 text-[10px] text-gray-700">[Jain]</span>
+                      <div>
+                        <span>{item.name}</span>
+                        {typeof item.spicePercent === 'number' && (
+                          <span className="ml-1 text-[10px] text-gray-700">({Math.round(item.spicePercent)}%)</span>
+                        )}
+                        {item.isJain && (
+                          <span className="ml-1 text-[10px] text-gray-700">[Jain]</span>
+                        )}
+                      </div>
+                      {item.note && (
+                        <div className="text-[9px] text-gray-600 italic mt-0.5">
+                          Note: {item.note}
+                        </div>
                       )}
                     </td>
                     <td className="text-center">{item.quantity}</td>

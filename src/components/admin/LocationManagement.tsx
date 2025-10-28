@@ -38,10 +38,10 @@ export function LocationManagement() {
   const loadLocations = async () => {
     if (!user?.restaurantId) return;
     try {
-      const res = await makeApi(`/api/space?restaurantId=${user.restaurantId}`, 'GET');
+      const res = await makeApi(`/api/space?restaurantId=${user.restaurantId}`, 'GET', undefined);
       setLocations(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      toast.error("Failed to load locations");
+      toast.error("Failed to load spaces");
     }
   };
 
@@ -92,13 +92,13 @@ export function LocationManagement() {
     if (!user?.restaurantId) return;
 
     // API will return error if location has tables
-    if (confirm("Are you sure you want to delete this location?")) {
+    if (confirm("Are you sure you want to delete this space?")) {
       try {
-        await makeApi(`/api/space/${location._id}`, 'DELETE');
-        toast.success("Location deleted successfully");
+        await makeApi(`/api/space/${location._id}`, 'DELETE', undefined);
+        toast.success("Space deleted successfully");
         loadLocations();
       } catch (err) {
-        toast.error("Failed to delete location. It may be in use by tables.");
+        toast.error("Failed to delete space. It may be in use by tables.");
       }
     }
   };
@@ -108,14 +108,14 @@ export function LocationManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl mb-2">Location Management</h1>
+          <h1 className="text-3xl mb-2">Space Management</h1>
           <p className="text-muted-foreground">
-            Manage restaurant areas and locations
+            Manage restaurant areas and spaces
           </p>
         </div>
         <Button onClick={handleAdd} className="gap-2">
           <Plus className="w-4 h-4" />
-          Add Location
+          Add Space
         </Button>
       </div>
 
@@ -126,7 +126,7 @@ export function LocationManagement() {
             <MapPin className="w-8 h-8 text-primary" />
             <div>
               <p className="text-2xl">{locations.length}</p>
-              <p className="text-sm text-muted-foreground">Total Locations</p>
+              <p className="text-sm text-muted-foreground">Total Spaces</p>
             </div>
           </div>
         </Card>
@@ -177,9 +177,9 @@ export function LocationManagement() {
       {locations.length === 0 && (
         <Card className="p-12 text-center">
           <MapPin className="w-12 h-12 mx-auto mb-3 opacity-50 text-muted-foreground" />
-          <p className="text-muted-foreground">No locations yet</p>
+          <p className="text-muted-foreground">No spaces yet</p>
           <Button onClick={handleAdd} className="mt-4" variant="outline">
-            Add your first location
+            Add your first space
           </Button>
         </Card>
       )}
@@ -189,17 +189,17 @@ export function LocationManagement() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingLocation ? "Edit Location" : "Add Location"}
+              {editingLocation ? "Edit Space" : "Add Space"}
             </DialogTitle>
             <DialogDescription>
               {editingLocation
-                ? "Update location name"
-                : "Create a new location for your restaurant"}
+                ? "Update space name"
+                : "Create a new space for your restaurant"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="locationName">Location Name *</Label>
+              <Label htmlFor="locationName">Space Name *</Label>
               <Input
                 id="locationName"
                 value={locationName}
@@ -216,7 +216,7 @@ export function LocationManagement() {
               Cancel
             </Button>
             <Button onClick={handleSave}>
-              {editingLocation ? "Update" : "Add"} Location
+              {editingLocation ? "Update" : "Add"} Space
             </Button>
           </DialogFooter>
         </DialogContent>

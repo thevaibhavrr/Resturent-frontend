@@ -239,19 +239,19 @@ export function BillPage({
                 <h1 className="text-2xl font-bold">Bill - {tableName}</h1>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <Users className="h-4 w-4" />
                 <Input
                   type="number"
                   min="1"
                   value={persons}
                   onChange={(e) => setPersons(parseInt(e.target.value) || 1)}
-                  className="w-20"
+                  className="w-16 sm:w-20 text-xs sm:text-sm"
                 />
               </div>
-              <Badge variant="secondary" className="gap-2">
-                <ShoppingCart className="h-4 w-4" />
+              <Badge variant="secondary" className="gap-1 sm:gap-2 text-xs sm:text-sm">
+                <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
                 {cart.length} items
               </Badge>
             </div>
@@ -397,9 +397,30 @@ export function BillPage({
                   <Clock className="h-4 w-4" />
                   <span>Table: {tableName}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  <span>{persons} {persons === 1 ? 'person' : 'people'}</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Users className="h-4 w-4" />
+                    <span>Persons:</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPersons(Math.max(1, persons - 1))}
+                      className="h-7 w-7 p-0"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="w-8 text-center font-bold text-sm">{persons}</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPersons(persons + 1)}
+                      className="h-7 w-7 p-0"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
               </div>
 

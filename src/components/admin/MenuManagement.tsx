@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "../ui/select";
 import { Plus, Edit2, Trash2, UtensilsCrossed, Filter } from "lucide-react";
-import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
+import { getCurrentUser } from "../../utils/auth";
 import { toast } from "sonner";
 import type { MenuItem, MenuCategory } from "../../types/menu";
 import {
@@ -29,16 +29,8 @@ import {
   createMenuItem,
   updateMenuItem,
   deleteMenuItem,
-  updateMenuItemOrder,
   getCategories,
 } from "../../api/menuApi";
-import {
-  getAllStaff,
-  createStaff,
-  getStaffById,
-  updateStaff,
-  deleteStaff,
-} from "../../api/staffApi";
 
 export function MenuManagement() {
   const user = getCurrentUser();
@@ -53,11 +45,14 @@ export function MenuManagement() {
     description: "",
     price: "",
     categoryId: "",
+    category: "",
     isVeg: true,
     preparationTime: "15",
     image: "",
     spiceLevel: "0",
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
 
   // Load categories once on mount, and reload items when filterCategory or user changes
   useEffect(() => {
@@ -101,44 +96,93 @@ export function MenuManagement() {
 
   const handleAdd = () => {
     setEditingItem(null);
+    const firstCategory = categories[0];
     setFormData({
       name: "",
       description: "",
       price: "",
-      categoryId: categories[0]?._id || "",
+      categoryId: firstCategory?._id || "",
+      category: firstCategory?.name || "",
       isVeg: true,
       preparationTime: "15",
       image: "",
       spiceLevel: "0",
     });
+    setImageFile(null);
+    setImagePreview("");
     setIsDialogOpen(true);
   };
 
   const handleEdit = (item: MenuItem) => {
     setEditingItem(item);
+    
+    // Safely handle spiceLevel with proper fallbacks
+    const spiceLevel = (item as any).spiceLevel;
+    const safeSpiceLevel = spiceLevel !== undefined && spiceLevel !== null 
+      ? spiceLevel.toString() 
+      : "0";
+
+    // Extract categoryId and category properly
+    let categoryId = "";
+    let category = "";
+    
+    if (typeof item.categoryId === "string") {
+      categoryId = item.categoryId;
+    } else if (item.categoryId && typeof item.categoryId === "object" && item.categoryId._id) {
+      categoryId = item.categoryId._id;
+    }
+    
+    // For category name, check if it's in the item directly or from categoryId object
+    if ((item as any).category) {
+      category = (item as any).category;
+    } else if (typeof item.categoryId === "object" && item.categoryId?.name) {
+      category = item.categoryId.name;
+    } else if (categoryId) {
+      // Find category name by ID
+      const foundCategory = categories.find(c => c._id === categoryId);
+      category = foundCategory?.name || "";
+    }
+
     setFormData({
-      name: item.name,
+      name: item.name || "",
       description: item.description || "",
-      price: item.price.toString(),
-      categoryId:
-        typeof item.categoryId === "string"
-          ? item.categoryId
-          : item.categoryId?._id || "",
-      isVeg: item.isVeg,
-      preparationTime: item.preparationTime.toString(),
+      price: item.price?.toString() || "",
+      categoryId: categoryId,
+      category: category,
+      isVeg: item.isVeg ?? true,
+      preparationTime: item.preparationTime?.toString() || "15",
       image: item.image || "",
-      spiceLevel:
-        (item as any).spiceLevel !== undefined
-          ? (item as any).spiceLevel.toString()
-          : "0",
+      spiceLevel: safeSpiceLevel,
     });
+    setImageFile(null);
+    setImagePreview(item.image || "");
     setIsDialogOpen(true);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select a valid image file');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSave = async () => {
     if (!user?.restaurantId) return;
 
-    if (!formData.name.trim() || !formData.price || !formData.categoryId) {
+    if (!formData.name.trim() || !formData.price || !formData.category) {
       toast.error("Please fill all required fields");
       return;
     }
@@ -156,19 +200,41 @@ export function MenuManagement() {
     }
 
     try {
+      let imageUrl = formData.image;
+      
+      // Upload image if file is selected
+      if (imageFile && imagePreview) {
+        const uploadResponse = await fetch('/api/upload/image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ image: imagePreview }),
+        });
+        
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          imageUrl = uploadData.url;
+        } else {
+          toast.error('Failed to upload image');
+          return;
+        }
+      }
+
       const itemData = {
-        name: formData.name,
-        description: formData.description,
+        name: formData.name.trim(),
+        description: formData.description.trim(),
         price,
-        categoryId: formData.categoryId,
+        category: formData.category,
         restaurantId: user.restaurantId,
         isVeg: formData.isVeg,
         preparationTime: prepTime,
-        image: formData.image,
+        image: imageUrl,
+        spiceLevel: parseInt(formData.spiceLevel) || 0,
       };
 
-      if (editingItem) {
-        await updateMenuItem(editingItem._id!, itemData);
+      if (editingItem && editingItem._id) {
+        await updateMenuItem(editingItem._id, itemData);
         toast.success("Item updated successfully");
       } else {
         await createMenuItem(itemData);
@@ -178,6 +244,7 @@ export function MenuManagement() {
       setIsDialogOpen(false);
       loadItems();
     } catch (err) {
+      console.error("Error saving item:", err);
       toast.error("Failed to save item");
     }
   };
@@ -196,14 +263,30 @@ export function MenuManagement() {
     }
   };
 
-  const getCategoryName = (categoryId: string): string => {
-    const category = categories.find((c) => c._id === categoryId);
+  const getCategoryName = (item: MenuItem): string => {
+    // Check if item has category field directly
+    if ((item as any).category) {
+      return (item as any).category;
+    }
+    
+    // Handle both string ID and MenuCategory object for categoryId
+    const id = typeof item.categoryId === "string" ? item.categoryId : item.categoryId?._id;
+    const category = categories.find((c) => c._id === id);
     return category ? category.name : "Unknown Category";
   };
 
   // derive filtered items
   const filteredItems = items.filter((it) => {
     if (filterCategory === "all") return true;
+    
+    // Check if item has category field directly
+    if ((it as any).category) {
+      const categoryName = (it as any).category;
+      const selectedCategory = categories.find(cat => cat._id === filterCategory);
+      return selectedCategory && categoryName === selectedCategory.name;
+    }
+    
+    // Fallback to categoryId logic
     const catId = typeof it.categoryId === "string" ? it.categoryId : it.categoryId?._id;
     return catId === filterCategory;
   });
@@ -235,36 +318,8 @@ export function MenuManagement() {
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 flex items-center justify-center">
-              ₹
-            </div>
-            <div>
-              <p className="text-2xl">
-                ₹
-                {items.length > 0
-                  ? Math.round(
-                      items.reduce((sum, item) => sum + item.price, 0) /
-                        items.length
-                    )
-                  : 0}
-              </p>
-              <p className="text-sm text-muted-foreground">Avg Price</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl">
-              #
-            </div>
-            <div>
-              <p className="text-2xl">{categories.length}</p>
-              <p className="text-sm text-muted-foreground">Categories</p>
-            </div>
-          </div>
-        </Card>
+      
+      
       </div>
 
       {/* Filter */}
@@ -278,8 +333,8 @@ export function MenuManagement() {
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
               {categories.map((cat) => (
-                <SelectItem key={cat._id} value={cat._id}>
-                  {cat.name.replace("-", " ").toUpperCase()}
+                <SelectItem key={cat._id} value={cat._id || ""}>
+                  {cat.name?.replace("-", " ").toUpperCase() || "Unnamed Category"}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -292,11 +347,16 @@ export function MenuManagement() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {filteredItems.filter(item => item && item.name).map((item) => (
           <Card key={item._id || item.name} className="overflow-hidden">
-            <div className="aspect-video bg-muted relative">
+            <div className="h-32 bg-muted relative">
               <img
-                src={item.image || ""}
+                src={item.image || "/placeholder-food.jpg"}
                 alt={item.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-fill"
+                      style={{maxHeight:"200px"}}
+
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/placeholder-food.jpg";
+                }}
               />
             </div>
             <div className="p-4">
@@ -305,9 +365,7 @@ export function MenuManagement() {
                   <h3 className="font-semibold mb-1">{item.name}</h3>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs">
-                      {typeof item.categoryId === "string"
-                        ? getCategoryName(item.categoryId)
-                        : (item.categoryId as MenuCategory)?.name || "No Category"}
+                      {getCategoryName(item)}
                     </Badge>
                     {(item as any).spiceLevel > 0 && (
                       <Badge variant="secondary" className="text-xs">
@@ -318,7 +376,7 @@ export function MenuManagement() {
                 </div>
               </div>
               <div className="flex items-center justify-between mt-3">
-                <span className="text-lg text-primary">₹{item.price}</span>
+                <span className="text-lg text-primary">₹{item.price || 0}</span>
                 <div className="flex gap-1">
                   <Button
                     size="icon"
@@ -344,13 +402,20 @@ export function MenuManagement() {
       </div>
 
       {/* Empty State */}
-      {filteredItems.length === 0 && (
+      {filteredItems.length === 0 && !loading && (
         <Card className="p-12 text-center">
           <UtensilsCrossed className="w-12 h-12 mx-auto mb-3 opacity-50 text-muted-foreground" />
           <p className="text-muted-foreground">No menu items found</p>
           <Button onClick={handleAdd} className="mt-4" variant="outline">
             Add your first menu item
           </Button>
+        </Card>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <Card className="p-12 text-center">
+          <p className="text-muted-foreground">Loading menu items...</p>
         </Card>
       )}
 
@@ -380,6 +445,17 @@ export function MenuManagement() {
                   placeholder="e.g., Butter Roti"
                 />
               </div>
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Input
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  placeholder="Item description..."
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="price">Price (₹) *</Label>
@@ -391,6 +467,8 @@ export function MenuManagement() {
                       setFormData({ ...formData, price: e.target.value })
                     }
                     placeholder="0"
+                    min="0"
+                    step="0.01"
                   />
                 </div>
                 <div>
@@ -407,13 +485,49 @@ export function MenuManagement() {
                   />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="preparationTime">Prep Time (mins)</Label>
+                  <Input
+                    id="preparationTime"
+                    type="number"
+                    min="0"
+                    value={formData.preparationTime}
+                    onChange={(e) =>
+                      setFormData({ ...formData, preparationTime: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="isVeg">Food Type</Label>
+                  <Select
+                    value={formData.isVeg ? "veg" : "non-veg"}
+                    onValueChange={(value: string) =>
+                      setFormData({ ...formData, isVeg: value === "veg" })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="veg">Vegetarian</SelectItem>
+                      <SelectItem value="non-veg">Non-Vegetarian</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div>
                 <Label htmlFor="category">Category *</Label>
                 <Select
                   value={formData.categoryId}
-                  onValueChange={(value: string) =>
-                    setFormData({ ...formData, categoryId: value })
-                  }
+                  onValueChange={(value: string) => {
+                    const selectedCategory = categories.find(cat => cat._id === value);
+                    setFormData({ 
+                      ...formData, 
+                      categoryId: value,
+                      category: selectedCategory?.name || ""
+                    });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -421,22 +535,33 @@ export function MenuManagement() {
                   <SelectContent>
                     {categories.map((cat) => (
                       <SelectItem key={cat._id} value={cat._id || ""}>
-                        {cat.name.replace("-", " ").toUpperCase()}
+                        {cat.name?.replace("-", " ").toUpperCase() || "Unnamed Category"}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="image">Image URL</Label>
+                <Label htmlFor="image">Menu Item Image</Label>
                 <Input
                   id="image"
-                  value={formData.image}
-                  onChange={(e) =>
-                    setFormData({ ...formData, image: e.target.value })
-                  }
-                  placeholder="https://..."
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="cursor-pointer"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Upload a photo of your menu item (Max 5MB)
+                </p>
+                {imagePreview && (
+                  <div className="mt-3">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-full h-32 object-cover rounded-md border"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </ScrollArea>

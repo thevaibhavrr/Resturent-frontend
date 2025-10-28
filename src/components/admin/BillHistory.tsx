@@ -19,9 +19,11 @@ import {
   DollarSign,
   FileText,
   Filter,
+  ArrowLeft,
 } from "lucide-react";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface BillHistoryItem {
   billNumber: string;
@@ -35,6 +37,7 @@ interface BillHistoryItem {
 
 export function BillHistory() {
   const user = getCurrentUser();
+  const navigate = useNavigate();
   const [history, setHistory] = useState<BillHistoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
@@ -146,11 +149,21 @@ export function BillHistory() {
   return (
     <div className="p-1 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl mb-2">Bill History</h1>
-        <p className="text-muted-foreground">
-          View and manage all restaurant bills
-        </p>
+      <div className="flex items-center gap-4 mb-6">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate("/order-tables")}
+          className="h-10 w-10"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div>
+          <h1 className="text-3xl mb-2">Bill History</h1>
+          <p className="text-muted-foreground">
+            View and manage all restaurant bills
+          </p>
+        </div>
       </div>
 
       {/* Stats */}

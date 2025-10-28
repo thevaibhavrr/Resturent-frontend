@@ -430,15 +430,22 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={onBack}>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={onBack}
+                className="h-10 w-10 hover:bg-primary/10 transition-colors"
+                title="Back to Tables"
+              >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
-                <h1 className="text-2xl font-bold">{tableName}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold">{tableName}</h1>
+                <p className="text-sm text-muted-foreground hidden sm:block">Table Menu</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <Users className="h-4 w-4" />
                 <Select
                   value={persons <= 10 && !useCustomPersons ? String(persons) : "custom"}
@@ -451,7 +458,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                     }
                   }}
                 >
-                  <SelectTrigger className="w-28 h-8">
+                  <SelectTrigger className="w-20 sm:w-28 h-8 text-xs sm:text-sm">
                     <SelectValue placeholder="Persons" />
                   </SelectTrigger>
                   <SelectContent>
@@ -467,7 +474,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                     min="1"
                     value={persons}
                     onChange={(e) => setPersons(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-20 h-8 text-sm px-2"
+                    className="w-16 sm:w-20 h-8 text-xs sm:text-sm px-1 sm:px-2"
                     placeholder="Enter"
                   />
                 )}
@@ -480,6 +487,18 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       <div className={'h-16'} />
 
       <div className="container mx-auto px-4 py-6">
+        {/* Mobile Back Button - Visible only on mobile */}
+        <div className="lg:hidden mb-4">
+          <Button 
+            variant="outline" 
+            onClick={onBack}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Tables
+          </Button>
+        </div>
+        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Menu Section */}
           <div className="lg:col-span-2">
@@ -738,7 +757,8 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                               
                               <Input
                                 placeholder="Add note (optional)"
-                                value={item.note || ""}
+                                value={item.note || ""} 
+                                
                                 onChange={(e) => handleNoteChangeAt(index, e.target.value)}
                                 className="h-9 text-sm bg-white/80 border-primary/30 focus:border-primary"
                               />
@@ -781,6 +801,35 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                         ))}
                       </div>
                     </ScrollArea>
+
+                    {/* Persons Count */}
+                    <div className="mb-4 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-800">Persons:</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setPersons(Math.max(1, persons - 1))}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="w-8 text-center font-bold text-sm">{persons}</span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setPersons(persons + 1)}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
 
                     {/* Totals */}
                     <div className="space-y-3 mb-6 p-4 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl border-2 border-primary/20">
