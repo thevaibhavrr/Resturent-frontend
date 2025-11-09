@@ -86,68 +86,79 @@ export function PrintBill({
       {/* Print Bill Content */}
       <div className="flex items-center justify-center min-h-screen p-4 print:p-0 print:block">
         <div className="w-full max-w-[80mm] bg-white text-black p-4 print:p-0" id="bill-content">
-          {/* Restaurant Logo/Header */}
-          <div className="text-center border-b-2 border-black pb-2 mb-2">
+          {/* Restaurant Logo/Header - Creative Design */}
+          <div className="text-center border-b-4 border-double border-black pb-3 mb-3">
             {restaurantSettings.logo ? (
-              <div className="w-20 h-20 mx-auto mb-2 flex items-center justify-center">
+              <div className="w-24 h-24 mx-auto mb-3 flex items-center justify-center border-2 border-black rounded-full p-2">
                 <img 
                   src={restaurantSettings.logo} 
                   alt="Restaurant Logo" 
-                  className="max-w-full max-h-full object-contain"
+                  className="max-w-full max-h-full object-contain rounded-full"
                 />
               </div>
             ) : (
-              <div className="w-16 h-16 mx-auto mb-2 bg-black text-white flex items-center justify-center rounded-full text-2xl">
+              <div className="w-20 h-20 mx-auto mb-3 bg-gradient-to-br from-black to-gray-700 text-white flex items-center justify-center rounded-full text-3xl font-bold shadow-lg border-4 border-black">
                 {restaurantSettings.name.charAt(0)}
               </div>
             )}
-            <h1 className="text-lg font-bold uppercase">{restaurantSettings.name}</h1>
-            <p className="text-xs">{restaurantSettings.address}</p>
-            <p className="text-xs">Ph: {restaurantSettings.phone}</p>
-            <p className="text-xs">GSTIN: {restaurantSettings.gstin}</p>
-          </div>
-
-          {/* Bill Details */}
-          <div className="text-xs mb-2 border-b border-dashed border-black pb-2">
-            <div className="flex justify-between">
-              <span>Bill No:</span>
-              <span className="font-bold">{billNumber}</span>
+            <h1 className="text-xl font-extrabold uppercase tracking-wide mb-2" style={{ letterSpacing: '2px' }}>
+              {restaurantSettings.name}
+            </h1>
+            <div className="space-y-1 text-xs">
+              <p className="font-semibold">{restaurantSettings.address}</p>
+              <p className="font-medium">📞 {restaurantSettings.phone}</p>
+              {restaurantSettings.gstin && (
+                <p className="text-[10px] opacity-75">GSTIN: {restaurantSettings.gstin}</p>
+              )}
             </div>
-            <div className="flex justify-between">
-              <span>Date:</span>
-              <span>{currentDate}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Time:</span>
-              <span>{currentTime}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Table:</span>
-              <span>{tableName}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Persons:</span>
-              <span>{persons}</span>
+            <div className="mt-2 pt-2 border-t border-dashed border-gray-400">
+              <div className="text-[10px] text-gray-600">━━━━━━━━━━━━━━━━━━</div>
             </div>
           </div>
 
-          {/* Items */}
-          <div className="border-b border-dashed border-black pb-2 mb-2">
+          {/* Bill Details - Enhanced Design */}
+          <div className="text-xs mb-3 border-b-2 border-dashed border-gray-600 pb-3 bg-gray-50 -mx-1 px-2 py-2 rounded">
+            <div className="grid grid-cols-2 gap-1">
+              <div className="flex justify-between">
+                <span className="font-semibold">Bill No:</span>
+                <span className="font-bold text-base">{billNumber}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-semibold">Date:</span>
+                <span>{currentDate}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-semibold">Time:</span>
+                <span>{currentTime}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-semibold">Table:</span>
+                <span className="font-bold">{tableName}</span>
+              </div>
+              <div className="flex justify-between col-span-2">
+                <span className="font-semibold">Persons:</span>
+                <span className="font-bold">{persons}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Items - Enhanced Table */}
+          <div className="border-b-2 border-dashed border-gray-600 pb-3 mb-3">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-black">
-                  <th className="text-left py-1">Item</th>
-                  <th className="text-center py-1">Qty</th>
-                  <th className="text-right py-1">Price</th>
-                  <th className="text-right py-1">Amt</th>
+                <tr className="border-b-2 border-black bg-gray-100">
+                  <th className="text-left py-2 font-bold">Item</th>
+                  <th className="text-center py-2 font-bold">Qty</th>
+                  <th className="text-right py-2 font-bold">Price</th>
+                  <th className="text-right py-2 font-bold">Amount</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="py-1">
+                {items.map((item, index) => (
+                  <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="py-1.5">
                       <div>
-                        <span>{item.name}</span>
+                        <span className="font-medium">{item.name}</span>
                         {item.note && (
                           <div className="text-[10px] text-gray-600 italic mt-0.5">
                             Note: {item.note}
@@ -155,9 +166,9 @@ export function PrintBill({
                         )}
                       </div>
                     </td>
-                    <td className="text-center">{item.quantity}</td>
-                    <td className="text-right">{item.price}</td>
-                    <td className="text-right">{item.price * item.quantity}</td>
+                    <td className="text-center font-medium">{item.quantity}</td>
+                    <td className="text-right">₹{item.price.toFixed(2)}</td>
+                    <td className="text-right font-semibold">₹{(item.price * item.quantity).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -166,30 +177,30 @@ export function PrintBill({
 
           {/* Additional Charges */}
           {additionalCharges.length > 0 && (
-            <div className="border-b border-dashed border-black pb-2 mb-2 text-xs">
+            <div className="border-b border-dashed border-gray-400 pb-2 mb-2 text-xs bg-gray-50 -mx-1 px-2 py-2 rounded">
               {additionalCharges.map((charge) => (
-                <div key={charge.id} className="flex justify-between">
-                  <span>{charge.name}</span>
-                  <span>{charge.amount.toFixed(2)}</span>
+                <div key={charge.id} className="flex justify-between font-medium">
+                  <span>{charge.name}:</span>
+                  <span>₹{charge.amount.toFixed(2)}</span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Bill Summary */}
-          <div className="text-xs space-y-1 mb-2">
-            <div className="flex justify-between">
+          {/* Bill Summary - Enhanced */}
+          <div className="text-xs space-y-1.5 mb-3 bg-gray-50 -mx-1 px-2 py-2 rounded border border-gray-300">
+            <div className="flex justify-between font-semibold">
               <span>Subtotal:</span>
               <span>₹{subtotal.toFixed(2)}</span>
             </div>
             {additionalTotal > 0 && (
               <div className="flex justify-between">
-                <span>Additional:</span>
+                <span>Additional Charges:</span>
                 <span>₹{additionalTotal.toFixed(2)}</span>
               </div>
             )}
             {discountAmount > 0 && (
-              <div className="flex justify-between">
+              <div className="flex justify-between text-green-700 font-semibold">
                 <span>Discount:</span>
                 <span>-₹{discountAmount.toFixed(2)}</span>
               </div>
@@ -204,18 +215,34 @@ export function PrintBill({
             </div>
           </div>
 
-          {/* Grand Total */}
-          <div className="border-t-2 border-black pt-2 mb-2">
-            <div className="flex justify-between text-sm font-bold">
-              <span>TOTAL:</span>
-              <span>₹{grandTotal.toFixed(2)}</span>
+          {/* Grand Total - Enhanced Design */}
+          <div className="border-t-4 border-double border-black pt-3 mb-4 bg-gradient-to-r from-gray-100 to-white -mx-1 px-2 py-3 rounded">
+            <div className="flex justify-between items-center">
+              <span className="text-base font-extrabold uppercase tracking-wide">TOTAL:</span>
+              <span className="text-lg font-extrabold">₹{grandTotal.toFixed(2)}</span>
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="text-center text-xs border-t border-dashed border-black pt-2">
-            <p className="font-bold">Thank You!</p>
-            <p>Please Visit Again</p>
+          {/* Footer - Creative Thank You Section */}
+          <div className="text-center border-t-4 border-double border-black pt-4 pb-2 space-y-2">
+            <div className="text-2xl font-extrabold mb-2" style={{ letterSpacing: '3px' }}>
+              🙏 THANK YOU! 🙏
+            </div>
+            <div className="text-sm font-bold mb-1">We appreciate your visit!</div>
+            <div className="text-xs font-semibold text-gray-700 mb-2">
+              Please visit us again soon
+            </div>
+            <div className="border-t border-dashed border-gray-400 pt-2 mt-2">
+              <div className="text-[10px] text-gray-600 space-y-0.5">
+                <p className="font-semibold">{restaurantSettings.name}</p>
+                <p>{restaurantSettings.address}</p>
+                <p>📞 {restaurantSettings.phone}</p>
+              </div>
+            </div>
+            <div className="text-[10px] text-gray-500 mt-2 pt-2 border-t border-dashed border-gray-300">
+              <p>━━━━━━━━━━━━━━━━━━</p>
+              <p className="mt-1">Have a great day! 🌟</p>
+            </div>
           </div>
         </div>
       </div>

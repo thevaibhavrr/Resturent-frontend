@@ -53,6 +53,8 @@ export function MenuManagement() {
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [imageInputType, setImageInputType] = useState<"upload" | "url">("upload");
+  const [imageUrl, setImageUrl] = useState<string>("");
 
   // Load categories once on mount, and reload items when filterCategory or user changes
   useEffect(() => {
@@ -110,6 +112,8 @@ export function MenuManagement() {
     });
     setImageFile(null);
     setImagePreview("");
+    setImageUrl("");
+    setImageInputType("upload");
     setIsDialogOpen(true);
   };
 
@@ -155,7 +159,16 @@ export function MenuManagement() {
       spiceLevel: safeSpiceLevel,
     });
     setImageFile(null);
-    setImagePreview(item.image || "");
+    const existingImage = item.image || "";
+    setImagePreview(existingImage);
+    // Determine if existing image is a URL or uploaded file
+    if (existingImage && (existingImage.startsWith("http://") || existingImage.startsWith("https://") || existingImage.startsWith("//"))) {
+      setImageInputType("url");
+      setImageUrl(existingImage);
+    } else {
+      setImageInputType("upload");
+      setImageUrl("");
+    }
     setIsDialogOpen(true);
   };
 
@@ -176,6 +189,45 @@ export function MenuManagement() {
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImageUrlChange = (url: string) => {
+    setImageUrl(url);
+    // Validate URL format
+    if (url.trim()) {
+      const urlPattern = /^(https?:\/\/|data:image\/)/i;
+      if (urlPattern.test(url.trim())) {
+        setImagePreview(url.trim());
+      } else {
+        // Try to add https:// if no protocol
+        const urlWithProtocol = `https://${url.trim()}`;
+        setImagePreview(urlWithProtocol);
+      }
+    } else {
+      setImagePreview("");
+    }
+  };
+
+  const validateImageUrl = (url: string): boolean => {
+    if (!url.trim()) return true; // Empty URL is allowed
+    try {
+      const urlObj = new URL(url.trim());
+      // Allow http and https protocols
+      if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+        return false;
+      }
+      // Allow any URL - backend will do final validation
+      return true;
+    } catch (e) {
+      // If URL parsing fails, try adding https://
+      try {
+        const urlWithProtocol = `https://${url.trim()}`;
+        new URL(urlWithProtocol);
+        return true;
+      } catch (e2) {
+        return false;
+      }
     }
   };
 
@@ -200,10 +252,11 @@ export function MenuManagement() {
     }
 
     try {
-      let imageUrl = formData.image;
+      let finalImageUrl = formData.image;
       
-      // Upload image if file is selected
-      if (imageFile && imagePreview) {
+      // Handle image based on input type
+      if (imageInputType === "upload" && imageFile && imagePreview) {
+        // Upload image file
         const uploadResponse = await fetch('/api/upload/image', {
           method: 'POST',
           headers: {
@@ -214,11 +267,25 @@ export function MenuManagement() {
         
         if (uploadResponse.ok) {
           const uploadData = await uploadResponse.json();
-          imageUrl = uploadData.url;
+          finalImageUrl = uploadData.url;
         } else {
           toast.error('Failed to upload image');
           return;
         }
+      } else if (imageInputType === "url" && imageUrl.trim()) {
+        // Use provided URL
+        if (!validateImageUrl(imageUrl.trim())) {
+          toast.error('Please enter a valid image URL');
+          return;
+        }
+        finalImageUrl = imageUrl.trim();
+        // Ensure URL has protocol
+        if (!finalImageUrl.startsWith('http://') && !finalImageUrl.startsWith('https://')) {
+          finalImageUrl = `https://${finalImageUrl}`;
+        }
+      } else if (imageInputType === "url" && !imageUrl.trim() && editingItem) {
+        // Keep existing image if URL is cleared during edit
+        finalImageUrl = editingItem.image || "";
       }
 
       const itemData = {
@@ -229,7 +296,7 @@ export function MenuManagement() {
         restaurantId: user.restaurantId,
         isVeg: formData.isVeg,
         preparationTime: prepTime,
-        image: imageUrl,
+        image: finalImageUrl,
         spiceLevel: parseInt(formData.spiceLevel) || 0,
       };
 
@@ -543,22 +610,91 @@ export function MenuManagement() {
               </div>
               <div>
                 <Label htmlFor="image">Menu Item Image</Label>
-                <Input
-                  id="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="cursor-pointer"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Upload a photo of your menu item (Max 5MB)
-                </p>
+                
+                {/* Image Input Type Toggle */}
+                <div className="flex gap-4 mb-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="imageInputType"
+                      value="upload"
+                      checked={imageInputType === "upload"}
+                      onChange={(e) => {
+                        setImageInputType("upload");
+                        setImageUrl("");
+                        if (!imageFile) {
+                          setImagePreview("");
+                        }
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">Upload Image</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="imageInputType"
+                      value="url"
+                      checked={imageInputType === "url"}
+                      onChange={(e) => {
+                        setImageInputType("url");
+                        setImageFile(null);
+                        if (imageUrl) {
+                          setImagePreview(imageUrl);
+                        }
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">Enter URL</span>
+                  </label>
+                </div>
+
+                {/* File Upload Input */}
+                {imageInputType === "upload" && (
+                  <>
+                    <Input
+                      id="image"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="cursor-pointer"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Upload a photo of your menu item (Max 5MB)
+                    </p>
+                  </>
+                )}
+
+                {/* URL Input */}
+                {imageInputType === "url" && (
+                  <>
+                    <Input
+                      id="imageUrl"
+                      type="url"
+                      value={imageUrl}
+                      onChange={(e) => handleImageUrlChange(e.target.value)}
+                      placeholder="https://example.com/image.jpg"
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Enter image URL (must be a direct link to an image file)
+                    </p>
+                  </>
+                )}
+
+                {/* Image Preview */}
                 {imagePreview && (
                   <div className="mt-3">
                     <img
                       src={imagePreview}
                       alt="Preview"
                       className="w-full h-32 object-cover rounded-md border"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/placeholder-food.jpg";
+                        if (imageInputType === "url") {
+                          toast.error("Invalid image URL. Please check the URL and try again.");
+                        }
+                      }}
                     />
                   </div>
                 )}
