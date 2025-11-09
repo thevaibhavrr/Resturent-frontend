@@ -54,6 +54,9 @@ export function PrintBill({
     phone: "+91 1234567890",
     gstin: "22AAAAA0000A1Z5",
     logo: "",
+    email: "",
+    website: "",
+    description: "",
   };
 
   const subtotal = items.reduce(
@@ -85,90 +88,92 @@ export function PrintBill({
 
       {/* Print Bill Content */}
       <div className="flex items-center justify-center min-h-screen p-4 print:p-0 print:block">
-        <div className="w-full max-w-[80mm] bg-white text-black p-4 print:p-0" id="bill-content">
-          {/* Restaurant Logo/Header - Creative Design */}
-          <div className="text-center border-b-4 border-double border-black pb-3 mb-3">
+        <div className="w-full max-w-[80mm] bg-white text-black p-3 print:p-3" id="bill-content">
+          {/* Premium Header with Logo */}
+          <div className="text-center mb-2 pb-2 border-b-4 border-double border-gray-800">
             {restaurantSettings.logo ? (
-              <div className="w-24 h-24 mx-auto mb-3 flex items-center justify-center border-2 border-black rounded-full p-2">
-                <img 
-                  src={restaurantSettings.logo} 
-                  alt="Restaurant Logo" 
-                  className="max-w-full max-h-full object-contain rounded-full"
-                />
+              <div className="mb-1 flex justify-center">
+                <div className="w-16 h-16 border-4 border-gray-800 rounded-full p-1 flex items-center justify-center">
+                  <img
+                    src={restaurantSettings.logo}
+                    alt="Logo"
+                    className="w-full h-full object-contain rounded-full"
+                  />
+                </div>
               </div>
             ) : (
-              <div className="w-20 h-20 mx-auto mb-3 bg-gradient-to-br from-black to-gray-700 text-white flex items-center justify-center rounded-full text-3xl font-bold shadow-lg border-4 border-black">
-                {restaurantSettings.name.charAt(0)}
+              <div className="mb-1 flex justify-center">
+                <div className="w-14 h-14 bg-gradient-to-br from-gray-800 to-gray-600 text-white rounded-full flex items-center justify-center text-xl font-black border-4 border-gray-800 shadow-lg">
+                  {restaurantSettings.name ? restaurantSettings.name.charAt(0).toUpperCase() : 'R'}
+                </div>
               </div>
             )}
-            <h1 className="text-xl font-extrabold uppercase tracking-wide mb-2" style={{ letterSpacing: '2px' }}>
-              {restaurantSettings.name}
+            <h1 className="text-xl font-black uppercase tracking-wider mb-1" style={{ 
+              letterSpacing: '2px',
+              textShadow: '1px 1px 2px rgba(0,0,0,0.1)'
+            }}>
+              {restaurantSettings.name || "Restaurant Name"}
             </h1>
-            <div className="space-y-1 text-xs">
-              <p className="font-semibold">{restaurantSettings.address}</p>
-              <p className="font-medium">📞 {restaurantSettings.phone}</p>
-              {restaurantSettings.gstin && (
-                <p className="text-[10px] opacity-75">GSTIN: {restaurantSettings.gstin}</p>
-              )}
-            </div>
-            <div className="mt-2 pt-2 border-t border-dashed border-gray-400">
-              <div className="text-[10px] text-gray-600">━━━━━━━━━━━━━━━━━━</div>
+            <div className="flex items-center justify-center gap-2 mt-1">
+              <div className="h-px bg-gray-400 flex-1"></div>
+              <div className="text-[8px] text-gray-500 font-semibold">* * *</div>
+              <div className="h-px bg-gray-400 flex-1"></div>
             </div>
           </div>
 
-          {/* Bill Details - Enhanced Design */}
-          <div className="text-xs mb-3 border-b-2 border-dashed border-gray-600 pb-3 bg-gray-50 -mx-1 px-2 py-2 rounded">
-            <div className="grid grid-cols-2 gap-1">
-              <div className="flex justify-between">
-                <span className="font-semibold">Bill No:</span>
-                <span className="font-bold text-base">{billNumber}</span>
+          {/* Bill Information - Premium Style */}
+          <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
+            <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+             
+              <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
+                <span className="font-semibold text-gray-700">Date:</span>
+                <span className="font-medium">{currentDate}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="font-semibold">Date:</span>
-                <span>{currentDate}</span>
+              <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
+                <span className="font-semibold text-gray-700">Time:</span>
+                <span className="font-medium">{currentTime}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="font-semibold">Time:</span>
-                <span>{currentTime}</span>
+              <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
+                <span className="font-semibold text-gray-700">Table:</span>
+                <span className="font-bold text-gray-900">{tableName}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="font-semibold">Table:</span>
-                <span className="font-bold">{tableName}</span>
-              </div>
-              <div className="flex justify-between col-span-2">
-                <span className="font-semibold">Persons:</span>
-                <span className="font-bold">{persons}</span>
+              <div className="col-span-2 flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
+                <span className="font-semibold text-gray-700">Persons:</span>
+                <span className="font-bold text-gray-900">{persons}</span>
               </div>
             </div>
           </div>
 
-          {/* Items - Enhanced Table */}
-          <div className="border-b-2 border-dashed border-gray-600 pb-3 mb-3">
-            <table className="w-full text-xs">
+          {/* Premium Item Table */}
+          <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
+            <table className="w-full text-[11px]">
               <thead>
-                <tr className="border-b-2 border-black bg-gray-100">
-                  <th className="text-left py-2 font-bold">Item</th>
-                  <th className="text-center py-2 font-bold">Qty</th>
-                  <th className="text-right py-2 font-bold">Price</th>
-                  <th className="text-right py-2 font-bold">Amount</th>
+                <tr className="bg-gray-800 text-black">
+                  <th className="text-left py-1.5 px-1 font-bold">Item</th>
+                  <th className="text-center py-1.5 px-1 font-bold w-12">Qty</th>
+                  <th className="text-right py-1.5 px-1 font-bold w-16">Price</th>
+                  <th className="text-right py-1.5 px-1 font-bold w-20">Amount</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item, index) => (
-                  <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="py-1.5">
+                  <tr 
+                    key={item.id} 
+                    className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                  >
+                    <td className="py-1.5 px-1">
                       <div>
-                        <span className="font-medium">{item.name}</span>
+                        <span className="font-semibold text-gray-900">{item.name}</span>
                         {item.note && (
-                          <div className="text-[10px] text-gray-600 italic mt-0.5">
+                          <div className="text-[9px] text-gray-600 italic mt-0.5 font-light">
                             Note: {item.note}
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="text-center font-medium">{item.quantity}</td>
-                    <td className="text-right">₹{item.price.toFixed(2)}</td>
-                    <td className="text-right font-semibold">₹{(item.price * item.quantity).toFixed(2)}</td>
+                    <td className="text-center font-medium text-gray-800">{item.quantity}</td>
+                    <td className="text-right font-medium text-gray-700">₹{item.price.toFixed(2)}</td>
+                    <td className="text-right font-bold text-gray-900">₹{(item.price * item.quantity).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -177,71 +182,55 @@ export function PrintBill({
 
           {/* Additional Charges */}
           {additionalCharges.length > 0 && (
-            <div className="border-b border-dashed border-gray-400 pb-2 mb-2 text-xs bg-gray-50 -mx-1 px-2 py-2 rounded">
+            <div className="mb-2 pb-1.5 border-b border-dashed border-gray-400">
               {additionalCharges.map((charge) => (
-                <div key={charge.id} className="flex justify-between font-medium">
-                  <span>{charge.name}:</span>
-                  <span>₹{charge.amount.toFixed(2)}</span>
+                <div key={charge.id} className="flex justify-between text-[11px] py-0.5">
+                  <span className="font-medium text-gray-700">{charge.name}:</span>
+                  <span className="font-semibold text-gray-900">₹{charge.amount.toFixed(2)}</span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Bill Summary - Enhanced */}
-          <div className="text-xs space-y-1.5 mb-3 bg-gray-50 -mx-1 px-2 py-2 rounded border border-gray-300">
-            <div className="flex justify-between font-semibold">
-              <span>Subtotal:</span>
-              <span>₹{subtotal.toFixed(2)}</span>
-            </div>
-            {additionalTotal > 0 && (
-              <div className="flex justify-between">
-                <span>Additional Charges:</span>
-                <span>₹{additionalTotal.toFixed(2)}</span>
+          {/* Premium Total Section */}
+          <div className="mb-0 pb-0 border-t-4 border-double border-gray-800 pt-2">
+            <div className="bg-gradient-to-r from-gray-100 to-gray-50 -mx-2 px-3 py-1.5 rounded border border-gray-300">
+              <div className="flex justify-between items-center">
+                <span className="text-base font-black uppercase tracking-wider text-gray-900">TOTAL</span>
+                <span className="text-xl font-black text-gray-900">₹{grandTotal.toFixed(2)}</span>
               </div>
-            )}
-            {discountAmount > 0 && (
-              <div className="flex justify-between text-green-700 font-semibold">
-                <span>Discount:</span>
-                <span>-₹{discountAmount.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span>CGST (2.5%):</span>
-              <span>₹{cgst.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>SGST (2.5%):</span>
-              <span>₹{sgst.toFixed(2)}</span>
             </div>
           </div>
 
-          {/* Grand Total - Enhanced Design */}
-          <div className="border-t-4 border-double border-black pt-3 mb-4 bg-gradient-to-r from-gray-100 to-white -mx-1 px-2 py-3 rounded">
-            <div className="flex justify-between items-center">
-              <span className="text-base font-extrabold uppercase tracking-wide">TOTAL:</span>
-              <span className="text-lg font-extrabold">₹{grandTotal.toFixed(2)}</span>
+          {/* Premium Thank You Section */}
+          <div className="text-center mb-0 pb-0 border-t-2 border-dashed border-gray-500 pt-0">
+            <div className="text-lg font-black uppercase" style={{ letterSpacing: '2px' }}>
+              THANK YOU
             </div>
+           
+           
           </div>
 
-          {/* Footer - Creative Thank You Section */}
-          <div className="text-center border-t-4 border-double border-black pt-4 pb-2 space-y-2">
-            <div className="text-2xl font-extrabold mb-2" style={{ letterSpacing: '3px' }}>
-              🙏 THANK YOU! 🙏
+          {/* Premium Footer with Contact */}
+          <div className="text-center border-t-2 border-dashed border-gray-500 pt-2">
+            <div className="space-y-0.5 text-[10px]">
+              {restaurantSettings.name && (
+                <p className="font-bold text-gray-900 uppercase tracking-wide">{restaurantSettings.name}</p>
+              )}
+              {restaurantSettings.address && (
+                <p className="font-medium text-gray-700 leading-tight">{restaurantSettings.address}</p>
+              )}
+              {restaurantSettings.phone && (
+                <p className="font-semibold text-gray-800 mt-0.5">Phone: {restaurantSettings.phone}</p>
+              )}
+              {restaurantSettings.gstin && (
+                <p className="text-[9px] text-gray-600 mt-0.5">GSTIN: {restaurantSettings.gstin}</p>
+              )}
             </div>
-            <div className="text-sm font-bold mb-1">We appreciate your visit!</div>
-            <div className="text-xs font-semibold text-gray-700 mb-2">
-              Please visit us again soon
-            </div>
-            <div className="border-t border-dashed border-gray-400 pt-2 mt-2">
-              <div className="text-[10px] text-gray-600 space-y-0.5">
-                <p className="font-semibold">{restaurantSettings.name}</p>
-                <p>{restaurantSettings.address}</p>
-                <p>📞 {restaurantSettings.phone}</p>
-              </div>
-            </div>
-            <div className="text-[10px] text-gray-500 mt-2 pt-2 border-t border-dashed border-gray-300">
-              <p>━━━━━━━━━━━━━━━━━━</p>
-              <p className="mt-1">Have a great day! 🌟</p>
+            <div className="flex items-center justify-center gap-2 mt-1.5 pt-1.5 border-t border-dashed border-gray-400">
+              <div className="h-px bg-gray-400 flex-1"></div>
+              <div className="text-[8px] text-gray-500 font-semibold">* * *</div>
+              <div className="h-px bg-gray-400 flex-1"></div>
             </div>
           </div>
         </div>
@@ -258,6 +247,7 @@ export function PrintBill({
           body {
             margin: 0;
             padding: 0;
+            background: white;
           }
           
           body * {
@@ -274,7 +264,9 @@ export function PrintBill({
             left: 0;
             top: 0;
             width: 80mm;
-            padding: 5mm;
+            padding: 3mm;
+            background: white;
+            box-shadow: none;
           }
           
           .print\\:hidden {
@@ -287,6 +279,20 @@ export function PrintBill({
           
           .print\\:block {
             display: block !important;
+          }
+          
+          /* Ensure borders print correctly */
+          #bill-content table,
+          #bill-content th,
+          #bill-content td {
+            border-color: #000 !important;
+          }
+          
+          /* Better print quality */
+          #bill-content {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            color-adjust: exact;
           }
         }
       `}</style>

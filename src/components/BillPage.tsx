@@ -48,6 +48,7 @@ interface BillPageProps {
   initialCart: CartItem[];
   initialPersons: number;
   onBack: () => void;
+  onSaveAndPrint?: (data: any) => void;
 }
 
 export function BillPage({ 
@@ -55,7 +56,8 @@ export function BillPage({
   tableName, 
   initialCart, 
   initialPersons, 
-  onBack 
+  onBack,
+  onSaveAndPrint
 }: BillPageProps) {
   const user = getCurrentUser();
   const [cart, setCart] = useState<CartItem[]>(initialCart);
@@ -142,10 +144,9 @@ export function BillPage({
     toast.success("Item removed from cart");
   };
 
-  // Calculate totals
+  // Calculate totals (no tax)
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const tax = subtotal * 0.1; // 10% tax for final bill
-  const total = subtotal + tax;
+  const total = subtotal;
 
   // Persist bill to localStorage history
   const persistBillHistory = () => {
@@ -212,13 +213,25 @@ export function BillPage({
       // Save bill to history
       persistBillHistory();
 
-      // Print the bill (you can implement actual printing logic here)
-      window.print();
+      // Create print data
+      const printData = {
+        billNumber: `${Date.now()}`,
+        tableName,
+        persons,
+        items: cart,
+        additionalCharges: [],
+        discountAmount: 0,
+        cgst: 0,
+        sgst: 0,
+        grandTotal: total,
+      };
 
-      toast.success("Bill saved and printed successfully!");
-
-      // Navigate back
-      onBack();
+      // Call parent callback if provided
+      if (onSaveAndPrint) {
+        onSaveAndPrint(printData);
+      } else {
+        toast.error("Print functionality not available");
+      }
     } catch (error) {
       console.error("Error saving bill:", error);
       toast.error("Failed to save bill");
@@ -425,14 +438,6 @@ export function BillPage({
               </div>
 
               <div className="space-y-2 my-6">
-                <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span>₹{subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Tax (10%):</span>
-                  <span>₹{tax.toFixed(2)}</span>
-                </div>
                 <div className="flex justify-between font-bold text-lg border-t pt-2">
                   <span>Total:</span>
                   <span>₹{total.toFixed(2)}</span>

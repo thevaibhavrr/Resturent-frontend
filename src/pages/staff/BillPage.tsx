@@ -6,26 +6,23 @@ export default function BillPage() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  console.log("BillPage loaded");
-  console.log("Location state:", location.state);
-  
   // Get table data from location state
   const tableData = location.state?.table;
   const cartData = location.state?.cart;
   const personsData = location.state?.persons;
   
   if (!tableData) {
-    console.log("No table data found, redirecting to /order-tables");
     navigate("/order-tables");
     return null;
   }
-  
-  console.log("Table data found:", tableData);
-  console.log("Cart data:", cartData);
-  console.log("Persons data:", personsData);
 
   const handleBack = () => {
     navigate("/order-tables");
+  };
+
+  const handleSaveAndPrint = (printData: any) => {
+    // Navigate to print page with print data
+    navigate("/order-tables/print-bill", { state: { printData } });
   };
 
   return (
@@ -35,6 +32,7 @@ export default function BillPage() {
       initialCart={cartData || []}
       initialPersons={personsData || 1}
       onBack={handleBack}
+      onSaveAndPrint={handleSaveAndPrint}
     />
   );
 }

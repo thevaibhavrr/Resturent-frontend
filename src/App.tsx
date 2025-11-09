@@ -22,6 +22,7 @@ import StaffTableMenuPage from "./pages/staff/StaffTableMenuPage";
 import StaffBillPage from "./pages/staff/BillPage";
 import StaffBillHistoryPage from "./pages/staff/BillHistoryPage";
 import PrintDraftPage from "./pages/staff/PrintDraftPage";
+import PrintBillPage from "./pages/staff/PrintBillPage";
 import { TestNavigation } from "./components/TestNavigation";
 import { colorThemes } from "./components/ThemeCustomizer";
 import { Toaster } from "./components/ui/sonner";
@@ -365,6 +366,7 @@ function AppContent() {
       } />
       <Route path="/order-tables/table-menu" element={<StaffTableMenuPage />} />
       <Route path="/order-tables/print-draft" element={<PrintDraftPage />} />
+      <Route path="/order-tables/print-bill" element={<PrintBillPage />} />
       <Route path="/order-tables/bill" element={<StaffBillPage />} />
       <Route path="/order-tables/history" element={<StaffBillHistoryPage />} />
       <Route path="/order-tables/test" element={<TestNavigation />} />

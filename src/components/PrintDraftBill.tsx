@@ -63,7 +63,6 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
                 <tr className="border-b border-black">
                   <th className="text-left py-0.5">Item</th>
                   <th className="text-center py-0.5">Qty</th>
-                  <th className="text-right py-0.5">Amt</th>
                 </tr>
               </thead>
               <tbody>
@@ -86,18 +85,10 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
                       )}
                     </td>
                     <td className="text-center">{item.quantity}</td>
-                    <td className="text-right">{(item.price * item.quantity).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-
-          <div className="border-t border-black pt-1">
-            <div className="flex justify-between text-[11px] font-semibold">
-              <span>Total</span>
-              <span>₹{subtotal.toFixed(2)}</span>
-            </div>
           </div>
 
           <div className="text-center text-[10px] mt-1">

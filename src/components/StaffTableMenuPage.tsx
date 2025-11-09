@@ -15,7 +15,9 @@ import {
   Trash2,
   Check,
   Loader2,
-  Printer
+  Printer,
+  ArrowDown,
+  ArrowUp
 } from "lucide-react";
 import { getCurrentUser } from "../utils/auth";
 import { toast } from "sonner";
@@ -66,7 +68,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const user = getCurrentUser();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeCategory, setActiveCategory] = useState("recent");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [persons, setPersons] = useState(1);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -79,9 +81,38 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const [useCustomPersons, setUseCustomPersons] = useState(persons > 10);
   const [selectedSpicePercent, setSelectedSpicePercent] = useState<Record<string, number>>({}); // per-menu-item (1-100)
   const [selectedIsJain, setSelectedIsJain] = useState<Record<string, boolean>>({}); // per-menu-item
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const menuEndRef = useRef<HTMLDivElement>(null);
+  const cartSectionRef = useRef<HTMLDivElement>(null);
+
+  // Get recent items from localStorage
+  const getRecentItems = (): string[] => {
+    if (!user?.restaurantId) return [];
+    const key = `recentItems_${user.restaurantId}`;
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  };
+
+  // Save item to recent items
+  const saveToRecentItems = (itemId: string) => {
+    if (!user?.restaurantId) return;
+    const key = `recentItems_${user.restaurantId}`;
+    const recent = getRecentItems();
+    const updated = [itemId, ...recent.filter(id => id !== itemId)].slice(0, 20); // Keep last 20 items
+    localStorage.setItem(key, JSON.stringify(updated));
+  };
 
   const setSpicePercent = (itemId: string, percent: number) => {
     setSelectedSpicePercent(prev => ({ ...prev, [itemId]: percent }));
+    // Update cart items with this itemId to have the new spice percent
+    setCart(prev => prev.map(ci => {
+      if (ci.id === itemId) {
+        const level = Math.min(5, Math.max(1, Math.round(percent / 20)));
+        return { ...ci, spicePercent: percent, spiceLevel: level };
+      }
+      return ci;
+    }));
   };
 
   const setIsJain = (itemId: string, isJain: boolean) => {
@@ -166,6 +197,24 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
   // Removed page-level refresh control per request
 
+  // Restore spice percent and jain status from cart items
+  useEffect(() => {
+    const restoredSpice: Record<string, number> = {};
+    const restoredJain: Record<string, boolean> = {};
+    
+    cart.forEach(item => {
+      if (item.spicePercent !== undefined) {
+        restoredSpice[item.id] = item.spicePercent;
+      }
+      if (item.isJain !== undefined) {
+        restoredJain[item.id] = item.isJain;
+      }
+    });
+    
+    setSelectedSpicePercent(prev => ({ ...prev, ...restoredSpice }));
+    setSelectedIsJain(prev => ({ ...prev, ...restoredJain }));
+  }, [cart.length]); // Only when cart items count changes
+
   // Auto-save when cart or persons change
   useEffect(() => {
     if (user?.restaurantId && user?.username) {
@@ -180,9 +229,62 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   // Filter menu items based on search and category
   const filteredItems = menuItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = activeCategory === "all" || item.category === activeCategory;
+    let matchesCategory = true;
+    
+    if (activeCategory === "recent") {
+      const recentItems = getRecentItems();
+      matchesCategory = recentItems.includes(item._id);
+    } else if (activeCategory !== "all") {
+      matchesCategory = item.category === activeCategory;
+    }
+    
     return matchesSearch && matchesCategory;
   });
+
+  // Scroll to cart section (draft section at bottom)
+  const scrollToCart = () => {
+    cartSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Scroll to top handler
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Show/hide scroll buttons based on position
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      
+      // Get cart section position
+      const cartSection = cartSectionRef.current;
+      if (cartSection) {
+        const cartRect = cartSection.getBoundingClientRect();
+        const cartTop = cartRect.top + scrollTop;
+        const cartBottom = cartTop + cartRect.height;
+        
+        // If we're past the cart section, show scroll to top
+        if (scrollTop + windowHeight > cartBottom - 100) {
+          setShowScrollToTop(true);
+          setShowScrollToBottom(false);
+        } else {
+          // If we're not at the cart section yet, show scroll to cart
+          setShowScrollToTop(false);
+          setShowScrollToBottom(scrollTop + windowHeight < cartTop - 100);
+        }
+      } else {
+        // Fallback: show scroll to bottom if cart section not found
+        setShowScrollToBottom(scrollTop + windowHeight < documentHeight - 100);
+        setShowScrollToTop(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // Check initial position
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [cart.length]); // Re-check when cart changes
 
   // Get quantity for an item
   const getItemQuantity = (itemId: string): number => {
@@ -268,10 +370,22 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           : cartItem
         );
       } else {
+        // Get spice percent from state or default
         const percent = selectedSpicePercent[item._id] ?? 50;
         const level = Math.min(5, Math.max(1, Math.round(percent / 20)));
         const isJain = selectedIsJain[item._id] ?? false;
-        return [...prev, { id: item._id, name: item.name, price: item.price, quantity: newQuantity, note: "", spiceLevel: level, spicePercent: percent, isJain: isJain }];
+        // Save to recent items
+        saveToRecentItems(item._id);
+        return [...prev, { 
+          id: item._id, 
+          name: item.name, 
+          price: item.price, 
+          quantity: newQuantity, 
+          note: "", 
+          spiceLevel: level, 
+          spicePercent: percent, 
+          isJain: isJain 
+        }];
       }
     });
   };
@@ -519,13 +633,13 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
             <div className="mb-6">
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={activeCategory === "all" ? "default" : "outline"}
+                  variant={activeCategory === "recent" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setActiveCategory("all")}
+                  onClick={() => setActiveCategory("recent")}
                   className="gap-2"
                 >
-                  <span>🍽️</span>
-                  All Items
+                  <span>🕒</span>
+                  Recent Items
                 </Button>
                 {categories.map((category) => (
                   <Button
@@ -563,7 +677,13 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
             {/* Menu Items */}
             {!loading && !error && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {filteredItems.map((item) => (
+                {filteredItems.map((item) => {
+                  // Get current spice percent from state or cart
+                  const cartItem = cart.find(ci => ci.id === item._id);
+                  const currentSpicePercent = selectedSpicePercent[item._id] ?? cartItem?.spicePercent ?? 50;
+                  const currentIsJain = selectedIsJain[item._id] ?? cartItem?.isJain ?? false;
+                  
+                  return (
                 <motion.div
                   key={item._id}
                   initial={{ opacity: 0, y: 12 }}
@@ -612,7 +732,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                             🌶️ Spice Level
                           </label>
                           <Select
-                            value={String(selectedSpicePercent[item._id] ?? 50)}
+                            value={String(currentSpicePercent)}
                             onValueChange={(v) => setSpicePercent(item._id, parseInt(v))}
                           >
                             <SelectTrigger className="h-9 border-2 hover:border-primary/50 transition-colors">
@@ -632,8 +752,14 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                             🥗 Jain Option
                           </label>
                           <Select
-                            value={selectedIsJain[item._id] ? "true" : "false"}
-                            onValueChange={(v) => setIsJain(item._id, v === "true")}
+                            value={currentIsJain ? "true" : "false"}
+                            onValueChange={(v) => {
+                              setIsJain(item._id, v === "true");
+                              // Also update cart items
+                              setCart(prev => prev.map(ci => 
+                                ci.id === item._id ? { ...ci, isJain: v === "true" } : ci
+                              ));
+                            }}
                           >
                             <SelectTrigger className="h-9 border-2 hover:border-primary/50 transition-colors">
                               <SelectValue placeholder="No" />
@@ -696,7 +822,9 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                   </div>
                 </Card>
                 </motion.div>
-              ))}
+                );
+                })}
+                <div ref={menuEndRef} />
               </div>
             )}
 
@@ -712,7 +840,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           </div>
 
           {/* Cart Section */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1" ref={cartSectionRef}>
             <Card className="sticky top-24">
               <div className="p-6">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -870,6 +998,28 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           </div>
         </div>
       </div>
+
+      {/* Scroll to Cart/Top Button - Fixed at bottom right */}
+      {showScrollToBottom && (
+        <Button
+          onClick={scrollToCart}
+          className="fixed bottom-6 right-6 h-12 w-12 rounded-full shadow-lg z-50 print:hidden"
+          size="icon"
+          title="Go to Cart"
+        >
+          <ArrowDown className="h-5 w-5" />
+        </Button>
+      )}
+      {showScrollToTop && (
+        <Button
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 h-12 w-12 rounded-full shadow-lg z-50 print:hidden"
+          size="icon"
+          title="Go to Top"
+        >
+          <ArrowUp className="h-5 w-5" />
+        </Button>
+      )}
     </div>
   );
 }
