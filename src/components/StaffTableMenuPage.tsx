@@ -1256,8 +1256,14 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   // Filter menu items based on search and category
   const filteredItems = menuItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    let matchesCategory = true;
     
+    // If searching, ignore category filter and search from all products
+    if (searchQuery.trim() !== "") {
+      return matchesSearch;
+    }
+    
+    // If not searching, apply category filter
+    let matchesCategory = true;
     if (activeCategory === "recent") {
       const recentItems = getRecentItems();
       matchesCategory = recentItems.includes(item._id);
@@ -1649,32 +1655,34 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
               </div>
             </div>
 
-            {/* Categories */}
-            <div className="mb-6">
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={activeCategory === "recent" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setActiveCategory("recent")}
-                  className="gap-2"
-                >
-                  <span>🕒</span>
-                  Recent Items
-                </Button>
-                {categories.map((category) => (
+            {/* Categories - Hide when searching */}
+            {searchQuery.trim() === "" && (
+              <div className="mb-6">
+                <div className="flex flex-wrap gap-2">
                   <Button
-                    key={category._id}
-                    variant={activeCategory === category.name ? "default" : "outline"}
+                    variant={activeCategory === "recent" ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setActiveCategory(category.name)}
+                    onClick={() => setActiveCategory("recent")}
                     className="gap-2"
                   >
-                    <span>{category.icon || "🍽️"}</span>
-                    {category.name}
+                    <span>🕒</span>
+                    Recent Items
                   </Button>
-                ))}
+                  {categories.map((category) => (
+                    <Button
+                      key={category._id}
+                      variant={activeCategory === category.name ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setActiveCategory(category.name)}
+                      className="gap-2"
+                    >
+                      <span>{category.icon || "🍽️"}</span>
+                      {category.name}
+                    </Button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Loading State */}
             {loading && (
