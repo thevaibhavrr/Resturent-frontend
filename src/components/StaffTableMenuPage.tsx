@@ -1727,7 +1727,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                 >
                   <div className="relative">
                     <div className="relative h-40 max-h-48 w-full overflow-hidden bg-gradient-to-br from-orange-50 to-amber-50">
-                      <img
+                      {/* <img
                         src={item.image}
                         alt={item.name}
                         style={{
@@ -1735,7 +1735,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                           objectFit:"cover"
                         }}
                         className="w-full h-full max-h-48 object-cover hover:scale-110 transition-transform duration-500"
-                      />
+                      /> */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                       {getItemQuantity(item._id) > 0 && (
                         <div className="absolute top-3 right-3 bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-lg animate-pulse">
