@@ -1672,11 +1672,10 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                     <Button
                       key={category._id}
                       variant={activeCategory === category.name ? "default" : "outline"}
-                      size="sm"
+                      size="lg"
                       onClick={() => setActiveCategory(category.name)}
                       className="gap-2"
                     >
-                      <span>{category.icon || "🍽️"}</span>
                       {category.name}
                     </Button>
                   ))}
