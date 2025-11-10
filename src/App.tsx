@@ -123,8 +123,8 @@ function AppContent() {
     if (user) {
       setIsLoggedIn(true);
       setCurrentUser(user);
-      // Check subscription status
-      if (user.restaurantId) {
+      // Check subscription status only for admin users
+      if (user.restaurantId && user.role === "admin") {
         checkSubscription(user.restaurantId);
       }
     }
@@ -167,8 +167,8 @@ function AppContent() {
     setCurrentUser(user);
     setIsLoggedIn(true);
     
-    // Check subscription status after login
-    if (user && user.restaurantId) {
+    // Check subscription status after login (only for admin)
+    if (user && user.restaurantId && user.role === "admin") {
       checkSubscription(user.restaurantId);
     }
   };
@@ -341,16 +341,7 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-background">
       <Toaster />
-      <SubscriptionAlert />
-      {/* Show subscription expired modal */}
-      {subscriptionExpired && subscriptionData && (
-        <SubscriptionExpiredModal
-          restaurantName={subscriptionData.restaurantName}
-          planName={subscriptionData.planName}
-          endDate={subscriptionData.endDate}
-          daysRemaining={subscriptionData.daysRemaining}
-        />
-      )}
+      {/* Subscription alert and modal only shown to admin, not staff */}
       <div className="lg:hidden">
         <Header onToggleMenu={() => setMenuOpen((s) => !s)} onLogout={handleLogout} />
       </div>

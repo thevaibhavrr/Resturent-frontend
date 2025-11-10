@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { ArrowLeft } from "lucide-react";
 import { getCurrentUser } from "../utils/auth";
@@ -48,16 +48,30 @@ export function PrintBill({
   });
 
   const user = getCurrentUser();
-  const restaurantSettings = user ? getRestaurantSettings(user.restaurantId) : {
+  const [restaurantSettings, setRestaurantSettings] = useState({
     name: "Restaurant Name",
-    address: "123 Street, City - 400001",
-    phone: "+91 1234567890",
-    gstin: "22AAAAA0000A1Z5",
+    address: "",
+    phone: "",
+    gstin: "",
     logo: "",
     email: "",
     website: "",
     description: "",
-  };
+  });
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (user?.restaurantId) {
+        try {
+          const settings = await getRestaurantSettings(user.restaurantId);
+          setRestaurantSettings(settings);
+        } catch (error) {
+          console.error("Error loading restaurant settings:", error);
+        }
+      }
+    };
+    loadSettings();
+  }, [user]);
 
   const subtotal = items.reduce(
     (sum, item) => sum + item.price * item.quantity,

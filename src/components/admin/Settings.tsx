@@ -8,6 +8,7 @@ import { Separator } from "../ui/separator";
 import { Settings as SettingsIcon, Upload, Save } from "lucide-react";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
 import { toast } from "sonner@2.0.3";
+import { makeApi } from "../../api/makeapi";
 
 interface RestaurantSettings {
   name: string;
@@ -33,28 +34,53 @@ export function Settings() {
     description: "",
   });
 
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     loadSettings();
   }, []);
 
-  const loadSettings = () => {
+  const loadSettings = async () => {
     if (!user) return;
-    const key = getRestaurantKey("settings", user.restaurantId);
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      setSettings(JSON.parse(stored));
-    } else {
-      // Set default from user data
-      setSettings({
-        name: user.restaurantName,
-        address: "123 Street, City - 400001",
-        phone: "+91 1234567890",
-        email: "info@restaurant.com",
-        website: "www.restaurant.com",
-        gstin: "22AAAAA0000A1Z5",
-        logo: "",
-        description: "Premium dining experience with authentic flavors",
-      });
+    
+    setLoading(true);
+    try {
+      const response = await makeApi(`/api/settings/${user.restaurantId}`, "GET");
+      if (response.data) {
+        setSettings({
+          name: response.data.name || user.restaurantName || "",
+          address: response.data.address || "",
+          phone: response.data.phone || "",
+          email: response.data.email || "",
+          website: response.data.website || "",
+          gstin: response.data.gstin || "",
+          logo: response.data.logo || "",
+          description: response.data.description || "",
+        });
+      }
+    } catch (error) {
+      console.error("Error loading settings:", error);
+      // Fallback to localStorage if API fails
+      const key = getRestaurantKey("settings", user.restaurantId);
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        setSettings(JSON.parse(stored));
+      } else {
+        // Set default from user data
+        setSettings({
+          name: user.restaurantName || "",
+          address: "",
+          phone: "",
+          email: "",
+          website: "",
+          gstin: "",
+          logo: "",
+          description: "",
+        });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -78,7 +104,7 @@ export function Settings() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!user) return;
 
     if (!settings.name || !settings.address || !settings.phone) {
@@ -86,9 +112,26 @@ export function Settings() {
       return;
     }
 
-    const key = getRestaurantKey("settings", user.restaurantId);
-    localStorage.setItem(key, JSON.stringify(settings));
-    toast.success("Settings saved successfully");
+    setSaving(true);
+    try {
+      const response = await makeApi(
+        `/api/settings/${user.restaurantId}`,
+        "PUT",
+        settings
+      );
+      
+      if (response.data) {
+        // Also save to localStorage as backup
+        const key = getRestaurantKey("settings", user.restaurantId);
+        localStorage.setItem(key, JSON.stringify(settings));
+        toast.success("Settings saved successfully");
+      }
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      toast.error("Failed to save settings. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -101,9 +144,9 @@ export function Settings() {
             Manage your restaurant information and preferences
           </p>
         </div>
-        <Button onClick={handleSave} className="gap-2">
+        <Button onClick={handleSave} className="gap-2" disabled={saving || loading}>
           <Save className="w-4 h-4" />
-          Save Changes
+          {saving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
 
@@ -288,17 +331,37 @@ export function Settings() {
 
       {/* Save Button (Mobile) */}
       <div className="lg:hidden">
-        <Button onClick={handleSave} className="w-full gap-2">
+        <Button onClick={handleSave} className="w-full gap-2" disabled={saving || loading}>
           <Save className="w-4 h-4" />
-          Save Changes
+          {saving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
     </div>
   );
 }
 
-// Export function to get restaurant settings
-export function getRestaurantSettings(restaurantId: string): RestaurantSettings {
+// Export function to get restaurant settings (with API fallback to localStorage)
+export async function getRestaurantSettings(restaurantId: string): Promise<RestaurantSettings> {
+  try {
+    const { makeApi } = await import("../../api/makeapi");
+    const response = await makeApi(`/api/settings/${restaurantId}`, "GET");
+    if (response.data) {
+      return {
+        name: response.data.name || "",
+        address: response.data.address || "",
+        phone: response.data.phone || "",
+        email: response.data.email || "",
+        website: response.data.website || "",
+        gstin: response.data.gstin || "",
+        logo: response.data.logo || "",
+        description: response.data.description || "",
+      };
+    }
+  } catch (error) {
+    console.error("Error fetching settings from API, falling back to localStorage:", error);
+  }
+  
+  // Fallback to localStorage
   const key = getRestaurantKey("settings", restaurantId);
   const stored = localStorage.getItem(key);
   if (stored) {
@@ -306,11 +369,11 @@ export function getRestaurantSettings(restaurantId: string): RestaurantSettings 
   }
   return {
     name: "Restaurant Name",
-    address: "123 Street, City - 400001",
-    phone: "+91 1234567890",
-    email: "info@restaurant.com",
-    website: "www.restaurant.com",
-    gstin: "22AAAAA0000A1Z5",
+    address: "",
+    phone: "",
+    email: "",
+    website: "",
+    gstin: "",
     logo: "",
     description: "",
   };
