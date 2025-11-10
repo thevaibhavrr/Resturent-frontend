@@ -10,6 +10,7 @@ export default function BillPage() {
   const tableData = location.state?.table;
   const cartData = location.state?.cart;
   const personsData = location.state?.persons;
+  const totalDiscountData = location.state?.totalDiscount || 0;
   
   if (!tableData) {
     navigate("/order-tables");
@@ -31,6 +32,7 @@ export default function BillPage() {
       tableName={tableData.tableName}
       initialCart={cartData || []}
       initialPersons={personsData || 1}
+      initialTotalDiscount={totalDiscountData}
       onBack={handleBack}
       onSaveAndPrint={handleSaveAndPrint}
     />

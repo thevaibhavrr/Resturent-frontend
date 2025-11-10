@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Printer, CheckCircle2 } from "lucide-react";
 import { getCurrentUser } from "../utils/auth";
 import { getRestaurantSettings } from "./admin/Settings";
+import { toast } from "sonner";
 
 interface BillItem {
   id: number;
@@ -10,6 +11,7 @@ interface BillItem {
   price: number;
   quantity: number;
   note?: string;
+  discountAmount?: number; // Discount in ₹ for this item
 }
 
 interface PrintBillProps {
@@ -58,6 +60,8 @@ export function PrintBill({
     website: "",
     description: "",
   });
+  const [printAttempted, setPrintAttempted] = useState(false);
+  const [showPrintAgain, setShowPrintAgain] = useState(false);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -73,31 +77,78 @@ export function PrintBill({
     loadSettings();
   }, [user]);
 
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
+  // Calculate subtotal with item discounts
+  const subtotal = items.reduce((sum, item) => {
+    const itemTotal = item.price * item.quantity;
+    const itemDiscount = item.discountAmount || 0;
+    return sum + itemTotal - itemDiscount;
+  }, 0);
+  
   const additionalTotal = additionalCharges.reduce(
     (sum, charge) => sum + Number(charge.amount),
     0
   );
 
+  const handlePrint = () => {
+    setPrintAttempted(true);
+    window.print();
+    
+    // Show print again button after a delay (in case print was cancelled)
+    setTimeout(() => {
+      setShowPrintAgain(true);
+    }, 1000);
+  };
+
+  const handlePrintAgain = () => {
+    handlePrint();
+    toast.success("Print dialog opened. Please confirm to print.");
+  };
+
   useEffect(() => {
     // Auto print on mount
     const timer = setTimeout(() => {
-      window.print();
+      handlePrint();
     }, 500);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Back Button - Hidden on print */}
-      <div className="print:hidden p-4 border-b">
-        <Button variant="outline" onClick={onBack} className="gap-2">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Bill
-        </Button>
+      {/* Action Buttons - Hidden on print */}
+      <div className="print:hidden p-4 border-b bg-card">
+        <div className="flex items-center justify-between gap-4">
+          <Button variant="outline" onClick={onBack} className="gap-2">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Bill
+          </Button>
+          
+          <div className="flex items-center gap-3">
+            {printAttempted && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                <span>Print dialog opened</span>
+              </div>
+            )}
+            <Button 
+              variant="default" 
+              onClick={handlePrintAgain} 
+              className="gap-2 bg-primary hover:bg-primary/90"
+            >
+              <Printer className="w-4 h-4" />
+              {showPrintAgain ? "Print Again" : "Print"}
+            </Button>
+          </div>
+        </div>
+        
+        {showPrintAgain && (
+          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> If the bill didn't print, click "Print Again" to retry. 
+              Make sure your printer is connected and ready.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Print Bill Content */}
@@ -170,26 +221,37 @@ export function PrintBill({
                 </tr>
               </thead>
               <tbody>
-                {items.map((item, index) => (
-                  <tr 
-                    key={item.id} 
-                    className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-                  >
-                    <td className="py-1.5 px-1">
-                      <div>
-                        <span className="font-semibold text-gray-900">{item.name}</span>
-                        {item.note && (
-                          <div className="text-[9px] text-gray-600 italic mt-0.5 font-light">
-                            Note: {item.note}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="text-center font-medium text-gray-800">{item.quantity}</td>
-                    <td className="text-right font-medium text-gray-700">₹{item.price.toFixed(2)}</td>
-                    <td className="text-right font-bold text-gray-900">₹{(item.price * item.quantity).toFixed(2)}</td>
-                  </tr>
-                ))}
+                {items.map((item, index) => {
+                  const itemTotal = item.price * item.quantity;
+                  const itemDiscount = item.discountAmount || 0;
+                  const itemFinalAmount = itemTotal - itemDiscount;
+                  
+                  return (
+                    <tr 
+                      key={item.id} 
+                      className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                    >
+                      <td className="py-1.5 px-1">
+                        <div>
+                          <span className="font-semibold text-gray-900">{item.name}</span>
+                          {item.note && (
+                            <div className="text-[9px] text-gray-600 italic mt-0.5 font-light">
+                              Note: {item.note}
+                            </div>
+                          )}
+                          {itemDiscount > 0 && (
+                            <div className="text-[9px] text-red-600 mt-0.5 font-medium">
+                              Discount: -₹{itemDiscount.toFixed(2)}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="text-center font-medium text-gray-800">{item.quantity}</td>
+                      <td className="text-right font-medium text-gray-700">₹{item.price.toFixed(2)}</td>
+                      <td className="text-right font-bold text-gray-900">₹{itemFinalAmount.toFixed(2)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -208,6 +270,18 @@ export function PrintBill({
 
           {/* Premium Total Section */}
           <div className="mb-0 pb-0 border-t-4 border-double border-gray-800 pt-2">
+            <div className="space-y-1 mb-2">
+              <div className="flex justify-between text-[11px]">
+                <span className="text-gray-700">Subtotal:</span>
+                <span className="font-semibold text-gray-900">₹{subtotal.toFixed(2)}</span>
+              </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-[11px] text-red-600">
+                  <span>Total Discount:</span>
+                  <span className="font-semibold">-₹{discountAmount.toFixed(2)}</span>
+                </div>
+              )}
+            </div>
             <div className="bg-gradient-to-r from-gray-100 to-gray-50 -mx-2 px-3 py-1.5 rounded border border-gray-300">
               <div className="flex justify-between items-center">
                 <span className="text-base font-black uppercase tracking-wider text-gray-900">TOTAL</span>

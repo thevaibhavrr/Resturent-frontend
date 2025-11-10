@@ -40,6 +40,7 @@ interface CartItem {
   note?: string;
   spicePercent?: number;
   isJain?: boolean;
+  discountAmount?: number; // Discount in ₹ for this item
 }
 
 interface BillPageProps {
@@ -47,6 +48,7 @@ interface BillPageProps {
   tableName: string;
   initialCart: CartItem[];
   initialPersons: number;
+  initialTotalDiscount?: number; // Optional initial total discount
   onBack: () => void;
   onSaveAndPrint?: (data: any) => void;
 }
@@ -56,6 +58,7 @@ export function BillPage({
   tableName, 
   initialCart, 
   initialPersons, 
+  initialTotalDiscount = 0,
   onBack,
   onSaveAndPrint
 }: BillPageProps) {
@@ -67,6 +70,7 @@ export function BillPage({
   const [showAddItems, setShowAddItems] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
+  const [totalDiscount, setTotalDiscount] = useState(initialTotalDiscount); // Total discount in ₹
 
   // Load menu data
   useEffect(() => {
@@ -138,15 +142,30 @@ export function BillPage({
     });
   };
 
+  // Update item discount
+  const updateItemDiscount = (itemId: string, discount: number) => {
+    setCart(prev => prev.map(cartItem =>
+      cartItem.id === itemId
+        ? { ...cartItem, discountAmount: Math.max(0, discount) }
+        : cartItem
+    ));
+  };
+
   // Remove item from cart
   const removeFromCart = (itemId: string) => {
     setCart(prev => prev.filter(cartItem => cartItem.id !== itemId));
     toast.success("Item removed from cart");
   };
 
-  // Calculate totals (no tax)
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const total = subtotal;
+  // Calculate totals (with item discounts)
+  const subtotal = cart.reduce((sum, item) => {
+    const itemTotal = (item.price * item.quantity);
+    const itemDiscount = item.discountAmount || 0;
+    return sum + itemTotal - itemDiscount;
+  }, 0);
+  
+  // Apply total discount
+  const total = Math.max(0, subtotal - totalDiscount);
 
   // Persist bill to API (database) - PRIMARY method
   const persistBillHistory = async (billNum?: string) => {
@@ -185,16 +204,22 @@ export function BillPage({
         grandTotal: total
       });
       
+      // Calculate item discounts for API
+      const itemsWithDiscounts = cart.map(item => ({
+        ...item,
+        discountAmount: item.discountAmount || 0
+      }));
+      
       const { createBill } = await import("../api/billApi");
       const savedBill = await createBill({
         billNumber,
         tableId: tableId.toString(),
         tableName,
         persons,
-        items: cart,
+        items: itemsWithDiscounts,
         subtotal: subtotal,
         additionalCharges: [],
-        discountAmount: 0,
+        discountAmount: totalDiscount, // Total discount on bill
         grandTotal: total,
         restaurantId: user.restaurantId, // Explicitly pass restaurantId
         createdBy: user.username || 'staff'
@@ -286,14 +311,17 @@ export function BillPage({
         }
       }
 
-      // Create print data
+      // Create print data with discounts
       const printData = {
         billNumber,
         tableName,
         persons,
-        items: cart,
+        items: cart.map(item => ({
+          ...item,
+          discountAmount: item.discountAmount || 0
+        })),
         additionalCharges: [],
-        discountAmount: 0,
+        discountAmount: totalDiscount,
         cgst: 0,
         sgst: 0,
         grandTotal: total,
@@ -370,51 +398,88 @@ export function BillPage({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {cart.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex-1">
-                          <h3 className="font-medium">{item.name}</h3>
-                          <p className="text-sm text-muted-foreground">₹{item.price} each</p>
-                          {(item.spicePercent || item.isJain) && (
-                            <div className="flex items-center gap-2 mt-1">
-                              {item.spicePercent && (
-                                <span className="text-xs text-muted-foreground">Spice: {item.spicePercent}%</span>
-                              )}
-                              {item.isJain && (
-                                <Badge variant="secondary" className="text-xs">Jain</Badge>
+                    {cart.map((item) => {
+                      const itemTotal = item.price * item.quantity;
+                      const itemDiscount = item.discountAmount || 0;
+                      const itemFinalAmount = itemTotal - itemDiscount;
+                      
+                      return (
+                        <div key={item.id} className="p-3 border rounded-lg space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <h3 className="font-medium">{item.name}</h3>
+                              <p className="text-sm text-muted-foreground">₹{item.price} each × {item.quantity}</p>
+                              {(item.spicePercent || item.isJain) && (
+                                <div className="flex items-center gap-2 mt-1">
+                                  {item.spicePercent && (
+                                    <span className="text-xs text-muted-foreground">Spice: {item.spicePercent}%</span>
+                                  )}
+                                  {item.isJain && (
+                                    <Badge variant="secondary" className="text-xs">Jain</Badge>
+                                  )}
+                                </div>
                               )}
                             </div>
-                          )}
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateQuantity(item.id, -1)}
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                              <span className="w-8 text-center">{item.quantity}</span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateQuantity(item.id, 1)}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => removeFromCart(item.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          {/* Discount Input for Item */}
+                          <div className="flex items-center gap-2 pt-2 border-t">
+                            <label className="text-xs text-muted-foreground whitespace-nowrap">Discount (₹):</label>
+                            <Input
+                              type="number"
+                              min="0"
+                              max={itemTotal}
+                              step="0.01"
+                              value={itemDiscount || ""}
+                              onChange={(e) => {
+                                const discount = parseFloat(e.target.value) || 0;
+                                const maxDiscount = itemTotal;
+                                updateItemDiscount(item.id, Math.min(discount, maxDiscount));
+                              }}
+                              placeholder="0"
+                              className="h-8 text-xs w-24"
+                            />
+                            <div className="text-right flex-1">
+                              <div className="text-xs text-muted-foreground">
+                                Subtotal: ₹{itemTotal.toFixed(2)}
+                              </div>
+                              {itemDiscount > 0 && (
+                                <div className="text-xs text-red-600">
+                                  - ₹{itemDiscount.toFixed(2)}
+                                </div>
+                              )}
+                              <div className="font-medium text-sm">
+                                ₹{itemFinalAmount.toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateQuantity(item.id, -1)}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="w-8 text-center">{item.quantity}</span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateQuantity(item.id, 1)}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => removeFromCart(item.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">₹{(item.price * item.quantity).toFixed(2)}</p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </ScrollArea>
@@ -511,9 +576,40 @@ export function BillPage({
                 </div>
               </div>
 
-              <div className="space-y-2 my-6">
+              <div className="space-y-2 my-6 border-t pt-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span>₹{subtotal.toFixed(2)}</span>
+                </div>
+                
+                {/* Total Discount Input */}
+                <div className="flex items-center justify-between gap-2 py-2 border-t">
+                  <label className="text-sm text-muted-foreground whitespace-nowrap">Total Discount (₹):</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max={subtotal}
+                    step="0.01"
+                    value={totalDiscount || ""}
+                    onChange={(e) => {
+                      const discount = parseFloat(e.target.value) || 0;
+                      const maxDiscount = subtotal;
+                      setTotalDiscount(Math.min(discount, maxDiscount));
+                    }}
+                    placeholder="0"
+                    className="h-8 text-sm w-32"
+                  />
+                </div>
+                
+                {totalDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-red-600">
+                    <span>Discount Applied:</span>
+                    <span>- ₹{totalDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                
                 <div className="flex justify-between font-bold text-lg border-t pt-2">
-                  <span>Total:</span>
+                  <span>Grand Total:</span>
                   <span>₹{total.toFixed(2)}</span>
                 </div>
               </div>

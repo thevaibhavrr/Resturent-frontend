@@ -34,6 +34,7 @@ interface BillHistoryItem {
   tableName: string;
   persons: number;
   grandTotal: number;
+  discountAmount?: number; // Total discount on bill
   date: string;
   items: Array<{ 
     id: number | string; 
@@ -44,6 +45,7 @@ interface BillHistoryItem {
     spiceLevel?: number;
     spicePercent?: number;
     isJain?: boolean;
+    discountAmount?: number; // Item-level discount
   }>;
 }
 
@@ -78,6 +80,7 @@ export function BillHistory() {
         tableName: bill.tableName,
         persons: bill.persons,
         grandTotal: bill.grandTotal,
+        discountAmount: bill.discountAmount || 0,
         date: bill.createdAt,
         items: bill.items.map((item: any) => ({
           id: item.itemId || item.id,
@@ -87,7 +90,8 @@ export function BillHistory() {
           note: item.note || '',
           spiceLevel: item.spiceLevel || 1,
           spicePercent: item.spicePercent || 50,
-          isJain: item.isJain || false
+          isJain: item.isJain || false,
+          discountAmount: item.discountAmount || 0
         }))
       }));
       
@@ -155,9 +159,11 @@ export function BillHistory() {
         note: item.note || '',
         spiceLevel: item.spiceLevel || 1,
         spicePercent: item.spicePercent || 50,
-        isJain: item.isJain || false
+        isJain: item.isJain || false,
+        discountAmount: item.discountAmount || 0
       })),
       persons: bill.persons,
+      totalDiscount: bill.discountAmount || 0,
       isEdit: true,
       originalBillNumber: bill.billNumber
     };
@@ -179,10 +185,11 @@ export function BillHistory() {
         note: item.note || '',
         spiceLevel: item.spiceLevel || 1,
         spicePercent: item.spicePercent || 50,
-        isJain: item.isJain || false
+        isJain: item.isJain || false,
+        discountAmount: item.discountAmount || 0
       })),
       additionalCharges: [],
-      discountAmount: 0,
+      discountAmount: bill.discountAmount || 0,
       cgst: 0,
       sgst: 0,
       grandTotal: bill.grandTotal
@@ -403,9 +410,19 @@ export function BillHistory() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
+                        {bill.discountAmount && bill.discountAmount > 0 && (
+                          <p className="text-xs text-muted-foreground line-through">
+                            ₹{(bill.grandTotal + bill.discountAmount).toFixed(2)}
+                          </p>
+                        )}
                         <p className="text-xl text-primary">
                           ₹{bill.grandTotal.toFixed(2)}
                         </p>
+                        {bill.discountAmount && bill.discountAmount > 0 && (
+                          <p className="text-xs text-red-600">
+                            -₹{bill.discountAmount.toFixed(2)} discount
+                          </p>
+                        )}
                       </div>
                       <Button
                         size="sm"
@@ -441,17 +458,30 @@ export function BillHistory() {
 
                   {/* Items List */}
                   <div className="border-t pt-3 space-y-1">
-                    {bill.items.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="flex justify-between text-sm"
-                      >
-                        <span className="text-muted-foreground">
-                          {item.quantity}x {item.name}
-                        </span>
-                        <span>₹{(item.price * item.quantity).toFixed(2)}</span>
-                      </div>
-                    ))}
+                    {bill.items.map((item, idx) => {
+                      const itemTotal = item.price * item.quantity;
+                      const itemDiscount = item.discountAmount || 0;
+                      const itemFinalAmount = itemTotal - itemDiscount;
+                      
+                      return (
+                        <div
+                          key={idx}
+                          className="flex justify-between text-sm"
+                        >
+                          <div className="flex-1">
+                            <span className="text-muted-foreground">
+                              {item.quantity}x {item.name}
+                            </span>
+                            {itemDiscount > 0 && (
+                              <span className="text-xs text-red-600 ml-2">
+                                (-₹{itemDiscount.toFixed(2)})
+                              </span>
+                            )}
+                          </div>
+                          <span>₹{itemFinalAmount.toFixed(2)}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </Card>
               ))}
