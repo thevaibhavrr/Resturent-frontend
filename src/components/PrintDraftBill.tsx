@@ -61,21 +61,26 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
             <table className="w-full text-[10px]">
               <thead>
                 <tr className="border-b border-black">
+                  <th className="text-center py-0.5 w-10">Qty</th>
                   <th className="text-left py-0.5">Item</th>
-                  <th className="text-center py-0.5">Qty</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => (
                   <tr key={item.id}>
-                    <td className="py-0.5 pr-1">
+                    <td className="text-center align-top py-0.5 pr-1">
+                      <span className="font-semibold">{item.quantity}</span>
+                    </td>
+                    <td className="py-0.5">
                       <div>
-                        <span>{item.name}</span>
-                        {typeof item.spicePercent === 'number' && (
-                          <span className="ml-1 text-[10px] text-gray-700">({Math.round(item.spicePercent)}%)</span>
+                        <span className="font-medium">{item.name}</span>
+                        {typeof item.spicePercent === 'number' && item.spicePercent > 0 && (
+                          <span className="ml-1 text-[9px] text-red-600 font-medium">
+                            🌶️ {Math.round(item.spicePercent)}%
+                          </span>
                         )}
                         {item.isJain && (
-                          <span className="ml-1 text-[10px] text-gray-700">[Jain]</span>
+                          <span className="ml-1 text-[9px] text-green-700 font-medium">[Jain]</span>
                         )}
                       </div>
                       {item.note && (
@@ -84,7 +89,6 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
                         </div>
                       )}
                     </td>
-                    <td className="text-center">{item.quantity}</td>
                   </tr>
                 ))}
               </tbody>
