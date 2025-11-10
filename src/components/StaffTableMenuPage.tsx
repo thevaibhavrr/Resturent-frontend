@@ -1749,11 +1749,11 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                     </div>
                     <div className="p-3 sm:p-4 flex-1 flex flex-col">
                       <div className="flex items-start justify-between mb-2 sm:mb-3">
-                        <h3 className="font-bold text-sm sm:text-lg line-clamp-2 flex-1 pr-2">{item.name}</h3>
+                        <h3 className="font-bold text-base sm:text-xl line-clamp-2 flex-1 pr-2">{item.name}</h3>
                         <span className="font-bold text-base sm:text-xl text-primary shrink-0">₹{item.price}</span>
                       </div>
-                      {/* Spice level and Jain options */}
-                      <div className="mb-3 sm:mb-4 grid grid-cols-2 gap-2 sm:gap-3">
+                      {/* Spice level option */}
+                      <div className="mb-3 sm:mb-4">
                         <div className="space-y-1.5">
                           <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                             🌶️ Spice 
@@ -1762,7 +1762,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                             value={String(currentSpicePercent)}
                             onValueChange={(v) => setSpicePercent(item._id, parseInt(v))}
                           >
-                            <SelectTrigger className="h-8 sm:h-9 border-2 hover:border-primary/50 transition-colors text-xs sm:text-sm">
+                            <SelectTrigger className="h-8 sm:h-9 border-2 hover:border-primary/50 transition-colors text-xs sm:text-sm w-full">
                               <SelectValue placeholder="50%" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1771,29 +1771,6 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                               <SelectItem value="50">🟠 50% Medium</SelectItem>
                               <SelectItem value="75">🔴 75% Hot</SelectItem>
                               <SelectItem value="100">🔥 100% Extra Hot</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                            🥗 Jain Option
-                          </label>
-                          <Select
-                            value={currentIsJain ? "true" : "false"}
-                            onValueChange={(v) => {
-                              setIsJain(item._id, v === "true");
-                              // Also update cart items
-                              setCart(prev => prev.map(ci => 
-                                ci.id === item._id ? { ...ci, isJain: v === "true" } : ci
-                              ));
-                            }}
-                          >
-                            <SelectTrigger className="h-8 sm:h-9 border-2 hover:border-primary/50 transition-colors text-xs sm:text-sm">
-                              <SelectValue placeholder="No" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="false">❌ No</SelectItem>
-                              <SelectItem value="true">✅ Yes</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
