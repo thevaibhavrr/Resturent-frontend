@@ -32,16 +32,23 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         const data = res.data;
         if (data.token) {
           localStorage.setItem('token', data.token);
-          // save minimal user info
+          // Save user info from API response (includes restaurantId from JWT)
           const user = data.user || { username };
-          saveCurrentUser(user as any);
+          console.log('Login successful, user data:', user);
+          saveCurrentUser({
+            id: user.id,
+            username: user.username,
+            role: user.role,
+            restaurantId: user.restaurantId, // This should come from backend JWT
+            restaurantName: user.restaurantName || 'Restaurant'
+          } as any);
           toast.success(`Welcome back, ${user.username}!`);
           onLogin();
         } else {
           toast.error('Invalid username or password');
         }
       } catch (err: any) {
-        console.error(err);
+        console.error('Login error:', err);
         const msg = err?.response?.data?.error || 'Login failed';
         toast.error(msg);
       } finally {

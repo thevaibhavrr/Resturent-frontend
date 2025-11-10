@@ -1703,7 +1703,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
             {/* Menu Items */}
             {!loading && !error && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
                 {filteredItems.map((item) => {
                   // Get current spice percent from state or cart
                   const cartItem = cart.find(ci => ci.id === item._id);
@@ -1718,14 +1718,14 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                   transition={{ duration: 0.2 }}
                 >
                 <Card 
-                  className={`overflow-hidden hover:shadow-xl transition-all duration-300 ${
+                  className={`overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col h-full ${
                     getItemQuantity(item._id) > 0 
                       ? 'ring-2 ring-primary shadow-lg' 
                       : 'hover:scale-[1.02]'
                   }`}
                 >
                   <div className="relative">
-                    <div className="relative h-40 max-h-48 w-full overflow-hidden bg-gradient-to-br from-orange-50 to-amber-50">
+                    <div className="relative h-32 sm:h-40 max-h-48 w-full overflow-hidden bg-gradient-to-br from-orange-50 to-amber-50">
                       {/* <img
                         src={item.image}
                         alt={item.name}
@@ -1747,22 +1747,22 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                         </Badge>
                       </div>
                     </div>
-                    <div className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <h3 className="font-bold text-lg">{item.name}</h3>
-                        <span className="font-bold text-xl text-primary">₹{item.price}</span>
+                    <div className="p-3 sm:p-4 flex-1 flex flex-col">
+                      <div className="flex items-start justify-between mb-2 sm:mb-3">
+                        <h3 className="font-bold text-sm sm:text-lg line-clamp-2 flex-1 pr-2">{item.name}</h3>
+                        <span className="font-bold text-base sm:text-xl text-primary shrink-0">₹{item.price}</span>
                       </div>
                       {/* Spice level and Jain options */}
-                      <div className="mb-4 grid grid-cols-2 gap-3">
+                      <div className="mb-3 sm:mb-4 grid grid-cols-2 gap-2 sm:gap-3">
                         <div className="space-y-1.5">
                           <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                            🌶️ Spice Level
+                            🌶️ Spice 
                           </label>
                           <Select
                             value={String(currentSpicePercent)}
                             onValueChange={(v) => setSpicePercent(item._id, parseInt(v))}
                           >
-                            <SelectTrigger className="h-9 border-2 hover:border-primary/50 transition-colors">
+                            <SelectTrigger className="h-8 sm:h-9 border-2 hover:border-primary/50 transition-colors text-xs sm:text-sm">
                               <SelectValue placeholder="50%" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1788,7 +1788,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                               ));
                             }}
                           >
-                            <SelectTrigger className="h-9 border-2 hover:border-primary/50 transition-colors">
+                            <SelectTrigger className="h-8 sm:h-9 border-2 hover:border-primary/50 transition-colors text-xs sm:text-sm">
                               <SelectValue placeholder="No" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1801,36 +1801,36 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                       {/* Quantity Controls */}
                       {getItemQuantity(item._id) > 0 ? (
                         <div className="space-y-3">
-                          <div className="flex items-center justify-between w-full bg-primary/5 rounded-lg p-2">
-                            <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-between w-full bg-primary/5 rounded-lg p-1.5 sm:p-2">
+                            <div className="flex items-center gap-1.5 sm:gap-2">
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => updateItemQuantity(item._id, -1)}
-                                className="h-9 w-9 p-0 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
+                                className="h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
                               >
-                                <Minus className="h-4 w-4" />
+                                <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
                               </Button>
-                              <span className="min-w-[2rem] text-center font-bold text-lg">
+                              <span className="min-w-[1.5rem] sm:min-w-[2rem] text-center font-bold text-base sm:text-lg">
                                 {getItemQuantity(item._id)}
                               </span>
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => updateItemQuantity(item._id, 1)}
-                                className="h-9 w-9 p-0 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
+                                className="h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
                                 disabled={!item.isAvailable}
                               >
-                                <Plus className="h-4 w-4" />
+                                <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
                               </Button>
                             </div>
                             <Button
                               size="sm"
                               variant="ghost"
                               onClick={() => updateItemQuantity(item._id, -getItemQuantity(item._id))}
-                              className="h-9 px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              className="h-8 w-8 sm:h-9 sm:w-9 p-0 sm:px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                             </Button>
                           </div>
                          
@@ -1838,11 +1838,12 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                       ) : (
                         <Button
                           onClick={() => updateItemQuantity(item._id, 1)}
-                          className="w-full h-10 font-semibold shadow-md hover:shadow-lg transition-all"
+                          className="w-full h-9 sm:h-10 font-semibold shadow-md hover:shadow-lg transition-all text-xs sm:text-sm"
                           disabled={!item.isAvailable}
                         >
-                          <Plus className="h-5 w-5 mr-2" />
-                          {item.isAvailable ? "Add to Cart" : "Not Available"}
+                          <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+                          <span className="hidden sm:inline">{item.isAvailable ? "Add to Cart" : "Not Available"}</span>
+                          <span className="sm:hidden">{item.isAvailable ? "Add" : "N/A"}</span>
                         </Button>
                       )}
                     </div>

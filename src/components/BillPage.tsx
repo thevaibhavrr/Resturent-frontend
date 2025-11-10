@@ -148,26 +148,90 @@ export function BillPage({
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const total = subtotal;
 
-  // Persist bill to localStorage history
-  const persistBillHistory = () => {
-    if (!user?.restaurantId) return;
+  // Persist bill to API (database) - PRIMARY method
+  const persistBillHistory = async (billNum?: string) => {
+    if (!user?.restaurantId) {
+      toast.error("User information missing. Cannot save bill.");
+      throw new Error("User information missing");
+    }
+    
+    const billNumber = billNum || `BILL-${Date.now()}`;
+    const billRecord = {
+      billNumber,
+      tableId: tableId.toString(),
+      tableName,
+      persons,
+      grandTotal: total,
+      date: new Date().toISOString(),
+      items: cart,
+    };
+
+    // Check if we have a token for API calls
+    const token = localStorage.getItem("token");
+    if (!token) {
+      const errorMsg = "Not logged in to server. Please login again to save bills.";
+      console.error(errorMsg);
+      toast.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
     try {
-      const key = getRestaurantKey("billHistory", user.restaurantId);
-      const stored = localStorage.getItem(key);
-      const history = stored ? JSON.parse(stored) : [];
-      const billRecord = {
-        billNumber: `${Date.now()}`,
-        tableId,
+      // Save to API (database) - THIS IS PRIMARY
+      console.log("Attempting to save bill to API (database) with:", {
+        billNumber,
+        restaurantId: user.restaurantId,
+        username: user.username,
+        itemsCount: cart.length,
+        grandTotal: total
+      });
+      
+      const { createBill } = await import("../api/billApi");
+      const savedBill = await createBill({
+        billNumber,
+        tableId: tableId.toString(),
         tableName,
         persons,
-        grandTotal: total,
-        date: new Date().toISOString(),
         items: cart,
-      };
-      const updated = [billRecord, ...history];
-      localStorage.setItem(key, JSON.stringify(updated));
-    } catch (e) {
-      console.error("Failed to persist bill history", e);
+        subtotal: subtotal,
+        additionalCharges: [],
+        discountAmount: 0,
+        grandTotal: total,
+        restaurantId: user.restaurantId, // Explicitly pass restaurantId
+        createdBy: user.username || 'staff'
+      } as any);
+      
+      console.log("✅ Bill saved to database successfully:", savedBill);
+      
+      // Also save to localStorage as backup/cache
+      try {
+        const key = getRestaurantKey("billHistory", user.restaurantId);
+        const stored = localStorage.getItem(key);
+        const history = stored ? JSON.parse(stored) : [];
+        const updated = [billRecord, ...history];
+        localStorage.setItem(key, JSON.stringify(updated));
+      } catch (e) {
+        console.warn("Failed to save bill to localStorage cache:", e);
+      }
+      
+      toast.success("Bill saved to database successfully!");
+      return billNumber;
+    } catch (error: any) {
+      console.error("❌ Failed to save bill to API (database):", error);
+      const errorMessage = error?.response?.data?.error || error?.message || "Unknown error";
+      console.error("Full error details:", {
+        message: errorMessage,
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        data: error?.response?.data,
+        restaurantId: user?.restaurantId,
+        username: user?.username,
+        hasToken: !!token,
+        tokenLength: token?.length
+      });
+      
+      // Don't save to localStorage if API fails - we want to force database saves
+      toast.error(`Failed to save bill to database: ${errorMessage}. Please try again.`);
+      throw error; // Re-throw to prevent navigation
     }
   };
 
@@ -179,21 +243,24 @@ export function BillPage({
     }
 
     try {
-      // Clear the draft
+      // Save bill to database FIRST (this will throw if it fails)
+      await persistBillHistory();
+
+      // Clear the draft only after successful save
       if (user?.restaurantId && user?.username) {
-        await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
+        try {
+          await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
+        } catch (draftError) {
+          console.warn("Failed to clear draft, but bill is saved:", draftError);
+        }
       }
 
-      // Save bill to history
-      persistBillHistory();
-
-      toast.success("Bill saved successfully!");
-      
-      // Navigate back
+      // Navigate back only after successful save
       onBack();
     } catch (error) {
       console.error("Error saving bill:", error);
-      toast.error("Failed to save bill");
+      // Error message already shown in persistBillHistory
+      // Don't navigate - let user try again
     }
   };
 
@@ -205,17 +272,23 @@ export function BillPage({
     }
 
     try {
-      // Clear the draft
-      if (user?.restaurantId && user?.username) {
-        await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
-      }
+      const billNumber = `BILL-${Date.now()}`;
 
-      // Save bill to history
-      persistBillHistory();
+      // Save bill to database FIRST (this will throw if it fails)
+      await persistBillHistory(billNumber);
+
+      // Clear the draft only after successful save
+      if (user?.restaurantId && user?.username) {
+        try {
+          await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
+        } catch (draftError) {
+          console.warn("Failed to clear draft, but bill is saved:", draftError);
+        }
+      }
 
       // Create print data
       const printData = {
-        billNumber: `${Date.now()}`,
+        billNumber,
         tableName,
         persons,
         items: cart,
@@ -234,7 +307,8 @@ export function BillPage({
       }
     } catch (error) {
       console.error("Error saving bill:", error);
-      toast.error("Failed to save bill");
+      // Error message already shown in persistBillHistory
+      // Don't proceed with print if save failed
     }
   };
 

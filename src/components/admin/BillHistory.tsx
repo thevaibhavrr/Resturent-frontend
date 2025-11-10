@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
 interface BillHistoryItem {
+  _id?: string; // MongoDB ID for API operations
   billNumber: string;
   tableId: number;
   tableName: string;
@@ -43,27 +44,84 @@ export function BillHistory() {
   const [dateFilter, setDateFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date-desc");
 
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     loadHistory();
   }, []);
 
-  const loadHistory = () => {
+  const loadHistory = async () => {
     if (!user) return;
-    const key = getRestaurantKey("billHistory", user.restaurantId);
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      setHistory(JSON.parse(stored));
+    
+    setLoading(true);
+    try {
+      // Load from API
+      const { getBills } = await import("../../api/billApi");
+      const response = await getBills({ limit: 1000 });
+      
+      // Transform API response to match component interface
+      const bills = response.bills.map((bill: any) => ({
+        _id: bill._id, // Store MongoDB ID for deletion
+        billNumber: bill.billNumber,
+        tableId: parseInt(bill.tableId) || 0,
+        tableName: bill.tableName,
+        persons: bill.persons,
+        grandTotal: bill.grandTotal,
+        date: bill.createdAt,
+        items: bill.items.map((item: any) => ({
+          id: item.itemId || item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity
+        }))
+      }));
+      
+      setHistory(bills);
+    } catch (error) {
+      console.error("Error loading bill history:", error);
+      // Fallback to localStorage
+      const key = getRestaurantKey("billHistory", user.restaurantId);
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        setHistory(JSON.parse(stored));
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteBill = (billNumber: string) => {
+  const handleDeleteBill = async (billNumber: string) => {
     if (!user) return;
-    if (confirm("Are you sure you want to delete this bill?")) {
-      const updated = history.filter((bill) => bill.billNumber !== billNumber);
-      const key = getRestaurantKey("billHistory", user.restaurantId);
-      localStorage.setItem(key, JSON.stringify(updated));
-      setHistory(updated);
-      toast.success("Bill deleted successfully");
+    if (!confirm("Are you sure you want to delete this bill?")) return;
+
+    try {
+      // Find bill from history
+      const bill = history.find(b => b.billNumber === billNumber);
+      if (bill && bill._id) {
+        // Delete from API
+        const { deleteBill } = await import("../../api/billApi");
+        await deleteBill(bill._id);
+        
+        // Update local state
+        const updated = history.filter((b) => b.billNumber !== billNumber);
+        setHistory(updated);
+        
+        // Also update localStorage
+        const key = getRestaurantKey("billHistory", user.restaurantId);
+        localStorage.setItem(key, JSON.stringify(updated));
+        
+        toast.success("Bill deleted successfully");
+      } else {
+        // Fallback: just remove from local state if no _id
+        const updated = history.filter((b) => b.billNumber !== billNumber);
+        setHistory(updated);
+        const key = getRestaurantKey("billHistory", user.restaurantId);
+        localStorage.setItem(key, JSON.stringify(updated));
+        toast.success("Bill deleted from local history");
+      }
+    } catch (error) {
+      console.error("Error deleting bill:", error);
+      toast.error("Failed to delete bill");
     }
   };
 
@@ -236,7 +294,11 @@ export function BillHistory() {
 
       {/* Bills List */}
       <Card className="p-6">
-        {filteredBills.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Loading bills...</p>
+          </div>
+        ) : filteredBills.length === 0 ? (
           <div className="text-center py-12">
             <History className="w-12 h-12 mx-auto mb-3 opacity-50 text-muted-foreground" />
             <p className="text-muted-foreground">No bills found</p>

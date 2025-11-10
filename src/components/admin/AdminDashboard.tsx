@@ -16,6 +16,7 @@ import {
   CreditCard,
   ChevronDown,
   ChevronUp,
+  RefreshCw,
 } from "lucide-react";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
 import { getRestaurantSubscription, Subscription } from "../../api/planApi";
@@ -34,6 +35,7 @@ export function AdminDashboard() {
   });
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loadingSubscription, setLoadingSubscription] = useState(true);
+  const [loadingStats, setLoadingStats] = useState(true);
   const [isPlanExpanded, setIsPlanExpanded] = useState(false);
 
   useEffect(() => {
@@ -41,40 +43,70 @@ export function AdminDashboard() {
     loadSubscription();
   }, []);
 
-  const loadStats = () => {
+  const loadStats = async () => {
     if (!user) return;
 
-    // Get tables
-    const tablesKey = getRestaurantKey("tables", user.restaurantId);
-    const tables = JSON.parse(localStorage.getItem(tablesKey) || "[]");
-    const occupied = tables.filter((t: any) => t.status === "occupied").length;
+    setLoadingStats(true);
+    try {
+      // Load bill stats from API
+      const { getBillStats } = await import("../../api/billApi");
+      const billStats = await getBillStats();
 
-    // Get menu items
-    const menuKey = getRestaurantKey("menuItems", user.restaurantId);
-    const menuItems = JSON.parse(localStorage.getItem(menuKey) || "[]");
+      // Load tables from API
+      const { getAllTables } = await import("../../api/tableApi");
+      const tables = await getAllTables(user.restaurantId);
+      const occupied = tables.filter((t: any) => t.status === "occupied" || t.status === "active").length;
 
-    // Get bill history
-    const historyKey = getRestaurantKey("billHistory", user.restaurantId);
-    const history = JSON.parse(localStorage.getItem(historyKey) || "[]");
-    const totalRevenue = history.reduce(
-      (sum: number, bill: any) => sum + bill.grandTotal,
-      0
-    );
+      // Load menu items from API
+      const { getMenuItems } = await import("../../api/menuApi");
+      const menuItems = await getMenuItems(user.restaurantId);
 
-    // Get staff
-    const staffUsers = JSON.parse(localStorage.getItem("staff_users") || "[]");
-    const restaurantStaff = staffUsers.filter(
-      (s: any) => s.restaurantId === user.restaurantId
-    );
+      // Load staff from API
+      const { makeApi } = await import("../../api/makeapi");
+      const staffResponse = await makeApi(`/api/staff/restaurant/${user.restaurantId}`, "GET");
+      const staff = staffResponse.data || [];
 
-    setStats({
-      totalTables: tables.length,
-      occupiedTables: occupied,
-      totalOrders: history.length,
-      totalRevenue,
-      totalMenuItems: menuItems.length,
-      totalStaff: restaurantStaff.length,
-    });
+      setStats({
+        totalTables: tables.length,
+        occupiedTables: occupied,
+        totalOrders: billStats.totalOrders,
+        totalRevenue: billStats.totalRevenue,
+        totalMenuItems: menuItems.length,
+        totalStaff: staff.length,
+      });
+    } catch (error) {
+      console.error("Error loading stats:", error);
+      // Fallback to localStorage if API fails
+      const tablesKey = getRestaurantKey("tables", user.restaurantId);
+      const tables = JSON.parse(localStorage.getItem(tablesKey) || "[]");
+      const occupied = tables.filter((t: any) => t.status === "occupied").length;
+
+      const menuKey = getRestaurantKey("menuItems", user.restaurantId);
+      const menuItems = JSON.parse(localStorage.getItem(menuKey) || "[]");
+
+      const historyKey = getRestaurantKey("billHistory", user.restaurantId);
+      const history = JSON.parse(localStorage.getItem(historyKey) || "[]");
+      const totalRevenue = history.reduce(
+        (sum: number, bill: any) => sum + bill.grandTotal,
+        0
+      );
+
+      const staffUsers = JSON.parse(localStorage.getItem("staff_users") || "[]");
+      const restaurantStaff = staffUsers.filter(
+        (s: any) => s.restaurantId === user.restaurantId
+      );
+
+      setStats({
+        totalTables: tables.length,
+        occupiedTables: occupied,
+        totalOrders: history.length,
+        totalRevenue,
+        totalMenuItems: menuItems.length,
+        totalStaff: restaurantStaff.length,
+      });
+    } finally {
+      setLoadingStats(false);
+    }
   };
 
   const loadSubscription = async () => {
@@ -94,6 +126,24 @@ export function AdminDashboard() {
 
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6">
+      {/* Header with Refresh Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">Restaurant overview and statistics</p>
+        </div>
+        <Button 
+          onClick={loadStats} 
+          variant="outline" 
+          size="sm"
+          disabled={loadingStats}
+          className="gap-2"
+        >
+          <RefreshCw className={`w-4 h-4 ${loadingStats ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
+
       {/* Subscription Status Card */}
       {!loadingSubscription && subscription && (
         <Card className={`shadow-md md:shadow-xl border-2 transition-all ${
