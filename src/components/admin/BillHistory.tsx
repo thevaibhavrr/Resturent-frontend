@@ -20,6 +20,8 @@ import {
   FileText,
   Filter,
   ArrowLeft,
+  Edit,
+  Printer,
 } from "lucide-react";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
 import { toast } from "sonner";
@@ -33,7 +35,16 @@ interface BillHistoryItem {
   persons: number;
   grandTotal: number;
   date: string;
-  items: Array<{ id: number; name: string; price: number; quantity: number }>;
+  items: Array<{ 
+    id: number | string; 
+    name: string; 
+    price: number; 
+    quantity: number;
+    note?: string;
+    spiceLevel?: number;
+    spicePercent?: number;
+    isJain?: boolean;
+  }>;
 }
 
 export function BillHistory() {
@@ -72,7 +83,11 @@ export function BillHistory() {
           id: item.itemId || item.id,
           name: item.name,
           price: item.price,
-          quantity: item.quantity
+          quantity: item.quantity,
+          note: item.note || '',
+          spiceLevel: item.spiceLevel || 1,
+          spicePercent: item.spicePercent || 50,
+          isJain: item.isJain || false
         }))
       }));
       
@@ -123,6 +138,57 @@ export function BillHistory() {
       console.error("Error deleting bill:", error);
       toast.error("Failed to delete bill");
     }
+  };
+
+  const handleEditBill = (bill: BillHistoryItem) => {
+    // Navigate to bill page with bill data for editing
+    const billData = {
+      table: {
+        id: bill.tableId,
+        tableName: bill.tableName
+      },
+      cart: bill.items.map(item => ({
+        id: item.id.toString(),
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        note: item.note || '',
+        spiceLevel: item.spiceLevel || 1,
+        spicePercent: item.spicePercent || 50,
+        isJain: item.isJain || false
+      })),
+      persons: bill.persons,
+      isEdit: true,
+      originalBillNumber: bill.billNumber
+    };
+    
+    navigate("/order-tables/bill", { state: billData });
+  };
+
+  const handlePrintBill = (bill: BillHistoryItem) => {
+    // Navigate to print page with bill data
+    const printData = {
+      billNumber: bill.billNumber,
+      tableName: bill.tableName,
+      persons: bill.persons,
+      items: bill.items.map(item => ({
+        id: item.id.toString(),
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        note: item.note || '',
+        spiceLevel: item.spiceLevel || 1,
+        spicePercent: item.spicePercent || 50,
+        isJain: item.isJain || false
+      })),
+      additionalCharges: [],
+      discountAmount: 0,
+      cgst: 0,
+      sgst: 0,
+      grandTotal: bill.grandTotal
+    };
+    
+    navigate("/order-tables/print-bill", { state: { printData } });
   };
 
   const formatDate = (dateString: string) => {
@@ -335,17 +401,38 @@ export function BillHistory() {
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <div className="text-right">
                         <p className="text-xl text-primary">
                           ₹{bill.grandTotal.toFixed(2)}
                         </p>
                       </div>
                       <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditBill(bill)}
+                        className="h-9 gap-2"
+                        title="Edit Bill"
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span className="hidden sm:inline">Edit</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handlePrintBill(bill)}
+                        className="h-9 gap-2"
+                        title="Print Bill"
+                      >
+                        <Printer className="w-4 h-4" />
+                        <span className="hidden sm:inline">Print</span>
+                      </Button>
+                      <Button
                         size="icon"
                         variant="ghost"
                         onClick={() => handleDeleteBill(bill.billNumber)}
                         className="h-9 w-9 text-destructive"
+                        title="Delete Bill"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
