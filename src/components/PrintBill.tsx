@@ -72,6 +72,8 @@ export function PrintBill({
           setRestaurantSettings(settings);
         } catch (error) {
           console.error("Error loading restaurant settings:", error);
+          // Don't show error toast - settings are optional for printing
+          // Just use default settings if API fails
         }
       }
     };

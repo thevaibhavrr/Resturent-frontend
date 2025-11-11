@@ -242,7 +242,19 @@ export function BillPage({
       return billNumber;
     } catch (error: any) {
       console.error("❌ Failed to save bill to API (database):", error);
-      const errorMessage = error?.response?.data?.error || error?.message || "Unknown error";
+      
+      // Extract error message from various possible locations
+      let errorMessage = "Unknown error";
+      if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error?.response?.data === 'string') {
+        errorMessage = error.response.data;
+      }
+      
       console.error("Full error details:", {
         message: errorMessage,
         status: error?.response?.status,
@@ -251,11 +263,12 @@ export function BillPage({
         restaurantId: user?.restaurantId,
         username: user?.username,
         hasToken: !!token,
-        tokenLength: token?.length
+        tokenLength: token?.length,
+        fullError: error
       });
       
       // Don't save to localStorage if API fails - we want to force database saves
-      toast.error(`Failed to save bill to database: ${errorMessage}. Please try again.`);
+      toast.error(`Failed to save bill: ${errorMessage}. Please check your connection and try again.`);
       throw error; // Re-throw to prevent navigation
     }
   };

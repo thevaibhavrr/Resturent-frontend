@@ -52,8 +52,25 @@ export interface CreateBillData {
  * Create a new bill
  */
 export const createBill = async (billData: CreateBillData): Promise<Bill> => {
-  const response = await makeApi('/api/bills', 'POST', billData);
-  return response.data.bill;
+  try {
+    const response = await makeApi('/api/bills', 'POST', billData);
+    if (response.data && response.data.bill) {
+      return response.data.bill;
+    }
+    // Handle case where response structure might be different
+    if (response.data) {
+      return response.data;
+    }
+    throw new Error('Invalid response from server');
+  } catch (error: any) {
+    console.error('Error creating bill:', error);
+    // Re-throw with more context
+    if (error.response) {
+      const errorMsg = error.response.data?.error || error.response.data?.message || 'Failed to save bill';
+      throw new Error(errorMsg);
+    }
+    throw error;
+  }
 };
 
 /**
