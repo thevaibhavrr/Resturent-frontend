@@ -18,6 +18,7 @@ interface RestaurantSettings {
   website: string;
   gstin: string;
   logo: string;
+  qrCode: string;
   description: string;
 }
 
@@ -31,6 +32,7 @@ export function Settings() {
     website: "",
     gstin: "",
     logo: "",
+    qrCode: "",
     description: "",
   });
 
@@ -56,6 +58,7 @@ export function Settings() {
           website: response.data.website || "",
           gstin: response.data.gstin || "",
           logo: response.data.logo || "",
+          qrCode: response.data.qrCode || "",
           description: response.data.description || "",
         });
       }
@@ -76,6 +79,7 @@ export function Settings() {
           website: "",
           gstin: "",
           logo: "",
+          qrCode: "",
           description: "",
         });
       }
@@ -99,6 +103,26 @@ export function Settings() {
           logo: reader.result as string,
         });
         toast.success("Logo uploaded successfully");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleQRCodeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("QR code size should be less than 5MB");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSettings({
+          ...settings,
+          qrCode: reader.result as string,
+        });
+        toast.success("QR code uploaded successfully");
       };
       reader.readAsDataURL(file);
     }
@@ -315,6 +339,58 @@ export function Settings() {
             </div>
           </Card>
 
+          {/* QR Code Upload */}
+          <Card className="p-6">
+            <h2 className="text-xl mb-4">QR Code</h2>
+            <div className="space-y-4">
+              {settings.qrCode ? (
+                <div className="space-y-3">
+                  <div className="w-full aspect-square border rounded-lg overflow-hidden bg-muted flex items-center justify-center max-w-xs mx-auto">
+                    <img
+                      src={settings.qrCode}
+                      alt="QR Code"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setSettings({ ...settings, qrCode: "" })}
+                  >
+                    Remove QR Code
+                  </Button>
+                </div>
+              ) : (
+                <div>
+                  <Label
+                    htmlFor="qrCode"
+                    className="cursor-pointer"
+                  >
+                    <div className="border-2 border-dashed rounded-lg p-8 text-center hover:bg-muted/50 transition-colors">
+                      <Upload className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+                      <p className="text-sm mb-1">
+                        Click to upload QR code
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        PNG, JPG up to 5MB
+                      </p>
+                    </div>
+                  </Label>
+                  <Input
+                    id="qrCode"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleQRCodeUpload}
+                  />
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                QR code will appear on bills for customers to scan and view menu
+              </p>
+            </div>
+          </Card>
+
           <Card className="p-6 bg-primary/5 border-primary/20">
             <h3 className="font-semibold mb-2">Quick Info</h3>
             <div className="space-y-2 text-sm">
@@ -354,6 +430,7 @@ export async function getRestaurantSettings(restaurantId: string): Promise<Resta
         website: response.data.website || "",
         gstin: response.data.gstin || "",
         logo: response.data.logo || "",
+        qrCode: response.data.qrCode || "",
         description: response.data.description || "",
       };
     }
@@ -375,6 +452,7 @@ export async function getRestaurantSettings(restaurantId: string): Promise<Resta
     website: "",
     gstin: "",
     logo: "",
+    qrCode: "",
     description: "",
   };
 }

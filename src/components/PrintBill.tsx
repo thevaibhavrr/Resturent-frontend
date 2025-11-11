@@ -56,6 +56,7 @@ export function PrintBill({
     phone: "",
     gstin: "",
     logo: "",
+    qrCode: "",
     email: "",
     website: "",
     description: "",
@@ -289,6 +290,24 @@ export function PrintBill({
               </div>
             </div>
           </div>
+
+          {/* QR Code Section */}
+          {restaurantSettings.qrCode && (
+            <div className="mb-2 pb-2 border-t-2 border-dashed border-gray-500 pt-2 text-center">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-32 h-32 border-2 border-gray-300 rounded-lg p-2 bg-white">
+                  <img
+                    src={restaurantSettings.qrCode}
+                    alt="QR Code"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <p className="text-[10px] font-semibold text-gray-700 uppercase tracking-wide">
+                  Scan and view our menu
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Premium Thank You Section */}
           <div className="text-center mb-0 pb-0 border-t-2 border-dashed border-gray-500 pt-0">
