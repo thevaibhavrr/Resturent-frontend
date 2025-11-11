@@ -33,8 +33,10 @@ interface BillHistoryItem {
   tableId: number;
   tableName: string;
   persons: number;
+  subtotal: number;
   grandTotal: number;
   discountAmount?: number; // Total discount on bill
+  additionalCharges?: Array<{ name: string; amount: number }>; // Additional charges
   date: string;
   items: Array<{ 
     id: number | string; 
@@ -102,8 +104,10 @@ export function BillHistory() {
         tableId: parseInt(bill.tableId) || 0,
         tableName: bill.tableName,
         persons: bill.persons,
+        subtotal: bill.subtotal || 0,
         grandTotal: bill.grandTotal,
         discountAmount: bill.discountAmount || 0,
+        additionalCharges: bill.additionalCharges || [],
         date: bill.createdAt,
         items: bill.items.map((item: any) => ({
           id: item.itemId || item.id,
@@ -173,6 +177,9 @@ export function BillHistory() {
   };
 
   const handleEditBill = (bill: BillHistoryItem) => {
+    // Calculate additional price from additionalCharges
+    const additionalPrice = bill.additionalCharges?.reduce((sum, charge) => sum + (charge.amount || 0), 0) || 0;
+    
     // Navigate to bill page with bill data for editing
     const billData = {
       table: {
@@ -192,6 +199,7 @@ export function BillHistory() {
       })),
       persons: bill.persons,
       totalDiscount: bill.discountAmount || 0,
+      additionalPrice: additionalPrice,
       isEdit: true,
       originalBillNumber: bill.billNumber
     };
@@ -216,7 +224,11 @@ export function BillHistory() {
         isJain: item.isJain || false,
         discountAmount: item.discountAmount || 0
       })),
-      additionalCharges: [],
+      additionalCharges: bill.additionalCharges?.map((charge, idx) => ({
+        id: idx,
+        name: charge.name,
+        amount: charge.amount
+      })) || [],
       discountAmount: bill.discountAmount || 0,
       cgst: 0,
       sgst: 0,
@@ -438,19 +450,23 @@ export function BillHistory() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
-                        {bill.discountAmount && bill.discountAmount > 0 && (
-                          <p className="text-xs text-muted-foreground line-through">
-                            ₹{(bill.grandTotal + bill.discountAmount).toFixed(2)}
-                          </p>
-                        )}
                         <p className="text-xl text-primary">
                           ₹{bill.grandTotal.toFixed(2)}
                         </p>
-                        {bill.discountAmount && bill.discountAmount > 0 && (
-                          <p className="text-xs text-red-600">
-                            -₹{bill.discountAmount.toFixed(2)} discount
-                          </p>
-                        )}
+                        {(bill.discountAmount && bill.discountAmount > 0) || (bill.additionalCharges && bill.additionalCharges.length > 0) ? (
+                          <div className="text-xs space-y-0.5 mt-1">
+                            {bill.discountAmount && bill.discountAmount > 0 && (
+                              <p className="text-red-600">
+                                -₹{bill.discountAmount.toFixed(2)} discount
+                              </p>
+                            )}
+                            {bill.additionalCharges && bill.additionalCharges.length > 0 && (
+                              <p className="text-green-600">
+                                +₹{bill.additionalCharges.reduce((sum, charge) => sum + (charge.amount || 0), 0).toFixed(2)} additional
+                              </p>
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                       <Button
                         size="sm"
@@ -510,6 +526,36 @@ export function BillHistory() {
                       </div>
                       );
                     })}
+                    
+                    {/* Summary Section */}
+                    {(bill.discountAmount && bill.discountAmount > 0) || (bill.additionalCharges && bill.additionalCharges.length > 0) ? (
+                      <div className="border-t pt-2 mt-2 space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Subtotal:</span>
+                          <span>₹{(bill.subtotal || bill.grandTotal).toFixed(2)}</span>
+                        </div>
+                        {bill.discountAmount && bill.discountAmount > 0 && (
+                          <div className="flex justify-between text-sm text-red-600">
+                            <span>Discount:</span>
+                            <span>-₹{bill.discountAmount.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {bill.additionalCharges && bill.additionalCharges.length > 0 && (
+                          <>
+                            {bill.additionalCharges.map((charge, idx) => (
+                              <div key={idx} className="flex justify-between text-sm text-green-600">
+                                <span>{charge.name}:</span>
+                                <span>+₹{charge.amount.toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </>
+                        )}
+                        <div className="flex justify-between text-sm font-semibold border-t pt-1 mt-1">
+                          <span>Grand Total:</span>
+                          <span>₹{bill.grandTotal.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </Card>
               ))}

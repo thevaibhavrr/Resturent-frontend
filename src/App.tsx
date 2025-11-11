@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { LoginPage } from "./components/LoginPage";
 import { AdminSidebar } from "./components/AdminSidebar";
 import { StaffSidebar } from "./components/StaffSidebar";
@@ -85,6 +85,7 @@ interface PrintData {
 
 function AppContent() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(getCurrentUser());
   // Remove currentPage, navigation will be handled by react-router
@@ -347,15 +348,21 @@ function AppContent() {
   }
 
   // Staff Interface - Tables Page
+  // Show header only on /order-tables page
+  const showHeader = location.pathname === "/order-tables";
+  
   return (
     <div className="min-h-screen bg-background">
       <Toaster />
       {/* Subscription alert and modal only shown to admin, not staff */}
-      <div className="lg:hidden">
-        <Header onToggleMenu={() => setMenuOpen((s) => !s)} onLogout={handleLogout} />
-      </div>
+      {/* Show header only on /order-tables page for staff */}
+      {showHeader && (
+        <div className="lg:hidden">
+          <Header onToggleMenu={() => setMenuOpen((s) => !s)} onLogout={handleLogout} />
+        </div>
+      )}
       <StaffSidebar onLogout={handleLogout} menuOpen={menuOpen} onCloseMenu={() => setMenuOpen(false)} />
-      <main className="lg:ml-64 pt-20 lg:pt-0">
+      <main className={`lg:ml-64 ${showHeader ? 'pt-20' : 'pt-0'} lg:pt-0`}>
         <Routes>
       <Route path="/order-tables" element={
         <TablesPage

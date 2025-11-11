@@ -11,6 +11,7 @@ export default function BillPage() {
   const cartData = location.state?.cart;
   const personsData = location.state?.persons;
   const totalDiscountData = location.state?.totalDiscount || 0;
+  const additionalPriceData = location.state?.additionalPrice || 0;
   
   if (!tableData) {
     navigate("/order-tables");
@@ -33,6 +34,7 @@ export default function BillPage() {
       initialCart={cartData || []}
       initialPersons={personsData || 1}
       initialTotalDiscount={totalDiscountData}
+      initialAdditionalPrice={additionalPriceData}
       onBack={handleBack}
       onSaveAndPrint={handleSaveAndPrint}
     />

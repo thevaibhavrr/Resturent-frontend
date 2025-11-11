@@ -49,6 +49,7 @@ interface BillPageProps {
   initialCart: CartItem[];
   initialPersons: number;
   initialTotalDiscount?: number; // Optional initial total discount
+  initialAdditionalPrice?: number; // Optional initial additional price
   onBack: () => void;
   onSaveAndPrint?: (data: any) => void;
 }
@@ -59,6 +60,7 @@ export function BillPage({
   initialCart, 
   initialPersons, 
   initialTotalDiscount = 0,
+  initialAdditionalPrice = 0,
   onBack,
   onSaveAndPrint
 }: BillPageProps) {
@@ -71,6 +73,7 @@ export function BillPage({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [totalDiscount, setTotalDiscount] = useState(initialTotalDiscount); // Total discount in ₹
+  const [additionalPrice, setAdditionalPrice] = useState(initialAdditionalPrice); // Additional charges/price in ₹
 
   // Load menu data
   useEffect(() => {
@@ -164,8 +167,8 @@ export function BillPage({
     return sum + itemTotal - itemDiscount;
   }, 0);
   
-  // Apply total discount
-  const total = Math.max(0, subtotal - totalDiscount);
+  // Apply total discount and additional price
+  const total = Math.max(0, subtotal - totalDiscount + additionalPrice);
 
   // Persist bill to API (database) - PRIMARY method
   const persistBillHistory = async (billNum?: string) => {
@@ -218,7 +221,7 @@ export function BillPage({
         persons,
         items: itemsWithDiscounts,
         subtotal: subtotal,
-        additionalCharges: [],
+        additionalCharges: additionalPrice > 0 ? [{ id: Date.now(), name: "Additional Charges", amount: additionalPrice }] : [],
         discountAmount: totalDiscount, // Total discount on bill
         grandTotal: total,
         restaurantId: user.restaurantId, // Explicitly pass restaurantId
@@ -324,7 +327,7 @@ export function BillPage({
         }
       }
 
-      // Create print data with discounts
+      // Create print data with discounts and additional charges
       const printData = {
         billNumber,
         tableName,
@@ -333,7 +336,7 @@ export function BillPage({
           ...item,
           discountAmount: item.discountAmount || 0
         })),
-        additionalCharges: [],
+        additionalCharges: additionalPrice > 0 ? [{ id: Date.now(), name: "Additional Charges", amount: additionalPrice }] : [],
         discountAmount: totalDiscount,
         cgst: 0,
         sgst: 0,
@@ -618,6 +621,30 @@ export function BillPage({
                   <div className="flex justify-between text-sm text-red-600">
                     <span>Discount Applied:</span>
                     <span>- ₹{totalDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                
+                {/* Additional Price Input */}
+                <div className="flex items-center justify-between gap-2 py-2 border-t">
+                  <label className="text-sm text-muted-foreground whitespace-nowrap">Additional Price (₹):</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={additionalPrice || ""}
+                    onChange={(e) => {
+                      const price = parseFloat(e.target.value) || 0;
+                      setAdditionalPrice(Math.max(0, price));
+                    }}
+                    placeholder="0"
+                    className="h-8 text-sm w-32"
+                  />
+                </div>
+                
+                {additionalPrice > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Additional Charges:</span>
+                    <span>+ ₹{additionalPrice.toFixed(2)}</span>
                   </div>
                 )}
                 

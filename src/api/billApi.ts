@@ -9,6 +9,7 @@ export interface BillItem {
   spiceLevel?: number;
   spicePercent?: number;
   isJain?: boolean;
+  discountAmount?: number; // Item-level discount
 }
 
 export interface Bill {

@@ -284,6 +284,12 @@ export function PrintBill({
                   <span className="font-semibold">-₹{discountAmount.toFixed(2)}</span>
                 </div>
               )}
+              {additionalTotal > 0 && (
+                <div className="flex justify-between text-[11px] text-green-600">
+                  <span>Additional Charges:</span>
+                  <span className="font-semibold">+₹{additionalTotal.toFixed(2)}</span>
+                </div>
+              )}
             </div>
             <div className="bg-gradient-to-r from-gray-100 to-gray-50 -mx-2 px-3 py-1.5 rounded border border-gray-300">
               <div className="flex justify-between items-center">

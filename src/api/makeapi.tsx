@@ -32,7 +32,7 @@ export const makeApi = async (
     return response;
   } catch (error) {
     const message = error.response?.data;
-		if(message?.error === "Invalid Token.") {
+		if(message?.error === "Invalid Token.") { 
 			localStorage.clear();
 			window.location.href = "/";
 		}

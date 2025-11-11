@@ -29,6 +29,8 @@ export default function AdminBillPage() {
       tableName={billData.table.tableName}
       initialPersons={billData.persons}
       initialCart={billData.cart}
+      initialTotalDiscount={billData.totalDiscount || 0}
+      initialAdditionalPrice={billData.additionalPrice || 0}
       onBack={handleBack}
       onSaveAndPrint={handleSaveAndPrint}
     />
