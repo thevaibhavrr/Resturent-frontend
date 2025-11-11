@@ -5,6 +5,13 @@ import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import {
   DollarSign,
   ShoppingCart,
   TrendingUp,
@@ -37,20 +44,57 @@ export function AdminDashboard() {
   const [loadingSubscription, setLoadingSubscription] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
   const [isPlanExpanded, setIsPlanExpanded] = useState(false);
+  const [dateFilter, setDateFilter] = useState("today"); // Default to today
+
+  useEffect(() => {
+    loadSubscription();
+  }, []);
 
   useEffect(() => {
     loadStats();
-    loadSubscription();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFilter]); // Reload stats when date filter changes
 
   const loadStats = async () => {
     if (!user) return;
 
     setLoadingStats(true);
     try {
-      // Load bill stats from API
+      // Calculate date range based on filter
+      let startDate: string | undefined;
+      let endDate: string | undefined;
+      
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      switch (dateFilter) {
+        case "today":
+          startDate = today.toISOString();
+          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+          break;
+        case "weekly":
+          const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+          startDate = weekAgo.toISOString();
+          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+          break;
+        case "monthly":
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          startDate = monthStart.toISOString();
+          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+          break;
+        case "yearly":
+          const yearStart = new Date(now.getFullYear(), 0, 1);
+          startDate = yearStart.toISOString();
+          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+          break;
+        default:
+          // All time - no date filter
+          break;
+      }
+      
+      // Load bill stats from API with date filter
       const { getBillStats } = await import("../../api/billApi");
-      const billStats = await getBillStats();
+      const billStats = await getBillStats({ startDate, endDate });
 
       // Load tables from API
       const { getAllTables } = await import("../../api/tableApi");
@@ -77,33 +121,33 @@ export function AdminDashboard() {
     } catch (error) {
       console.error("Error loading stats:", error);
       // Fallback to localStorage if API fails
-      const tablesKey = getRestaurantKey("tables", user.restaurantId);
-      const tables = JSON.parse(localStorage.getItem(tablesKey) || "[]");
-      const occupied = tables.filter((t: any) => t.status === "occupied").length;
+    const tablesKey = getRestaurantKey("tables", user.restaurantId);
+    const tables = JSON.parse(localStorage.getItem(tablesKey) || "[]");
+    const occupied = tables.filter((t: any) => t.status === "occupied").length;
 
-      const menuKey = getRestaurantKey("menuItems", user.restaurantId);
-      const menuItems = JSON.parse(localStorage.getItem(menuKey) || "[]");
+    const menuKey = getRestaurantKey("menuItems", user.restaurantId);
+    const menuItems = JSON.parse(localStorage.getItem(menuKey) || "[]");
 
-      const historyKey = getRestaurantKey("billHistory", user.restaurantId);
-      const history = JSON.parse(localStorage.getItem(historyKey) || "[]");
-      const totalRevenue = history.reduce(
-        (sum: number, bill: any) => sum + bill.grandTotal,
-        0
-      );
+    const historyKey = getRestaurantKey("billHistory", user.restaurantId);
+    const history = JSON.parse(localStorage.getItem(historyKey) || "[]");
+    const totalRevenue = history.reduce(
+      (sum: number, bill: any) => sum + bill.grandTotal,
+      0
+    );
 
-      const staffUsers = JSON.parse(localStorage.getItem("staff_users") || "[]");
-      const restaurantStaff = staffUsers.filter(
-        (s: any) => s.restaurantId === user.restaurantId
-      );
+    const staffUsers = JSON.parse(localStorage.getItem("staff_users") || "[]");
+    const restaurantStaff = staffUsers.filter(
+      (s: any) => s.restaurantId === user.restaurantId
+    );
 
-      setStats({
-        totalTables: tables.length,
-        occupiedTables: occupied,
-        totalOrders: history.length,
-        totalRevenue,
-        totalMenuItems: menuItems.length,
-        totalStaff: restaurantStaff.length,
-      });
+    setStats({
+      totalTables: tables.length,
+      occupiedTables: occupied,
+      totalOrders: history.length,
+      totalRevenue,
+      totalMenuItems: menuItems.length,
+      totalStaff: restaurantStaff.length,
+    });
     } finally {
       setLoadingStats(false);
     }
@@ -126,22 +170,38 @@ export function AdminDashboard() {
 
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6">
-      {/* Header with Refresh Button */}
-      <div className="flex items-center justify-between">
+      {/* Header with Date Filter and Refresh Button */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">Restaurant overview and statistics</p>
         </div>
-        <Button 
-          onClick={loadStats} 
-          variant="outline" 
-          size="sm"
-          disabled={loadingStats}
-          className="gap-2"
-        >
-          <RefreshCw className={`w-4 h-4 ${loadingStats ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-muted-foreground" />
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="w-[140px] sm:w-[160px]">
+                <SelectValue placeholder="Select period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="weekly">This Week</SelectItem>
+                <SelectItem value="monthly">This Month</SelectItem>
+                <SelectItem value="yearly">This Year</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button 
+            onClick={loadStats} 
+            variant="outline" 
+            size="sm"
+            disabled={loadingStats}
+            className="gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${loadingStats ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Subscription Status Card */}
@@ -306,7 +366,12 @@ export function AdminDashboard() {
           </div>
           <div className="space-y-1">
             <p className="text-3xl">{stats.totalOrders}</p>
-            <p className="text-xs text-muted-foreground">All time</p>
+            <p className="text-xs text-muted-foreground">
+              {dateFilter === "today" ? "Today" :
+               dateFilter === "weekly" ? "This week" :
+               dateFilter === "monthly" ? "This month" :
+               dateFilter === "yearly" ? "This year" : "All time"}
+            </p>
           </div>
         </Card>
 
@@ -318,7 +383,12 @@ export function AdminDashboard() {
           </div>
           <div className="space-y-1">
             <p className="text-3xl">₹{stats.totalRevenue.toFixed(2)}</p>
-            <p className="text-xs text-muted-foreground">All time</p>
+            <p className="text-xs text-muted-foreground">
+              {dateFilter === "today" ? "Today" :
+               dateFilter === "weekly" ? "This week" :
+               dateFilter === "monthly" ? "This month" :
+               dateFilter === "yearly" ? "This year" : "All time"}
+            </p>
           </div>
         </Card>
 

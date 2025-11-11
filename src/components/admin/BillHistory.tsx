@@ -54,14 +54,11 @@ export function BillHistory() {
   const navigate = useNavigate();
   const [history, setHistory] = useState<BillHistoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [dateFilter, setDateFilter] = useState("all");
+  // Set default date filter to "today" for staff, "all" for admin
+  const [dateFilter, setDateFilter] = useState(user?.role === "staff" ? "today" : "all");
   const [sortBy, setSortBy] = useState("date-desc");
 
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadHistory();
-  }, []);
 
   const loadHistory = async () => {
     if (!user) return;
@@ -70,7 +67,33 @@ export function BillHistory() {
     try {
       // Load from API
       const { getBills } = await import("../../api/billApi");
-      const response = await getBills({ limit: 1000 });
+      
+      // For staff, default to today's date filter
+      const isStaff = user.role === "staff";
+      const currentDateFilter = dateFilter || (isStaff ? "today" : "all");
+      
+      // Calculate date range if filtering by date
+      let startDate: string | undefined;
+      if (currentDateFilter === "today") {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        startDate = today.toISOString();
+      } else if (currentDateFilter === "week") {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        weekAgo.setHours(0, 0, 0, 0);
+        startDate = weekAgo.toISOString();
+      } else if (currentDateFilter === "month") {
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+        startDate = monthStart.toISOString();
+      }
+      
+      const response = await getBills({ 
+        limit: 1000,
+        startDate: startDate
+      });
       
       // Transform API response to match component interface
       const bills = response.bills.map((bill: any) => ({
@@ -99,15 +122,20 @@ export function BillHistory() {
     } catch (error) {
       console.error("Error loading bill history:", error);
       // Fallback to localStorage
-      const key = getRestaurantKey("billHistory", user.restaurantId);
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        setHistory(JSON.parse(stored));
+    const key = getRestaurantKey("billHistory", user.restaurantId);
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      setHistory(JSON.parse(stored));
       }
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFilter]); // Reload when date filter changes
 
   const handleDeleteBill = async (billNumber: string) => {
     if (!user) return;
@@ -126,14 +154,14 @@ export function BillHistory() {
         setHistory(updated);
         
         // Also update localStorage
-        const key = getRestaurantKey("billHistory", user.restaurantId);
-        localStorage.setItem(key, JSON.stringify(updated));
+      const key = getRestaurantKey("billHistory", user.restaurantId);
+      localStorage.setItem(key, JSON.stringify(updated));
         
         toast.success("Bill deleted successfully");
       } else {
         // Fallback: just remove from local state if no _id
         const updated = history.filter((b) => b.billNumber !== billNumber);
-        setHistory(updated);
+      setHistory(updated);
         const key = getRestaurantKey("billHistory", user.restaurantId);
         localStorage.setItem(key, JSON.stringify(updated));
         toast.success("Bill deleted from local history");
@@ -464,14 +492,14 @@ export function BillHistory() {
                       const itemFinalAmount = itemTotal - itemDiscount;
                       
                       return (
-                        <div
-                          key={idx}
-                          className="flex justify-between text-sm"
-                        >
+                      <div
+                        key={idx}
+                        className="flex justify-between text-sm"
+                      >
                           <div className="flex-1">
-                            <span className="text-muted-foreground">
-                              {item.quantity}x {item.name}
-                            </span>
+                        <span className="text-muted-foreground">
+                          {item.quantity}x {item.name}
+                        </span>
                             {itemDiscount > 0 && (
                               <span className="text-xs text-red-600 ml-2">
                                 (-₹{itemDiscount.toFixed(2)})
@@ -479,7 +507,7 @@ export function BillHistory() {
                             )}
                           </div>
                           <span>₹{itemFinalAmount.toFixed(2)}</span>
-                        </div>
+                      </div>
                       );
                     })}
                   </div>
