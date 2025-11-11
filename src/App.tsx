@@ -14,6 +14,11 @@ import BillHistoryPage from "./pages/admin/BillHistoryPage";
 import ReportsPage from "./pages/admin/ReportsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import { Plans } from "./pages/admin/Plans";
+import AdminOrderTablesPage from "./pages/admin/AdminOrderTablesPage";
+import AdminTableMenuPage from "./pages/admin/AdminTableMenuPage";
+import AdminBillPage from "./pages/admin/AdminBillPage";
+import AdminPrintDraftPage from "./pages/admin/AdminPrintDraftPage";
+import AdminPrintBillPage from "./pages/admin/AdminPrintBillPage";
 import { TablesPage } from "./components/TablesPage";
 import { MenuPage } from "./components/MenuPage";
 import { BillPage } from "./components/BillPage";
@@ -271,9 +276,8 @@ function AppContent() {
         <BillPage
           tableId={billData.tableId}
           tableName={billData.tableName}
-          persons={billData.persons}
-          items={billData.items}
-          existingTotal={billData.existingTotal}
+          initialPersons={billData.persons}
+          initialCart={billData.items}
           onBack={handleBackFromBill}
           onSaveAndPrint={handleSaveAndPrint}
         />
@@ -321,6 +325,11 @@ function AppContent() {
         <main className="lg:ml-64 pt-20 lg:pt-0">
           <Routes>
             <Route path="/admin" element={<DashboardPage />} />
+            <Route path="/admin/order-tables" element={<AdminOrderTablesPage />} />
+            <Route path="/admin/order-tables/table-menu" element={<AdminTableMenuPage />} />
+            <Route path="/admin/order-tables/bill" element={<AdminBillPage />} />
+            <Route path="/admin/order-tables/print-draft" element={<AdminPrintDraftPage />} />
+            <Route path="/admin/order-tables/print-bill" element={<AdminPrintBillPage />} />
             <Route path="/admin/tables" element={<ManageTablesPage />} />
             <Route path="/admin/users" element={<UserManagementPage />} />
             <Route path="/admin/locations" element={<LocationManagementPage />} />

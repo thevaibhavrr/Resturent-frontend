@@ -169,24 +169,6 @@ export function TablesPage({
     console.log("Current user:", user);
     console.log("User role:", user?.role);
     
-    // For staff users, navigate to the staff table menu page
-    if (user?.role === "staff") {
-      console.log("Navigating to staff table menu page");
-      const tableData = {
-        id: table._id, // Use the actual MongoDB _id
-        tableName: table.tableName,
-        location: table.locationId?.name || "Unknown Location",
-        lastOrderTime: "-",
-        persons: 0,
-        totalAmount: 0,
-        status: getTableStatus(table),
-        cartItems: []
-      };
-      console.log("Table data:", tableData);
-      navigate("/order-tables/table-menu", { state: { table: tableData } });
-      return;
-    }
-    
     // Convert backend table format to frontend format
     const tableData = {
       id: table._id, // Use the actual MongoDB _id
@@ -198,6 +180,22 @@ export function TablesPage({
       status: getTableStatus(table),
       cartItems: []
     };
+    
+    // For staff users, navigate to the staff table menu page
+    if (user?.role === "staff") {
+      console.log("Navigating to staff table menu page");
+      console.log("Table data:", tableData);
+      navigate("/order-tables/table-menu", { state: { table: tableData } });
+      return;
+    }
+    
+    // For admin users, navigate to the admin table menu page
+    if (user?.role === "admin") {
+      console.log("Navigating to admin table menu page");
+      console.log("Table data:", tableData);
+      navigate("/admin/order-tables/table-menu", { state: { table: tableData } });
+      return;
+    }
     
     if (onTableSelect) {
       onTableSelect(tableData);

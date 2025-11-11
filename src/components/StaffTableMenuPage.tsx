@@ -1537,7 +1537,9 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       persons: persons
     };
     
-    navigate("/order-tables/bill", { state: billData });
+    // Navigate to appropriate route based on user role
+    const billRoute = user?.role === "admin" ? "/admin/order-tables/bill" : "/order-tables/bill";
+    navigate(billRoute, { state: billData });
   };
 
   // Print draft (compact) directly from menu
@@ -1560,7 +1562,9 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       persons: persons,
     };
 
-    navigate("/order-tables/print-draft", { state: draftData });
+    // Navigate to appropriate route based on user role
+    const printRoute = user?.role === "admin" ? "/admin/order-tables/print-draft" : "/order-tables/print-draft";
+    navigate(printRoute, { state: draftData });
   };
 
   return (

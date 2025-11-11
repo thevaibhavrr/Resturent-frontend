@@ -17,6 +17,7 @@ import {
   ChevronDown,
   ChevronRight,
   CreditCard,
+  ShoppingCart,
 } from "lucide-react";
 import { getCurrentUser, logout } from "../utils/auth";
 import { useState, useEffect } from "react";
@@ -72,6 +73,11 @@ export function AdminSidebar({
       id: "admin-dashboard",
       label: "Dashboard",
       icon: LayoutDashboard,
+    },
+    {
+      id: "take-orders",
+      label: "Take Orders",
+      icon: ShoppingCart,
     },
     {
       id: "manage-tables",
@@ -131,6 +137,7 @@ export function AdminSidebar({
   // Map sidebar item id to route path
   const pathMap: Record<string, string> = {
     "admin-dashboard": "/admin",
+    "take-orders": "/admin/order-tables",
     "manage-tables": "/admin/tables",
     "user-management": "/admin/users",
     "space-management": "/admin/locations",
