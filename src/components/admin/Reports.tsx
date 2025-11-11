@@ -17,6 +17,7 @@ import {
   Award,
 } from "lucide-react";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
+import { toast } from "sonner";
 
 interface BillHistoryItem {
   billNumber: string;
@@ -25,12 +26,13 @@ interface BillHistoryItem {
   persons: number;
   grandTotal: number;
   date: string;
-  items: Array<{ id: number; name: string; price: number; quantity: number }>;
+  items: Array<{ id: number | string; name: string; price: number; quantity: number }>;
 }
 
 export function Reports() {
   const user = getCurrentUser();
   const [period, setPeriod] = useState("today");
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalRevenue: 0,
     totalOrders: 0,
@@ -40,43 +42,182 @@ export function Reports() {
     topItem: "N/A",
     topTable: "N/A",
   });
+  const [topSellingItems, setTopSellingItems] = useState<Array<{
+    name: string;
+    quantity: number;
+    revenue: number;
+  }>>([]);
 
   useEffect(() => {
     loadReports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
 
-  const loadReports = () => {
+  const loadReports = async () => {
     if (!user) return;
 
-    const key = getRestaurantKey("billHistory", user.restaurantId);
-    const stored = localStorage.getItem(key);
-    if (!stored) return;
+    setLoading(true);
+    try {
+      // Calculate date range based on period
+      let startDate: string | undefined;
+      let endDate: string | undefined;
+      
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      switch (period) {
+        case "today":
+          startDate = today.toISOString();
+          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+          break;
+        case "week":
+          const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+          startDate = weekAgo.toISOString();
+          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+          break;
+        case "month":
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          startDate = monthStart.toISOString();
+          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+          break;
+        case "year":
+          const yearStart = new Date(now.getFullYear(), 0, 1);
+          startDate = yearStart.toISOString();
+          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+          break;
+        default:
+          // All time - no date filter
+          break;
+      }
 
-    const allHistory: BillHistoryItem[] = JSON.parse(stored);
-    const filteredHistory = getFilteredHistory(allHistory);
+      // Load bills from API
+      const { getBills } = await import("../../api/billApi");
+      const response = await getBills({ 
+        limit: 10000,
+        startDate: startDate,
+        endDate: endDate
+      });
+      
+      // Transform API response to match component interface
+      const allHistory: BillHistoryItem[] = response.bills.map((bill: any) => ({
+        billNumber: bill.billNumber,
+        tableId: parseInt(bill.tableId) || 0,
+        tableName: bill.tableName,
+        persons: bill.persons,
+        grandTotal: bill.grandTotal,
+        date: bill.createdAt,
+        items: bill.items.map((item: any) => ({
+          id: item.itemId || item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity
+        }))
+      }));
 
-    // Calculate stats
-    const totalRevenue = filteredHistory.reduce(
-      (sum, bill) => sum + bill.grandTotal,
-      0
-    );
-    const totalOrders = filteredHistory.length;
-    const averageOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-    const totalItems = filteredHistory.reduce(
-      (sum, bill) =>
-        sum + bill.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
-      0
-    );
+      const filteredHistory = allHistory;
 
-    setStats({
-      totalRevenue,
-      totalOrders,
-      averageOrder,
-      totalItems,
-      peakHour: getPeakHour(filteredHistory),
-      topItem: getTopItem(filteredHistory),
-      topTable: getTopTable(filteredHistory),
-    });
+      // Calculate stats
+      const totalRevenue = filteredHistory.reduce(
+        (sum, bill) => sum + bill.grandTotal,
+        0
+      );
+      const totalOrders = filteredHistory.length;
+      const averageOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+      const totalItems = filteredHistory.reduce(
+        (sum, bill) =>
+          sum + bill.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
+        0
+      );
+
+      // Calculate top 5 selling items
+      const itemStats: { [key: string]: { name: string; quantity: number; revenue: number } } = {};
+      filteredHistory.forEach((bill) => {
+        bill.items.forEach((item) => {
+          if (!itemStats[item.name]) {
+            itemStats[item.name] = {
+              name: item.name,
+              quantity: 0,
+              revenue: 0,
+            };
+          }
+          itemStats[item.name].quantity += item.quantity;
+          itemStats[item.name].revenue += item.price * item.quantity;
+        });
+      });
+
+      const topItems = Object.values(itemStats)
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 5);
+
+      setTopSellingItems(topItems);
+
+      setStats({
+        totalRevenue,
+        totalOrders,
+        averageOrder,
+        totalItems,
+        peakHour: getPeakHour(filteredHistory),
+        topItem: getTopItem(filteredHistory),
+        topTable: getTopTable(filteredHistory),
+      });
+    } catch (error) {
+      console.error("Error loading reports:", error);
+      toast.error("Failed to load reports data");
+      
+      // Fallback to localStorage
+      const key = getRestaurantKey("billHistory", user.restaurantId);
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        const allHistory: BillHistoryItem[] = JSON.parse(stored);
+        const filteredHistory = getFilteredHistory(allHistory);
+        
+        const totalRevenue = filteredHistory.reduce(
+          (sum, bill) => sum + bill.grandTotal,
+          0
+        );
+        const totalOrders = filteredHistory.length;
+        const averageOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+        const totalItems = filteredHistory.reduce(
+          (sum, bill) =>
+            sum + bill.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
+          0
+        );
+
+        // Calculate top 5 selling items for fallback
+        const itemStats: { [key: string]: { name: string; quantity: number; revenue: number } } = {};
+        filteredHistory.forEach((bill) => {
+          bill.items.forEach((item) => {
+            if (!itemStats[item.name]) {
+              itemStats[item.name] = {
+                name: item.name,
+                quantity: 0,
+                revenue: 0,
+              };
+            }
+            itemStats[item.name].quantity += item.quantity;
+            itemStats[item.name].revenue += item.price * item.quantity;
+          });
+        });
+
+        const topItems = Object.values(itemStats)
+          .sort((a, b) => b.quantity - a.quantity)
+          .slice(0, 5);
+
+        setTopSellingItems(topItems);
+
+        setStats({
+          totalRevenue,
+          totalOrders,
+          averageOrder,
+          totalItems,
+          peakHour: getPeakHour(filteredHistory),
+          topItem: getTopItem(filteredHistory),
+          topTable: getTopTable(filteredHistory),
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getFilteredHistory = (history: BillHistoryItem[]) => {
@@ -147,35 +288,159 @@ export function Reports() {
     )[0];
   };
 
-  const getRevenueByCategory = () => {
+  const getRevenueByCategory = async () => {
     if (!user) return [];
 
-    const historyKey = getRestaurantKey("billHistory", user.restaurantId);
-    const menuKey = getRestaurantKey("menuItems", user.restaurantId);
+    try {
+      // Load bills from API
+      let startDate: string | undefined;
+      let endDate: string | undefined;
+      
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      switch (period) {
+        case "today":
+          startDate = today.toISOString();
+          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+          break;
+        case "week":
+          const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+          startDate = weekAgo.toISOString();
+          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+          break;
+        case "month":
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          startDate = monthStart.toISOString();
+          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+          break;
+        case "year":
+          const yearStart = new Date(now.getFullYear(), 0, 1);
+          startDate = yearStart.toISOString();
+          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+          break;
+        default:
+          break;
+      }
 
-    const history = JSON.parse(localStorage.getItem(historyKey) || "[]");
-    const menuItems = JSON.parse(localStorage.getItem(menuKey) || "[]");
-    const filteredHistory = getFilteredHistory(history);
+      const { getBills } = await import("../../api/billApi");
+      const { getMenuItems } = await import("../../api/menuApi");
+      
+      const [billsResponse, menuItems] = await Promise.all([
+        getBills({ limit: 10000, startDate, endDate }),
+        getMenuItems(user.restaurantId)
+      ]);
 
-    const categoryRevenue: { [key: string]: number } = {};
+      const history: BillHistoryItem[] = billsResponse.bills.map((bill: any) => ({
+        billNumber: bill.billNumber,
+        tableId: parseInt(bill.tableId) || 0,
+        tableName: bill.tableName,
+        persons: bill.persons,
+        grandTotal: bill.grandTotal,
+        date: bill.createdAt,
+        items: bill.items.map((item: any) => ({
+          id: item.itemId || item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity
+        }))
+      }));
+      
+      const filteredHistory = history;
 
-    filteredHistory.forEach((bill: BillHistoryItem) => {
-      bill.items.forEach((item) => {
-        const menuItem = menuItems.find((m: any) => m.id === item.id);
-        if (menuItem) {
-          const category = menuItem.category;
-          categoryRevenue[category] =
-            (categoryRevenue[category] || 0) + item.price * item.quantity;
-        }
+      const categoryRevenue: { [key: string]: number } = {};
+
+      filteredHistory.forEach((bill: BillHistoryItem) => {
+        bill.items.forEach((item) => {
+          // Try to find menu item by id or _id
+          const menuItem = menuItems.find((m: any) => 
+            m.id === item.id || 
+            m._id === item.id || 
+            m._id?.toString() === item.id?.toString()
+          );
+          if (menuItem) {
+            // Handle category - could be string, object with name, or categoryId reference
+            let category = "Uncategorized";
+            if (typeof menuItem.category === 'string') {
+              category = menuItem.category;
+            } else if (menuItem.categoryId) {
+              if (typeof menuItem.categoryId === 'string') {
+                category = menuItem.categoryId;
+              } else if (menuItem.categoryId.name) {
+                category = menuItem.categoryId.name;
+              }
+            }
+            categoryRevenue[category] =
+              (categoryRevenue[category] || 0) + item.price * item.quantity;
+          } else {
+            // If menu item not found, use "Uncategorized"
+            categoryRevenue["Uncategorized"] =
+              (categoryRevenue["Uncategorized"] || 0) + item.price * item.quantity;
+          }
+        });
       });
-    });
 
-    return Object.entries(categoryRevenue)
-      .map(([category, revenue]) => ({ category, revenue }))
-      .sort((a, b) => b.revenue - a.revenue);
+      return Object.entries(categoryRevenue)
+        .map(([category, revenue]) => ({ category, revenue }))
+        .sort((a, b) => b.revenue - a.revenue);
+    } catch (error) {
+      console.error("Error loading category revenue:", error);
+      // Fallback to localStorage
+      const historyKey = getRestaurantKey("billHistory", user.restaurantId);
+      const menuKey = getRestaurantKey("menuItems", user.restaurantId);
+
+      const history = JSON.parse(localStorage.getItem(historyKey) || "[]");
+      const menuItems = JSON.parse(localStorage.getItem(menuKey) || "[]");
+      const filteredHistory = getFilteredHistory(history);
+
+      const categoryRevenue: { [key: string]: number } = {};
+
+      filteredHistory.forEach((bill: BillHistoryItem) => {
+        bill.items.forEach((item) => {
+          // Try to find menu item by id or _id
+          const menuItem = menuItems.find((m: any) => 
+            m.id === item.id || 
+            m._id === item.id || 
+            m._id?.toString() === item.id?.toString()
+          );
+          if (menuItem) {
+            // Handle category - could be string, object with name, or categoryId reference
+            let category = "Uncategorized";
+            if (typeof menuItem.category === 'string') {
+              category = menuItem.category;
+            } else if (menuItem.categoryId) {
+              if (typeof menuItem.categoryId === 'string') {
+                category = menuItem.categoryId;
+              } else if (menuItem.categoryId.name) {
+                category = menuItem.categoryId.name;
+              }
+            }
+            categoryRevenue[category] =
+              (categoryRevenue[category] || 0) + item.price * item.quantity;
+          } else {
+            // If menu item not found, use "Uncategorized"
+            categoryRevenue["Uncategorized"] =
+              (categoryRevenue["Uncategorized"] || 0) + item.price * item.quantity;
+          }
+        });
+      });
+
+      return Object.entries(categoryRevenue)
+        .map(([category, revenue]) => ({ category, revenue }))
+        .sort((a, b) => b.revenue - a.revenue);
+    }
   };
 
-  const categoryData = getRevenueByCategory();
+  const [categoryData, setCategoryData] = useState<Array<{ category: string; revenue: number }>>([]);
+
+  useEffect(() => {
+    const loadCategoryData = async () => {
+      const data = await getRevenueByCategory();
+      setCategoryData(data);
+    };
+    loadCategoryData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period]);
 
   return (
     <div className="p-6 space-y-6">
@@ -187,7 +452,7 @@ export function Reports() {
             View detailed business insights and trends
           </p>
         </div>
-        <Select value={period} onValueChange={setPeriod}>
+        <Select value={period} onValueChange={setPeriod} disabled={loading}>
           <SelectTrigger className="w-[180px]">
             <SelectValue />
           </SelectTrigger>
@@ -201,6 +466,14 @@ export function Reports() {
         </Select>
       </div>
 
+      {loading && (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Loading reports...</p>
+        </div>
+      )}
+
+      {!loading && (
+        <>
       {/* Key Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-6">
@@ -272,6 +545,46 @@ export function Reports() {
         </Card>
       </div>
 
+      {/* Top 5 Selling Items */}
+      <Card className="p-6">
+        <h2 className="text-xl mb-4 flex items-center gap-2">
+          <Award className="w-5 h-5" />
+          Top 5 Selling Items
+        </h2>
+        {topSellingItems.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <p>No items sold in this period</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {topSellingItems.map((item, index) => (
+              <div
+                key={item.name}
+                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-base truncate">{item.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {item.quantity} {item.quantity === 1 ? 'item' : 'items'} sold
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-lg text-primary">
+                    ₹{item.revenue.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Revenue</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
       {/* Revenue by Category */}
       <Card className="p-6">
         <h2 className="text-xl mb-4 flex items-center gap-2">
@@ -312,6 +625,8 @@ export function Reports() {
           </div>
         )}
       </Card>
+        </>
+      )}
     </div>
   );
 }
