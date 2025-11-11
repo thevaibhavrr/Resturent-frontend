@@ -138,6 +138,14 @@ export function Settings() {
 
     setSaving(true);
     try {
+      console.log("Saving settings:", {
+        restaurantId: user.restaurantId,
+        hasLogo: !!settings.logo,
+        hasQRCode: !!settings.qrCode,
+        logoLength: settings.logo?.length || 0,
+        qrCodeLength: settings.qrCode?.length || 0
+      });
+
       const response = await makeApi(
         `/api/settings/${user.restaurantId}`,
         "PUT",
@@ -145,14 +153,27 @@ export function Settings() {
       );
       
       if (response.data) {
+        console.log("Settings saved successfully:", response.data);
+        
+        // Update local state with response data to ensure sync
+        if (response.data.settings) {
+          setSettings({
+            ...settings,
+            ...response.data.settings
+          });
+        }
+        
         // Also save to localStorage as backup
         const key = getRestaurantKey("settings", user.restaurantId);
-        localStorage.setItem(key, JSON.stringify(settings));
+        const settingsToSave = response.data.settings || settings;
+        localStorage.setItem(key, JSON.stringify(settingsToSave));
+        
         toast.success("Settings saved successfully");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving settings:", error);
-      toast.error("Failed to save settings. Please try again.");
+      const errorMessage = error?.response?.data?.error || error?.message || "Unknown error";
+      toast.error(`Failed to save settings: ${errorMessage}. Please try again.`);
     } finally {
       setSaving(false);
     }
