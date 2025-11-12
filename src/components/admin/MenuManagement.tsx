@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "../ui/select";
 import { Plus, Edit2, Trash2, UtensilsCrossed, Filter } from "lucide-react";
+import { Loader } from "../ui/loader";
 import { getCurrentUser } from "../../utils/auth";
 import { toast } from "sonner";
 import type { MenuItem, MenuCategory } from "../../types/menu";
@@ -252,41 +253,54 @@ export function MenuManagement() {
     }
 
     try {
-      let finalImageUrl = formData.image;
+      let finalImageUrl = "";
       
-      // Handle image based on input type
+      // Handle image based on input type - image is optional
       if (imageInputType === "upload" && imageFile && imagePreview) {
-        // Upload image file
-        const uploadResponse = await fetch('/api/upload/image', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ image: imagePreview }),
-        });
-        
-        if (uploadResponse.ok) {
-          const uploadData = await uploadResponse.json();
-          finalImageUrl = uploadData.url;
-        } else {
-          toast.error('Failed to upload image');
-          return;
+        // Upload image file only if file is selected
+        try {
+          const uploadResponse = await fetch('/api/upload/image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ image: imagePreview }),
+          });
+          
+          if (uploadResponse.ok) {
+            const uploadData = await uploadResponse.json();
+            finalImageUrl = uploadData.url;
+          } else {
+            // If upload fails, allow saving without image (optional field)
+            console.warn('Image upload failed, saving without image');
+            finalImageUrl = "";
+          }
+        } catch (uploadError) {
+          // If upload fails, allow saving without image (optional field)
+          console.warn('Image upload error, saving without image:', uploadError);
+          finalImageUrl = "";
         }
       } else if (imageInputType === "url" && imageUrl.trim()) {
-        // Use provided URL
-        if (!validateImageUrl(imageUrl.trim())) {
-          toast.error('Please enter a valid image URL');
-          return;
+        // Use provided URL if valid
+        if (validateImageUrl(imageUrl.trim())) {
+          finalImageUrl = imageUrl.trim();
+          // Ensure URL has protocol
+          if (!finalImageUrl.startsWith('http://') && !finalImageUrl.startsWith('https://')) {
+            finalImageUrl = `https://${finalImageUrl}`;
+          }
+        } else {
+          // Invalid URL, but allow saving without image (optional field)
+          console.warn('Invalid image URL, saving without image');
+          finalImageUrl = "";
         }
-        finalImageUrl = imageUrl.trim();
-        // Ensure URL has protocol
-        if (!finalImageUrl.startsWith('http://') && !finalImageUrl.startsWith('https://')) {
-          finalImageUrl = `https://${finalImageUrl}`;
-        }
-      } else if (imageInputType === "url" && !imageUrl.trim() && editingItem) {
+      } else if (editingItem && imageInputType === "url" && !imageUrl.trim()) {
         // Keep existing image if URL is cleared during edit
         finalImageUrl = editingItem.image || "";
+      } else if (editingItem && imageInputType === "upload" && !imageFile) {
+        // Keep existing image if no new file is uploaded during edit
+        finalImageUrl = editingItem.image || "";
       }
+      // If no image is provided and not editing, finalImageUrl remains empty (which is allowed)
 
       const itemData = {
         name: formData.name.trim(),
@@ -480,11 +494,7 @@ export function MenuManagement() {
       )}
 
       {/* Loading State */}
-      {loading && (
-        <Card className="p-12 text-center">
-          <p className="text-muted-foreground">Loading menu items...</p>
-        </Card>
-      )}
+      {loading && <Loader text="Loading menu items..." />}
 
       {/* Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -609,7 +619,10 @@ export function MenuManagement() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="image">Menu Item Image</Label>
+                <Label htmlFor="image">Menu Item Image (Optional)</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  You can add an image later if needed. The item will be saved without an image if none is provided.
+                </p>
                 
                 {/* Image Input Type Toggle */}
                 <div className="flex gap-4 mb-3">

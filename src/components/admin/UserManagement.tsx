@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Plus, Edit2, Trash2, User } from "lucide-react";
+import { Loader } from "../ui/loader";
 import { getCurrentUser } from "../../utils/auth";
 import { toast } from "sonner@2.0.3";
 import { getAllStaff, getStaffByRestaurant, createStaff, updateStaff, deleteStaff } from '../../api/staffApi';
@@ -31,6 +32,7 @@ interface StaffUser {
 export function UserManagement() {
   const user = getCurrentUser();
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<StaffUser | null>(null);
   const [formData, setFormData] = useState({
@@ -48,9 +50,11 @@ export function UserManagement() {
   const loadStaffUsers = async () => {
     if (!user) {
       console.log("No user found, cannot load staff");
+      setLoading(false);
       return;
     }
     try {
+      setLoading(true);
       // Use restaurant-specific API for better performance
       const staff = await getStaffByRestaurant(user.restaurantId);
       console.log("Staff for restaurant:", staff); // Debug log
@@ -60,6 +64,8 @@ export function UserManagement() {
     } catch (error) {
       console.error("Error loading staff:", error);
       toast.error("Failed to fetch staff users");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -129,6 +135,10 @@ export function UserManagement() {
       }
     }
   };
+
+  if (loading) {
+    return <Loader text="Loading staff users..." />;
+  }
 
   return (
     <div className="p-6 space-y-6">

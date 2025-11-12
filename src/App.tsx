@@ -13,7 +13,7 @@ import CategoryManagementPage from "./pages/admin/CategoryManagementPage";
 import BillHistoryPage from "./pages/admin/BillHistoryPage";
 import ReportsPage from "./pages/admin/ReportsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
-import { Plans } from "./pages/admin/Plans";
+import PlansPage from "./pages/admin/PlansPage";
 import AdminOrderTablesPage from "./pages/admin/AdminOrderTablesPage";
 import AdminTableMenuPage from "./pages/admin/AdminTableMenuPage";
 import AdminBillPage from "./pages/admin/AdminBillPage";
@@ -339,7 +339,7 @@ function AppContent() {
             <Route path="/admin/bills" element={<BillHistoryPage />} />
             <Route path="/admin/reports" element={<ReportsPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
-            <Route path="/admin/plans" element={<Plans />} />
+            <Route path="/admin/plans" element={<PlansPage />} />
             <Route path="*" element={<Navigate to="/admin" />} />
           </Routes>
         </main>

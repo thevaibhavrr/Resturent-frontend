@@ -25,6 +25,7 @@ import {
   ChevronUp,
   RefreshCw,
 } from "lucide-react";
+import { Loader } from "../ui/loader";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
 import { getRestaurantSubscription, Subscription } from "../../api/planApi";
 import { toast } from "sonner";
@@ -167,6 +168,10 @@ export function AdminDashboard() {
       setLoadingSubscription(false);
     }
   };
+
+  if (loadingStats) {
+    return <Loader text="Loading dashboard statistics..." />;
+  }
 
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6">

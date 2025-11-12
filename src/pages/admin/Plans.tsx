@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Check, CreditCard, Loader2, Upload, X, QrCode } from 'lucide-react';
+import { Loader } from '../../components/ui/loader';
 import { toast } from 'sonner';
 import { getAllPlans, Plan } from '../../api/planApi';
 import {
@@ -111,11 +112,7 @@ export function Plans() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <Loader text="Loading subscription plans..." />;
   }
 
   return (

@@ -23,6 +23,7 @@ import {
   Edit,
   Printer,
 } from "lucide-react";
+import { Loader } from "../ui/loader";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -408,9 +409,7 @@ export function BillHistory() {
       {/* Bills List */}
       <Card className="p-6">
         {loading ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Loading bills...</p>
-          </div>
+          <Loader text="Loading bill history..." />
         ) : filteredBills.length === 0 ? (
           <div className="text-center py-12">
             <History className="w-12 h-12 mx-auto mb-3 opacity-50 text-muted-foreground" />
