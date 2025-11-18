@@ -1217,7 +1217,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const menuEndRef = useRef<HTMLDivElement>(null);
   const cartSectionRef = useRef<HTMLDivElement>(null);
-  const printRef = useRef<HTMLDivElement>(null);
+  const printContentRef = useRef<HTMLDivElement>(null);
 
   // Get recent items from localStorage
   const getRecentItems = (): string[] => {
@@ -1735,7 +1735,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     navigate(billRoute, { state: billData });
   };
 
-  // Direct printing without popup
+  // Direct printing function
   const handlePrintDraft = () => {
     if (cart.length === 0) {
       toast.error("Please add items to cart");
@@ -1757,6 +1757,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
             font-family: Arial, sans-serif; 
             margin: 20px; 
             line-height: 1.4;
+            font-size: 14px;
           }
           .header { 
             text-align: center; 
@@ -1840,28 +1841,201 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           <p>This is a draft bill - Not for payment</p>
           <p>Generated on ${new Date().toLocaleString()}</p>
         </div>
+      </body>
+      </html>
+    `;
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      
+      // Wait for content to load then trigger print
+      printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+        // Don't close immediately - let user see the print dialog
+      };
+    } else {
+      toast.error("Please allow popups for printing");
+    }
+  };
+
+  // Alternative print method using iframe
+  const handlePrintDraftAlternative = () => {
+    if (cart.length === 0) {
+      toast.error("Please add items to cart");
+      return;
+    }
+    if (persons < 1) {
+      toast.error("Please enter number of persons");
+      return;
+    }
+
+    // Create a hidden iframe
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Draft Bill - ${tableName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.4; }
+          .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          .items-table th, .items-table td { border: 1px solid #000; padding: 8px; text-align: left; }
+          .items-table th { background-color: #f0f0f0; }
+          .total-section { margin-top: 20px; text-align: right; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h2>DRAFT BILL - ${tableName}</h2>
+          <p>Table: ${tableId} | Persons: ${persons} | Date: ${new Date().toLocaleString()}</p>
+        </div>
+        
+        <table class="items-table">
+          <thead>
+            <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+          </thead>
+          <tbody>
+            ${cart.map(item => `
+              <tr>
+                <td>${item.name}</td>
+                <td>${item.quantity}</td>
+                <td>₹${item.price}</td>
+                <td>₹${(item.price * item.quantity).toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        
+        <div class="total-section">
+          <p>Subtotal: ₹${subtotal.toFixed(2)}</p>
+          <p>Total: ₹${total.toFixed(2)}</p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px; font-size: 12px;">
+          <p>This is a draft bill - Not for payment</p>
+        </div>
         
         <script>
-          // Auto-print and close after printing
           window.onload = function() {
             window.print();
-            setTimeout(function() {
+            setTimeout(() => {
               window.close();
-            }, 500);
+            }, 100);
           };
         </script>
       </body>
       </html>
     `;
 
-    // Open print window and write content
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
-    if (printWindow) {
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-    } else {
-      toast.error("Please allow popups for printing");
+    document.body.appendChild(iframe);
+    
+    iframe.onload = () => {
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (iframeDoc) {
+        iframeDoc.write(printContent);
+        iframeDoc.close();
+        
+        // Trigger print
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        
+        // Remove iframe after printing
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }
+    };
+  };
+
+  // Simple direct print using current window
+  const handleDirectPrint = () => {
+    if (cart.length === 0) {
+      toast.error("Please add items to cart");
+      return;
     }
+    if (persons < 1) {
+      toast.error("Please enter number of persons");
+      return;
+    }
+
+    // Store current scroll position
+    const scrollPosition = window.pageYOffset;
+    
+    // Create print section
+    const printSection = document.createElement('div');
+    printSection.innerHTML = `
+      <div style="padding: 20px; font-family: Arial, sans-serif;">
+        <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
+          <h2>DRAFT BILL</h2>
+          <h3>${tableName}</h3>
+          <p><strong>Table ID:</strong> ${tableId} | <strong>Persons:</strong> ${persons}</p>
+          <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+          <thead>
+            <tr style="background-color: #f0f0f0;">
+              <th style="border: 1px solid #000; padding: 8px; text-align: left;">Item</th>
+              <th style="border: 1px solid #000; padding: 8px; text-align: center;">Qty</th>
+              <th style="border: 1px solid #000; padding: 8px; text-align: right;">Price</th>
+              <th style="border: 1px solid #000; padding: 8px; text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${cart.map(item => `
+              <tr>
+                <td style="border: 1px solid #000; padding: 8px;">${item.name}</td>
+                <td style="border: 1px solid #000; padding: 8px; text-align: center;">${item.quantity}</td>
+                <td style="border: 1px solid #000; padding: 8px; text-align: right;">₹${item.price}</td>
+                <td style="border: 1px solid #000; padding: 8px; text-align: right;">₹${(item.price * item.quantity).toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        
+        <div style="text-align: right; margin-top: 20px; font-weight: bold;">
+          <p>Subtotal: ₹${subtotal.toFixed(2)}</p>
+          <p>Total: ₹${total.toFixed(2)}</p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px; padding-top: 10px; border-top: 1px solid #000; font-size: 12px;">
+          <p>This is a draft bill - Not for payment</p>
+        </div>
+      </div>
+    `;
+
+    // Hide all other elements
+    const elementsToHide = document.querySelectorAll('body > *:not(script)');
+    elementsToHide.forEach(el => {
+      (el as HTMLElement).style.display = 'none';
+    });
+
+    // Add print section to body
+    document.body.appendChild(printSection);
+
+    // Trigger print
+    window.print();
+
+    // Restore original content
+    document.body.removeChild(printSection);
+    elementsToHide.forEach(el => {
+      (el as HTMLElement).style.display = '';
+    });
+
+    // Restore scroll position
+    window.scrollTo(0, scrollPosition);
   };
 
   // Save and Print function
@@ -1877,14 +2051,17 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
     try {
       // First save the draft
+      setSaving(true);
       await autoSaveDraft(cart, persons);
       toast.success("Draft saved successfully");
       
-      // Then print
-      handlePrintDraft();
+      // Then print using the direct method
+      handleDirectPrint();
     } catch (error) {
       console.error("Error saving draft:", error);
       toast.error("Failed to save draft");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -2051,15 +2228,6 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                 >
                   <div className="relative">
                     <div className="relative h-32 sm:h-40 max-h-48 w-full overflow-hidden bg-gradient-to-br from-orange-50 to-amber-50">
-                      {/* <img
-                        src={item.image}
-                        alt={item.name}
-                        style={{
-                          maxHeight:"200px",
-                          objectFit:"cover"
-                        }}
-                        className="w-full h-full max-h-48 object-cover hover:scale-110 transition-transform duration-500"
-                      /> */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                       {getItemQuantity(item._id) > 0 && (
                         <div className="absolute top-3 right-3 bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-lg animate-pulse">
@@ -2325,7 +2493,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                         Go to Bill
                       </Button>
                       <Button
-                        onClick={handlePrintDraft}
+                        onClick={handleDirectPrint}
                         className="w-full h-10"
                         variant="outline"
                         size="default"
@@ -2337,9 +2505,14 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                         onClick={handleSaveAndPrint}
                         className="w-full h-10 bg-green-600 hover:bg-green-700 text-white"
                         size="default"
+                        disabled={saving}
                       >
-                        <Printer className="h-4 w-4 mr-2" />
-                        Save & Print
+                        {saving ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Printer className="h-4 w-4 mr-2" />
+                        )}
+                        {saving ? "Saving..." : "Save & Print"}
                       </Button>
                     </div>
                   </>
