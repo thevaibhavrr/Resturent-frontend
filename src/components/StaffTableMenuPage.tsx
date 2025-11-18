@@ -2319,9 +2319,10 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                     </div>
                   </div>
                 </Card>
+                
                 </motion.div>
                 );
-                })}
+                })} 
                 <div ref={menuEndRef} />
               </div>
             )}
