@@ -19,6 +19,7 @@ import AdminTableMenuPage from "./pages/admin/AdminTableMenuPage";
 import AdminBillPage from "./pages/admin/AdminBillPage";
 import AdminPrintDraftPage from "./pages/admin/AdminPrintDraftPage";
 import AdminPrintBillPage from "./pages/admin/AdminPrintBillPage";
+import UserBillsPage from "./pages/admin/UserBillsPage";
 import { TablesPage } from "./components/TablesPage";
 import { MenuPage } from "./components/MenuPage";
 import { BillPage } from "./components/BillPage";
@@ -269,7 +270,6 @@ function AppContent() {
     );
   }
 
-  // Show bill page
   if (billData) {
     return (
       <>
@@ -337,6 +337,7 @@ function AppContent() {
             <Route path="/admin/menu" element={<MenuManagementPage />} />
             <Route path="/admin/categories" element={<CategoryManagementPage />} />
             <Route path="/admin/bills" element={<BillHistoryPage />} />
+            <Route path="/admin/user-bills" element={<UserBillsPage />} />
             <Route path="/admin/reports" element={<ReportsPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
             <Route path="/admin/plans" element={<PlansPage />} />

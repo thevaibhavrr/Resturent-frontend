@@ -3,6 +3,7 @@
 export interface User {
   id: string;
   username: string;
+  name: string;
   role: "admin" | "staff";
   restaurantId: string;
   restaurantName: string;
@@ -85,6 +86,7 @@ export const authenticateUser = (
     return {
       id: restaurant.id,
       username: restaurant.adminUsername,
+      name: "Admin",
       role: "admin",
       restaurantId: restaurant.id,
       restaurantName: restaurant.name,
@@ -94,7 +96,7 @@ export const authenticateUser = (
   // Check if staff
   const staffUsers = getStaffUsers();
   const staff = staffUsers.find(
-    (s) => s.username === username && s.password === password
+    (staffUser: any) => staffUser.username === username && staffUser.password === password
   );
 
   if (staff) {
@@ -104,6 +106,7 @@ export const authenticateUser = (
     return {
       id: staff.id,
       username: staff.username,
+      name: staff.name || staff.username, // Use name if available, otherwise fallback to username
       role: "staff",
       restaurantId: staff.restaurantId,
       restaurantName: staffRestaurant?.name || "Unknown",

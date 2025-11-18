@@ -33,6 +33,7 @@ export interface BillStats {
   totalOrders: number;
   averageOrderValue: number;
   totalItems: number;
+  totalDiscount: number;
 }
 
 export interface CreateBillData {

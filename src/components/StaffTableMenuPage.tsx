@@ -46,6 +46,16 @@
 //   spiceLevel?: number;
 //   spicePercent?: number;
 //   isJain?: boolean;
+//   updatedBy?: string;
+//   addedBy: {
+//     userId: string;
+//     userName: string;
+//   };
+//   lastUpdatedBy: {
+//     userId: string;
+//     userName: string;
+//     timestamp: string;
+//   };
 // }
 
 // interface Category {
@@ -164,7 +174,32 @@
 //         const restoredQuantities: Record<string, number> = {};
         
 //         draftData.cartItems.forEach(item => {
-//           restoredCart.push({
+//           // For backward compatibility, if addedBy is not present, use the draft's updatedBy
+//           const addedBy = (item as any).addedBy 
+//             ? {
+//                 userId: (item as any).addedBy.userId || 'system',
+//                 userName: (item as any).addedBy.userName || 'System'
+//               }
+//             : {
+//                 userId: draftData.updatedBy || 'system',
+//                 userName: draftData.updatedBy || 'System'
+//               };
+          
+//           // For backward compatibility, if lastUpdatedBy is not present, use the draft's updatedBy
+//           const lastUpdated = (item as any).lastUpdatedBy
+//             ? {
+//                 userId: (item as any).lastUpdatedBy.userId || draftData.updatedBy || 'system',
+//                 userName: (item as any).lastUpdatedBy.userName || draftData.updatedBy || 'System',
+//                 timestamp: (item as any).lastUpdatedBy.timestamp || new Date().toISOString()
+//               }
+//             : {
+//                 userId: draftData.updatedBy || 'system',
+//                 userName: draftData.updatedBy || 'System',
+//                 timestamp: new Date().toISOString()
+//               };
+          
+//           // Create the cart item with all the information
+//           const cartItem: CartItem = {
 //             id: item.itemId,
 //             name: item.name,
 //             price: item.price,
@@ -172,8 +207,13 @@
 //             note: (item as any).note || "",
 //             spiceLevel: (item as any).spiceLevel ?? 0,
 //             spicePercent: (item as any).spicePercent ?? 50,
-//             isJain: (item as any).isJain ?? false
-//           });
+//             isJain: (item as any).isJain ?? false,
+//             updatedBy: (item as any).updatedBy || draftData.updatedBy || 'System',
+//             addedBy: addedBy,
+//             lastUpdatedBy: lastUpdated
+//           };
+          
+//           restoredCart.push(cartItem);
 //           restoredQuantities[item.itemId] = item.quantity;
 //         });
         
@@ -229,8 +269,14 @@
 //   // Filter menu items based on search and category
 //   const filteredItems = menuItems.filter(item => {
 //     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-//     let matchesCategory = true;
     
+//     // If searching, ignore category filter and search from all products
+//     if (searchQuery.trim() !== "") {
+//       return matchesSearch;
+//     }
+    
+//     // If not searching, apply category filter
+//     let matchesCategory = true;
 //     if (activeCategory === "recent") {
 //       const recentItems = getRecentItems();
 //       matchesCategory = recentItems.includes(item._id);
@@ -251,40 +297,33 @@
 //     window.scrollTo({ top: 0, behavior: 'smooth' });
 //   };
 
-//   // Show/hide scroll buttons based on position
+//   // Improved scroll detection logic
 //   useEffect(() => {
 //     const handleScroll = () => {
 //       const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
 //       const windowHeight = window.innerHeight;
 //       const documentHeight = document.documentElement.scrollHeight;
       
-//       // Get cart section position
+//       // Show scroll to top when scrolled down more than 300px
+//       setShowScrollToTop(scrollTop > 300);
+      
+//       // Show scroll to cart when cart section is not in view and we're not at the bottom
 //       const cartSection = cartSectionRef.current;
 //       if (cartSection) {
 //         const cartRect = cartSection.getBoundingClientRect();
-//         const cartTop = cartRect.top + scrollTop;
-//         const cartBottom = cartTop + cartRect.height;
-        
-//         // If we're past the cart section, show scroll to top
-//         if (scrollTop + windowHeight > cartBottom - 100) {
-//           setShowScrollToTop(true);
-//           setShowScrollToBottom(false);
-//         } else {
-//           // If we're not at the cart section yet, show scroll to cart
-//           setShowScrollToTop(false);
-//           setShowScrollToBottom(scrollTop + windowHeight < cartTop - 100);
-//         }
+//         const isCartInView = cartRect.top >= 0 && cartRect.bottom <= windowHeight;
+//         setShowScrollToBottom(!isCartInView && scrollTop + windowHeight < documentHeight - 100);
 //       } else {
-//         // Fallback: show scroll to bottom if cart section not found
-//         setShowScrollToBottom(scrollTop + windowHeight < documentHeight - 100);
-//         setShowScrollToTop(false);
+//         // Fallback logic
+//         setShowScrollToBottom(scrollTop + windowHeight < documentHeight - 200);
 //       }
 //     };
 
-//     window.addEventListener('scroll', handleScroll);
+//     window.addEventListener('scroll', handleScroll, { passive: true });
 //     handleScroll(); // Check initial position
+    
 //     return () => window.removeEventListener('scroll', handleScroll);
-//   }, [cart.length]); // Re-check when cart changes
+//   }, [cart.length]);
 
 //   // Get quantity for an item
 //   const getItemQuantity = (itemId: string): number => {
@@ -293,7 +332,7 @@
 
 //   // Auto-save draft function
 //   const autoSaveDraft = async (cartItems: CartItem[], personsCount: number) => {
-//     if (!user?.restaurantId || !user?.username) return;
+//     if (!user?.restaurantId || !user?.username || !user?.id) return;
     
 //     try {
 //       setSaving(true);
@@ -310,12 +349,28 @@
 //           note: item.note || "",
 //           spiceLevel: item.spiceLevel ?? 0,
 //           spicePercent: item.spicePercent ?? 50,
-//           isJain: item.isJain ?? false
+//           isJain: item.isJain ?? false,
+//           // Include staff information with each cart item
+//           addedBy: item.addedBy || {
+//             userId: user.id,
+//             userName: user.name || user.username
+//           },
+//           lastUpdatedBy: {
+//             userId: user.id,
+//             userName: user.name || user.username,
+//             timestamp: new Date().toISOString()
+//           },
+//           updatedBy: user.name || user.username
 //         })),
-//         updatedBy: user.username
+//         updatedBy: user.name || user.username,
+//         userId: user.id // Add userId to the root of the draft data
 //       };
       
-//       const savedDraft = await saveTableDraft(draftData);
+//       const savedDraft = await saveTableDraft({
+//         ...draftData,
+//         userId: user.id, // Make sure userId is included in the request
+//         updatedBy: user.name || user.username
+//       });
 //       setTableDraft(savedDraft);
 //     } catch (error: any) {
 //       console.error("Error auto-saving draft:", error);
@@ -338,6 +393,11 @@
 
 //   // Update item quantity
 //   const updateItemQuantity = (itemId: string, change: number) => {
+//     if (!user) {
+//       toast.error("Please log in to update cart");
+//       return;
+//     }
+
 //     setItemQuantities(prev => {
 //       const currentQuantity = prev[itemId] || 0;
 //       const newQuantity = Math.max(0, currentQuantity + change);
@@ -357,6 +417,12 @@
 
 //       const currentQuantity = itemQuantities[itemId] || 0;
 //       const newQuantity = Math.max(0, currentQuantity + change);
+//       const currentTime = new Date().toISOString();
+//       const userInfo = {
+//         userId: user.id,
+//         userName: user.name || user.username,
+//         timestamp: currentTime
+//       };
 
 //       if (newQuantity === 0) {
 //         return prev.filter(cartItem => cartItem.id !== itemId);
@@ -366,26 +432,39 @@
 //       if (existingItem) {
 //         return prev.map(cartItem =>
 //           cartItem.id === itemId
-//             ? { ...cartItem, quantity: newQuantity }
-//           : cartItem
+//             ? { 
+//                 ...cartItem, 
+//                 quantity: newQuantity,
+//                 lastUpdatedBy: userInfo,
+//                 updatedBy: user.name || user.username
+//               }
+//             : cartItem
 //         );
 //       } else {
 //         // Get spice percent from state or default
 //         const percent = selectedSpicePercent[item._id] ?? 50;
 //         const level = Math.min(5, Math.max(1, Math.round(percent / 20)));
 //         const isJain = selectedIsJain[item._id] ?? false;
+        
 //         // Save to recent items
 //         saveToRecentItems(item._id);
-//         return [...prev, { 
-//           id: item._id, 
-//           name: item.name, 
-//           price: item.price, 
-//           quantity: newQuantity, 
-//           note: "", 
-//           spiceLevel: level, 
-//           spicePercent: percent, 
-//           isJain: isJain 
-//         }];
+        
+//         const newItem: CartItem = {
+//           id: item._id,
+//           name: item.name,
+//           price: item.price,
+//           quantity: newQuantity,
+//           spicePercent: percent,
+//           isJain: isJain,
+//           addedBy: {
+//             userId: user.id,
+//             userName: user.name || user.username
+//           },
+//           lastUpdatedBy: userInfo,
+//           updatedBy: user.name || user.username
+//         };
+        
+//         return [...prev, newItem];
 //       }
 //     });
 //   };
@@ -440,12 +519,21 @@
 //       toast.error(`${item.name} is not available`);
 //       return;
 //     }
+//     if (!user) {
+//       toast.error("Please log in to add items to cart");
+//       return;
+//     }
 //     updateItemQuantity(item._id, 1);
 //     toast.success(`${item.name} added to cart`);
 //   };
 
 //   // Update cart item quantity
 //   const updateQuantity = (itemId: string, change: number) => {
+//     if (!user) {
+//       toast.error("Please log in to update cart");
+//       return;
+//     }
+
 //     setCart(prev => {
 //       const item = prev.find(cartItem => cartItem.id === itemId);
 //       if (!item) return prev;
@@ -457,7 +545,15 @@
 
 //       return prev.map(cartItem =>
 //         cartItem.id === itemId
-//           ? { ...cartItem, quantity: newQuantity }
+//           ? { 
+//               ...cartItem, 
+//               quantity: newQuantity,
+//               lastUpdatedBy: {
+//                 userId: user.id,
+//                 userName: user.name || user.username,
+//                 timestamp: new Date().toISOString()
+//               }
+//             }
 //           : cartItem
 //       );
 //     });
@@ -511,7 +607,9 @@
 //       persons: persons
 //     };
     
-//     navigate("/order-tables/bill", { state: billData });
+//     // Navigate to appropriate route based on user role
+//     const billRoute = user?.role === "admin" ? "/admin/order-tables/bill" : "/order-tables/bill";
+//     navigate(billRoute, { state: billData });
 //   };
 
 //   // Print draft (compact) directly from menu
@@ -534,7 +632,9 @@
 //       persons: persons,
 //     };
 
-//     navigate("/order-tables/print-draft", { state: draftData });
+//     // Navigate to appropriate route based on user role
+//     const printRoute = user?.role === "admin" ? "/admin/order-tables/print-draft" : "/order-tables/print-draft";
+//     navigate(printRoute, { state: draftData });
 //   };
 
 //   return (
@@ -629,32 +729,33 @@
 //               </div>
 //             </div>
 
-//             {/* Categories */}
-//             <div className="mb-6">
-//               <div className="flex flex-wrap gap-2">
-//                 <Button
-//                   variant={activeCategory === "recent" ? "default" : "outline"}
-//                   size="sm"
-//                   onClick={() => setActiveCategory("recent")}
-//                   className="gap-2"
-//                 >
-//                   <span>🕒</span>
-//                   Recent Items
-//                 </Button>
-//                 {categories.map((category) => (
+//             {/* Categories - Hide when searching */}
+//             {searchQuery.trim() === "" && (
+//               <div className="mb-6">
+//                 <div className="flex flex-wrap gap-2">
 //                   <Button
-//                     key={category._id}
-//                     variant={activeCategory === category.name ? "default" : "outline"}
+//                     variant={activeCategory === "recent" ? "default" : "outline"}
 //                     size="sm"
-//                     onClick={() => setActiveCategory(category.name)}
+//                     onClick={() => setActiveCategory("recent")}
 //                     className="gap-2"
 //                   >
-//                     <span>{category.icon || "🍽️"}</span>
-//                     {category.name}
+//                     <span>🕒</span>
+//                     Recent Items
 //                   </Button>
-//                 ))}
+//                   {categories.map((category) => (
+//                     <Button
+//                       key={category._id}
+//                       variant={activeCategory === category.name ? "default" : "outline"}
+//                       size="lg"
+//                       onClick={() => setActiveCategory(category.name)}
+//                       className="gap-2"
+//                     >
+//                       {category.name}
+//                     </Button>
+//                   ))}
+//                 </div>
 //               </div>
-//             </div>
+//             )}
 
 //             {/* Loading State */}
 //             {loading && (
@@ -676,7 +777,7 @@
 
 //             {/* Menu Items */}
 //             {!loading && !error && (
-//               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+//               <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
 //                 {filteredItems.map((item) => {
 //                   // Get current spice percent from state or cart
 //                   const cartItem = cart.find(ci => ci.id === item._id);
@@ -691,15 +792,15 @@
 //                   transition={{ duration: 0.2 }}
 //                 >
 //                 <Card 
-//                   className={`overflow-hidden hover:shadow-xl transition-all duration-300 ${
+//                   className={`overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col h-full ${
 //                     getItemQuantity(item._id) > 0 
 //                       ? 'ring-2 ring-primary shadow-lg' 
 //                       : 'hover:scale-[1.02]'
 //                   }`}
 //                 >
 //                   <div className="relative">
-//                     <div className="relative h-40 max-h-48 w-full overflow-hidden bg-gradient-to-br from-orange-50 to-amber-50">
-//                       <img
+//                     <div className="relative h-32 sm:h-40 max-h-48 w-full overflow-hidden bg-gradient-to-br from-orange-50 to-amber-50">
+//                       {/* <img
 //                         src={item.image}
 //                         alt={item.name}
 //                         style={{
@@ -707,7 +808,7 @@
 //                           objectFit:"cover"
 //                         }}
 //                         className="w-full h-full max-h-48 object-cover hover:scale-110 transition-transform duration-500"
-//                       />
+//                       /> */}
 //                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 //                       {getItemQuantity(item._id) > 0 && (
 //                         <div className="absolute top-3 right-3 bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-lg animate-pulse">
@@ -720,22 +821,22 @@
 //                         </Badge>
 //                       </div>
 //                     </div>
-//                     <div className="p-4">
-//                       <div className="flex items-start justify-between mb-3">
-//                         <h3 className="font-bold text-lg">{item.name}</h3>
-//                         <span className="font-bold text-xl text-primary">₹{item.price}</span>
+//                     <div className="p-3 sm:p-4 flex-1 flex flex-col">
+//                       <div className="flex items-start justify-between mb-2 sm:mb-3">
+//                         <h3 className="font-bold text-base sm:text-xl line-clamp-2 flex-1 pr-2">{item.name}</h3>
+//                         <span className="font-bold text-base sm:text-xl text-primary shrink-0">₹{item.price}</span>
 //                       </div>
-//                       {/* Spice level and Jain options */}
-//                       <div className="mb-4 grid grid-cols-2 gap-3">
+//                       {/* Spice level option */}
+//                       <div className="mb-3 sm:mb-4">
 //                         <div className="space-y-1.5">
 //                           <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-//                             🌶️ Spice Level
+//                             🌶️ Spice 
 //                           </label>
 //                           <Select
 //                             value={String(currentSpicePercent)}
 //                             onValueChange={(v) => setSpicePercent(item._id, parseInt(v))}
 //                           >
-//                             <SelectTrigger className="h-9 border-2 hover:border-primary/50 transition-colors">
+//                             <SelectTrigger className="h-8 sm:h-9 border-2 hover:border-primary/50 transition-colors text-xs sm:text-sm w-full">
 //                               <SelectValue placeholder="50%" />
 //                             </SelectTrigger>
 //                             <SelectContent>
@@ -747,63 +848,40 @@
 //                             </SelectContent>
 //                           </Select>
 //                         </div>
-//                         <div className="space-y-1.5">
-//                           <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-//                             🥗 Jain Option
-//                           </label>
-//                           <Select
-//                             value={currentIsJain ? "true" : "false"}
-//                             onValueChange={(v) => {
-//                               setIsJain(item._id, v === "true");
-//                               // Also update cart items
-//                               setCart(prev => prev.map(ci => 
-//                                 ci.id === item._id ? { ...ci, isJain: v === "true" } : ci
-//                               ));
-//                             }}
-//                           >
-//                             <SelectTrigger className="h-9 border-2 hover:border-primary/50 transition-colors">
-//                               <SelectValue placeholder="No" />
-//                             </SelectTrigger>
-//                             <SelectContent>
-//                               <SelectItem value="false">❌ No</SelectItem>
-//                               <SelectItem value="true">✅ Yes</SelectItem>
-//                             </SelectContent>
-//                           </Select>
-//                         </div>
 //                       </div>
 //                       {/* Quantity Controls */}
 //                       {getItemQuantity(item._id) > 0 ? (
 //                         <div className="space-y-3">
-//                           <div className="flex items-center justify-between w-full bg-primary/5 rounded-lg p-2">
-//                             <div className="flex items-center gap-2">
+//                           <div className="flex items-center justify-between w-full bg-primary/5 rounded-lg p-1.5 sm:p-2">
+//                             <div className="flex items-center gap-1.5 sm:gap-2">
 //                               <Button
 //                                 size="sm"
 //                                 variant="outline"
 //                                 onClick={() => updateItemQuantity(item._id, -1)}
-//                                 className="h-9 w-9 p-0 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
+//                                 className="h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
 //                               >
-//                                 <Minus className="h-4 w-4" />
+//                                 <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
 //                               </Button>
-//                               <span className="min-w-[2rem] text-center font-bold text-lg">
+//                               <span className="min-w-[1.5rem] sm:min-w-[2rem] text-center font-bold text-base sm:text-lg">
 //                                 {getItemQuantity(item._id)}
 //                               </span>
 //                               <Button
 //                                 size="sm"
 //                                 variant="outline"
 //                                 onClick={() => updateItemQuantity(item._id, 1)}
-//                                 className="h-9 w-9 p-0 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
+//                                 className="h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
 //                                 disabled={!item.isAvailable}
 //                               >
-//                                 <Plus className="h-4 w-4" />
+//                                 <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
 //                               </Button>
 //                             </div>
 //                             <Button
 //                               size="sm"
 //                               variant="ghost"
 //                               onClick={() => updateItemQuantity(item._id, -getItemQuantity(item._id))}
-//                               className="h-9 px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
+//                               className="h-8 w-8 sm:h-9 sm:w-9 p-0 sm:px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
 //                             >
-//                               <Trash2 className="h-4 w-4" />
+//                               <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
 //                             </Button>
 //                           </div>
                          
@@ -811,11 +889,12 @@
 //                       ) : (
 //                         <Button
 //                           onClick={() => updateItemQuantity(item._id, 1)}
-//                           className="w-full h-10 font-semibold shadow-md hover:shadow-lg transition-all"
+//                           className="w-full h-9 sm:h-10 font-semibold shadow-md hover:shadow-lg transition-all text-xs sm:text-sm"
 //                           disabled={!item.isAvailable}
 //                         >
-//                           <Plus className="h-5 w-5 mr-2" />
-//                           {item.isAvailable ? "Add to Cart" : "Not Available"}
+//                           <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+//                           <span className="hidden sm:inline">{item.isAvailable ? "Add to Cart" : "Not Available"}</span>
+//                           <span className="sm:hidden">{item.isAvailable ? "Add" : "N/A"}</span>
 //                         </Button>
 //                       )}
 //                     </div>
@@ -870,7 +949,20 @@
 //                             <div className="space-y-3">
 //                               <div className="flex items-start justify-between">
 //                                 <div className="flex-1 pr-3">
-//                                   <p className="font-bold text-base">{item.name}</p>
+//                                   <div className="flex items-center justify-between">
+//                                     <p className="font-bold text-base">{item.name}</p>
+//                                     <div className="text-xs text-muted-foreground text-right">
+//                                       <div>Added by: {item.addedBy.userName}</div>
+//                                       {item.lastUpdatedBy && item.lastUpdatedBy.userId !== item.addedBy.userId && (
+//                                         <div>Updated by: {item.lastUpdatedBy.userName}</div>
+//                                       )}
+//                                       {item.lastUpdatedBy && (
+//                                         <div className="text-xxs opacity-70">
+//                                           {new Date(item.lastUpdatedBy.timestamp).toLocaleString()}
+//                                         </div>
+//                                       )}
+//                                     </div>
+//                                   </div>
 //                                   <p className="text-sm text-muted-foreground">₹{item.price} × {item.quantity} = ₹{(item.price * item.quantity).toFixed(2)}</p>
 //                                 </div>
 //                                 <Button
@@ -1003,9 +1095,11 @@
 //       {showScrollToBottom && (
 //         <Button
 //           onClick={scrollToCart}
-//           className="fixed bottom-6 right-6 h-12 w-12 rounded-full shadow-lg z-50 print:hidden"
+//           className="fixed bottom-6 right-6 h-12 w-12 rounded-full shadow-lg z-50 print:hidden bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
 //           size="icon"
 //           title="Go to Cart"
+//           style={{ zIndex: 1000  , backgroundColor: "white", color: "black", position: "fixed" , bottom: "6px" , right: "6px"}}
+
 //         >
 //           <ArrowDown className="h-5 w-5" />
 //         </Button>
@@ -1013,9 +1107,11 @@
 //       {showScrollToTop && (
 //         <Button
 //           onClick={scrollToTop}
-//           className="fixed bottom-6 right-6 h-12 w-12 rounded-full shadow-lg z-50 print:hidden"
+//           className="fixed bottom-20 right-6 h-12 w-12 rounded-full shadow-lg z-50 print:hidden bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
 //           size="icon"
 //           title="Go to Top"
+//           style={{ zIndex: 1000  , backgroundColor: "white", color: "black", position: "fixed" , bottom: "6px" , right: "6px"}}
+
 //         >
 //           <ArrowUp className="h-5 w-5" />
 //         </Button>
@@ -1023,7 +1119,6 @@
 //     </div>
 //   );
 // }
-
 
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "./ui/button";
@@ -1073,6 +1168,16 @@ interface CartItem {
   spiceLevel?: number;
   spicePercent?: number;
   isJain?: boolean;
+  updatedBy?: string;
+  addedBy: {
+    userId: string;
+    userName: string;
+  };
+  lastUpdatedBy: {
+    userId: string;
+    userName: string;
+    timestamp: string;
+  };
 }
 
 interface Category {
@@ -1112,6 +1217,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const menuEndRef = useRef<HTMLDivElement>(null);
   const cartSectionRef = useRef<HTMLDivElement>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
   // Get recent items from localStorage
   const getRecentItems = (): string[] => {
@@ -1191,7 +1297,32 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         const restoredQuantities: Record<string, number> = {};
         
         draftData.cartItems.forEach(item => {
-          restoredCart.push({
+          // For backward compatibility, if addedBy is not present, use the draft's updatedBy
+          const addedBy = (item as any).addedBy 
+            ? {
+                userId: (item as any).addedBy.userId || 'system',
+                userName: (item as any).addedBy.userName || 'System'
+              }
+            : {
+                userId: draftData.updatedBy || 'system',
+                userName: draftData.updatedBy || 'System'
+              };
+          
+          // For backward compatibility, if lastUpdatedBy is not present, use the draft's updatedBy
+          const lastUpdated = (item as any).lastUpdatedBy
+            ? {
+                userId: (item as any).lastUpdatedBy.userId || draftData.updatedBy || 'system',
+                userName: (item as any).lastUpdatedBy.userName || draftData.updatedBy || 'System',
+                timestamp: (item as any).lastUpdatedBy.timestamp || new Date().toISOString()
+              }
+            : {
+                userId: draftData.updatedBy || 'system',
+                userName: draftData.updatedBy || 'System',
+                timestamp: new Date().toISOString()
+              };
+          
+          // Create the cart item with all the information
+          const cartItem: CartItem = {
             id: item.itemId,
             name: item.name,
             price: item.price,
@@ -1199,8 +1330,13 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
             note: (item as any).note || "",
             spiceLevel: (item as any).spiceLevel ?? 0,
             spicePercent: (item as any).spicePercent ?? 50,
-            isJain: (item as any).isJain ?? false
-          });
+            isJain: (item as any).isJain ?? false,
+            updatedBy: (item as any).updatedBy || draftData.updatedBy || 'System',
+            addedBy: addedBy,
+            lastUpdatedBy: lastUpdated
+          };
+          
+          restoredCart.push(cartItem);
           restoredQuantities[item.itemId] = item.quantity;
         });
         
@@ -1319,7 +1455,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
   // Auto-save draft function
   const autoSaveDraft = async (cartItems: CartItem[], personsCount: number) => {
-    if (!user?.restaurantId || !user?.username) return;
+    if (!user?.restaurantId || !user?.username || !user?.id) return;
     
     try {
       setSaving(true);
@@ -1336,12 +1472,28 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           note: item.note || "",
           spiceLevel: item.spiceLevel ?? 0,
           spicePercent: item.spicePercent ?? 50,
-          isJain: item.isJain ?? false
+          isJain: item.isJain ?? false,
+          // Include staff information with each cart item
+          addedBy: item.addedBy || {
+            userId: user.id,
+            userName: user.name || user.username
+          },
+          lastUpdatedBy: {
+            userId: user.id,
+            userName: user.name || user.username,
+            timestamp: new Date().toISOString()
+          },
+          updatedBy: user.name || user.username
         })),
-        updatedBy: user.username
+        updatedBy: user.name || user.username,
+        userId: user.id // Add userId to the root of the draft data
       };
       
-      const savedDraft = await saveTableDraft(draftData);
+      const savedDraft = await saveTableDraft({
+        ...draftData,
+        userId: user.id, // Make sure userId is included in the request
+        updatedBy: user.name || user.username
+      });
       setTableDraft(savedDraft);
     } catch (error: any) {
       console.error("Error auto-saving draft:", error);
@@ -1364,6 +1516,11 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
   // Update item quantity
   const updateItemQuantity = (itemId: string, change: number) => {
+    if (!user) {
+      toast.error("Please log in to update cart");
+      return;
+    }
+
     setItemQuantities(prev => {
       const currentQuantity = prev[itemId] || 0;
       const newQuantity = Math.max(0, currentQuantity + change);
@@ -1383,6 +1540,12 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
       const currentQuantity = itemQuantities[itemId] || 0;
       const newQuantity = Math.max(0, currentQuantity + change);
+      const currentTime = new Date().toISOString();
+      const userInfo = {
+        userId: user.id,
+        userName: user.name || user.username,
+        timestamp: currentTime
+      };
 
       if (newQuantity === 0) {
         return prev.filter(cartItem => cartItem.id !== itemId);
@@ -1392,26 +1555,39 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       if (existingItem) {
         return prev.map(cartItem =>
           cartItem.id === itemId
-            ? { ...cartItem, quantity: newQuantity }
-          : cartItem
+            ? { 
+                ...cartItem, 
+                quantity: newQuantity,
+                lastUpdatedBy: userInfo,
+                updatedBy: user.name || user.username
+              }
+            : cartItem
         );
       } else {
         // Get spice percent from state or default
         const percent = selectedSpicePercent[item._id] ?? 50;
         const level = Math.min(5, Math.max(1, Math.round(percent / 20)));
         const isJain = selectedIsJain[item._id] ?? false;
+        
         // Save to recent items
         saveToRecentItems(item._id);
-        return [...prev, { 
-          id: item._id, 
-          name: item.name, 
-          price: item.price, 
-          quantity: newQuantity, 
-          note: "", 
-          spiceLevel: level, 
-          spicePercent: percent, 
-          isJain: isJain 
-        }];
+        
+        const newItem: CartItem = {
+          id: item._id,
+          name: item.name,
+          price: item.price,
+          quantity: newQuantity,
+          spicePercent: percent,
+          isJain: isJain,
+          addedBy: {
+            userId: user.id,
+            userName: user.name || user.username
+          },
+          lastUpdatedBy: userInfo,
+          updatedBy: user.name || user.username
+        };
+        
+        return [...prev, newItem];
       }
     });
   };
@@ -1466,12 +1642,21 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       toast.error(`${item.name} is not available`);
       return;
     }
+    if (!user) {
+      toast.error("Please log in to add items to cart");
+      return;
+    }
     updateItemQuantity(item._id, 1);
     toast.success(`${item.name} added to cart`);
   };
 
   // Update cart item quantity
   const updateQuantity = (itemId: string, change: number) => {
+    if (!user) {
+      toast.error("Please log in to update cart");
+      return;
+    }
+
     setCart(prev => {
       const item = prev.find(cartItem => cartItem.id === itemId);
       if (!item) return prev;
@@ -1483,7 +1668,15 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
       return prev.map(cartItem =>
         cartItem.id === itemId
-          ? { ...cartItem, quantity: newQuantity }
+          ? { 
+              ...cartItem, 
+              quantity: newQuantity,
+              lastUpdatedBy: {
+                userId: user.id,
+                userName: user.name || user.username,
+                timestamp: new Date().toISOString()
+              }
+            }
           : cartItem
       );
     });
@@ -1542,7 +1735,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     navigate(billRoute, { state: billData });
   };
 
-  // Print draft (compact) directly from menu
+  // Direct printing without popup
   const handlePrintDraft = () => {
     if (cart.length === 0) {
       toast.error("Please add items to cart");
@@ -1553,18 +1746,146 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       return;
     }
 
-    const draftData = {
-      table: {
-        id: tableId,
-        tableName: tableName,
-      },
-      cart: cart,
-      persons: persons,
-    };
+    // Create print content
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Draft Bill - ${tableName}</title>
+        <style>
+          body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            line-height: 1.4;
+          }
+          .header { 
+            text-align: center; 
+            margin-bottom: 20px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+          }
+          .table-info { 
+            margin-bottom: 15px;
+          }
+          .items-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 20px;
+          }
+          .items-table th, .items-table td { 
+            border: 1px solid #000; 
+            padding: 8px; 
+            text-align: left;
+          }
+          .items-table th { 
+            background-color: #f0f0f0;
+          }
+          .total-section { 
+            margin-top: 20px; 
+            text-align: right;
+            font-weight: bold;
+          }
+          .footer { 
+            margin-top: 30px; 
+            text-align: center; 
+            font-size: 12px;
+            border-top: 1px solid #000;
+            padding-top: 10px;
+          }
+          @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h2>DRAFT BILL</h2>
+          <h3>${tableName}</h3>
+        </div>
+        
+        <div class="table-info">
+          <p><strong>Table ID:</strong> ${tableId}</p>
+          <p><strong>Persons:</strong> ${persons}</p>
+          <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+        </div>
+        
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Qty</th>
+              <th>Price</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${cart.map(item => `
+              <tr>
+                <td>${item.name}</td>
+                <td>${item.quantity}</td>
+                <td>₹${item.price}</td>
+                <td>₹${(item.price * item.quantity).toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        
+        <div class="total-section">
+          <p>Subtotal: ₹${subtotal.toFixed(2)}</p>
+          <p>Total: ₹${total.toFixed(2)}</p>
+        </div>
+        
+        <div class="footer">
+          <p>This is a draft bill - Not for payment</p>
+          <p>Generated on ${new Date().toLocaleString()}</p>
+        </div>
+        
+        <script>
+          // Auto-print and close after printing
+          window.onload = function() {
+            window.print();
+            setTimeout(function() {
+              window.close();
+            }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `;
 
-    // Navigate to appropriate route based on user role
-    const printRoute = user?.role === "admin" ? "/admin/order-tables/print-draft" : "/order-tables/print-draft";
-    navigate(printRoute, { state: draftData });
+    // Open print window and write content
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+    } else {
+      toast.error("Please allow popups for printing");
+    }
+  };
+
+  // Save and Print function
+  const handleSaveAndPrint = async () => {
+    if (cart.length === 0) {
+      toast.error("Please add items to cart");
+      return;
+    }
+    if (persons < 1) {
+      toast.error("Please enter number of persons");
+      return;
+    }
+
+    try {
+      // First save the draft
+      await autoSaveDraft(cart, persons);
+      toast.success("Draft saved successfully");
+      
+      // Then print
+      handlePrintDraft();
+    } catch (error) {
+      console.error("Error saving draft:", error);
+      toast.error("Failed to save draft");
+    }
   };
 
   return (
@@ -1879,7 +2200,20 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                             <div className="space-y-3">
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 pr-3">
-                                  <p className="font-bold text-base">{item.name}</p>
+                                  <div className="flex items-center justify-between">
+                                    <p className="font-bold text-base">{item.name}</p>
+                                    <div className="text-xs text-muted-foreground text-right">
+                                      <div>Added by: {item.addedBy.userName}</div>
+                                      {item.lastUpdatedBy && item.lastUpdatedBy.userId !== item.addedBy.userId && (
+                                        <div>Updated by: {item.lastUpdatedBy.userName}</div>
+                                      )}
+                                      {item.lastUpdatedBy && (
+                                        <div className="text-xxs opacity-70">
+                                          {new Date(item.lastUpdatedBy.timestamp).toLocaleString()}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
                                   <p className="text-sm text-muted-foreground">₹{item.price} × {item.quantity} = ₹{(item.price * item.quantity).toFixed(2)}</p>
                                 </div>
                                 <Button
@@ -1998,6 +2332,14 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                       >
                         <Printer className="h-4 w-4 mr-2" />
                         Print Draft
+                      </Button>
+                      <Button
+                        onClick={handleSaveAndPrint}
+                        className="w-full h-10 bg-green-600 hover:bg-green-700 text-white"
+                        size="default"
+                      >
+                        <Printer className="h-4 w-4 mr-2" />
+                        Save & Print
                       </Button>
                     </div>
                   </>

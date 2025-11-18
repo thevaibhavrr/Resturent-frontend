@@ -1,30 +1,48 @@
 import { makeApi } from './makeapi';
 
+export interface CartItem {
+  itemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  note?: string;
+  spiceLevel?: number;
+  spicePercent?: number;
+  addedBy?: {
+    userId: string;
+    userName: string;
+  };
+  lastUpdatedBy?: {
+    userId: string;
+    userName: string;
+    timestamp: string;
+  };
+  updatedBy?: string;
+}
+
 export interface TableDraft {
   _id?: string;
   tableId: string;
   tableName: string;
   restaurantId: string;
   persons: number;
-  cartItems: Array<{
-    itemId: string;
-    name: string;
-    price: number;
-    quantity: number;
-    note?: string;
-    spiceLevel?: number;
-    spicePercent?: number;
-  }>;
+  cartItems: CartItem[];
   subtotal: number;
   tax: number;
   total: number;
   status: 'draft' | 'occupied' | 'completed';
   lastUpdated: string;
   updatedBy: string;
+  userId?: string; // Add userId to the interface
 }
 
-export const saveTableDraft = async (draftData: Partial<TableDraft>) => {
-  const response = await makeApi('/api/table-draft/save', 'POST', draftData);
+export const saveTableDraft = async (draftData: Partial<TableDraft> & { userId: string }) => {
+  const response = await makeApi('/api/table-draft/save', 'POST', {
+    ...draftData,
+    // Make sure we're sending both updatedBy and userId
+    userId: draftData.userId,
+    updatedBy: draftData.updatedBy || 'Unknown User'
+  });
   return response.data;
 };
 

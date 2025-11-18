@@ -41,6 +41,10 @@ interface CartItem {
   spicePercent?: number;
   isJain?: boolean;
   discountAmount?: number; // Discount in ₹ for this item
+  addedBy?: {
+    userId: string;
+    userName: string;
+  };
 }
 
 interface BillPageProps {
@@ -111,17 +115,29 @@ export function BillPage({
       return;
     }
 
-    setCart(prev => {
-      const existingItem = prev.find(cartItem => cartItem.id === item._id);
+    setCart(prevCart => {
+      const existingItem = prevCart.find(cartItem => cartItem.id === item._id);
       if (existingItem) {
-        return prev.map(cartItem =>
+        return prevCart.map(cartItem =>
           cartItem.id === item._id
-            ? { ...cartItem, quantity: cartItem.quantity + 1 }
+            ? { 
+                ...cartItem, 
+                quantity: cartItem.quantity + 1,
+                addedBy: user ? { userId: user.id, userName: user.name } : cartItem.addedBy
+              }
             : cartItem
         );
-      } else {
-        return [...prev, { id: item._id, name: item.name, price: item.price, quantity: 1, note: "", spicePercent: 50, isJain: false }];
       }
+      return [
+        ...prevCart,
+        {
+          id: item._id,
+          name: item.name,
+          price: item.price,
+          quantity: 1,
+          addedBy: user ? { userId: user.id, userName: user.name } : undefined
+        }
+      ];
     });
     toast.success(`${item.name} added to cart`);
   };
@@ -479,6 +495,23 @@ export function BillPage({
                               placeholder="0"
                               className="h-8 text-xs w-24"
                             />
+                            <div className="text-sm text-gray-500">
+                              {item.note && <div>Note: {item.note}</div>}
+                              {item.spicePercent && (
+                                <div>Spice: {item.spicePercent}%</div>
+                              )}
+                              {item.isJain && <div>Jain: Yes</div>}
+                              {item.discountAmount && item.discountAmount > 0 && (
+                                <div className="text-green-600">
+                                  -₹{item.discountAmount.toFixed(2)} off
+                                </div>
+                              )}
+                              {item.addedBy && (
+                                <div className="text-xs text-gray-400 mt-1">
+                                  Added by: {item.addedBy.userName}
+                                </div>
+                              )}
+                            </div>
                             <div className="text-right flex-1">
                               <div className="text-xs text-muted-foreground">
                                 Subtotal: ₹{itemTotal.toFixed(2)}

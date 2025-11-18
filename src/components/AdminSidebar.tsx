@@ -90,6 +90,11 @@ export function AdminSidebar({
       icon: Users,
     },
     {
+      id: "user-bills",
+      label: "User Bills",
+      icon: FileText,
+    },
+    {
       id: "space-management",
       label: "Space Management",
       icon: MapPin,

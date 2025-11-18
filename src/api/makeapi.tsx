@@ -22,7 +22,6 @@ export const makeApi = async (
       method,
       // url:"http://localhost:3000"+endpoint,
       // url:"https://resturent-backend-l8jk.onrender.com"+endpoint,
-      // https://restaurant-backend-971455500628.asia-south1.run.app
       url:"https://restaurant-backend-971455500628.asia-south1.run.app"+endpoint,
       headers,
       data
