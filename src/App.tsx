@@ -36,6 +36,8 @@ import { getCurrentUser, getRestaurantKey } from "./utils/auth";
 import { SubscriptionAlert } from "./components/SubscriptionAlert";
 import { SubscriptionExpiredModal } from "./components/SubscriptionExpiredModal";
 import { getRestaurantSubscription } from "./api/planApi";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsAndConditionsPage from "./pages/TermsAndConditionsPage";
 
 interface TableData {
   id: number;
@@ -239,6 +241,15 @@ function AppContent() {
 
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Public routes that don't require authentication
+  if (location.pathname === '/privacy-policy') {
+    return <PrivacyPolicyPage />;
+  }
+
+  if (location.pathname === '/terms-and-conditions') {
+    return <TermsAndConditionsPage />;
+  }
+
   // Show login page if not logged in
   if (!isLoggedIn) {
     return (
@@ -341,6 +352,8 @@ function AppContent() {
             <Route path="/admin/reports" element={<ReportsPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
             <Route path="/admin/plans" element={<PlansPage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
             <Route path="*" element={<Navigate to="/admin" />} />
           </Routes>
         </main>
@@ -381,6 +394,8 @@ function AppContent() {
       <Route path="/order-tables/tables" element={<Navigate to="/order-tables" />} />
       <Route path="/staff" element={<Navigate to="/order-tables" />} />
       <Route path="/staff/table-menu" element={<Navigate to="/order-tables/table-menu" />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+      <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
       <Route path="*" element={<Navigate to="/order-tables" />} />
         </Routes>
       </main>
