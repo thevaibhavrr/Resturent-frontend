@@ -348,7 +348,6 @@ export default function BluetoothPrinter() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string>('Initializing...');
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
-  const [autoConnectAttempted, setAutoConnectAttempted] = useState(false);
   const maxReconnectAttempts = 3;
 
   const savePrinterToStorage = (device: BluetoothDevice) => {
@@ -377,6 +376,7 @@ export default function BluetoothPrinter() {
       return false;
     } catch (err) {
       console.error('Connection error:', err);
+      setStatus('Connection failed');
       return false;
     }
   };
@@ -390,27 +390,62 @@ export default function BluetoothPrinter() {
       setTimeout(attemptReconnect, 2000);
     } else {
       removePrinterFromStorage();
+      setStatus('Max reconnection attempts reached');
     }
   };
 
   const attemptReconnect = async () => {
-    if (!navigator.bluetooth) return;
+    if (!navigator.bluetooth) {
+      setError('Web Bluetooth API is not supported in your browser');
+      setStatus('Bluetooth not supported');
+      return;
+    }
     
     try {
+      setStatus('Looking for saved printer...');
       const savedPrinterId = localStorage.getItem(PRINTER_STORAGE_KEY);
-      if (!savedPrinterId) return;
+      
+      // First try to connect to the saved printer
+      if (savedPrinterId) {
+        try {
+          // Try to get the device without user interaction
+          const devices = await navigator.bluetooth.getDevices();
+          const savedDevice = devices.find(device => device.id === savedPrinterId);
+          
+          if (savedDevice) {
+            const connected = await connectToDevice(savedDevice);
+            if (connected) return;
+          }
+        } catch (err) {
+          console.error('Failed to reconnect to saved device:', err);
+        }
+      }
+      
+      // If no saved device or connection failed, try to find the specific printer
+      setStatus('Searching for MPT-II printer...');
+      try {
+        // This might require user interaction the first time
+        const device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: false,
+          filters: [{ name: PRINTER_NAME }],
+          optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
+        });
 
-      const device = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: false,
-        filters: [{ name: PRINTER_NAME }],
-        optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
-      });
-
-      if (device.id === savedPrinterId) {
-        await connectToDevice(device);
+        if (device.id === PRINTER_ID || device.name === PRINTER_NAME) {
+          await connectToDevice(device);
+        } else {
+          setStatus('Found a different printer than expected');
+        }
+      } catch (err) {
+        console.error('Failed to find printer:', err);
+        setStatus('Printer not found');
+        if (err instanceof Error && err.name !== 'NotFoundError') {
+          setError(err.message);
+        }
       }
     } catch (err) {
       console.error('Reconnection failed:', err);
+      setStatus('Connection failed');
       if (reconnectAttempts < maxReconnectAttempts) {
         setTimeout(attemptReconnect, 2000);
       } else {
@@ -419,51 +454,10 @@ export default function BluetoothPrinter() {
     }
   };
 
-  // New function for automatic connection on page load
-  const autoConnect = async () => {
-    if (!navigator.bluetooth) {
-      setError('Web Bluetooth API is not supported in your browser. Please use Chrome 56+ or Edge 79+');
-      setStatus('Bluetooth not supported');
-      return;
-    }
-
-    // Check if we already have a saved printer
-    const savedPrinterId = localStorage.getItem(PRINTER_STORAGE_KEY);
-    
-    try {
-      setStatus('Searching for printer...');
-      setIsScanning(true);
-      
-      // Try to connect to the specific printer
-      const device = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: false,
-        filters: [{ name: PRINTER_NAME }],
-        optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
-      });
-      
-      // Verify this is the correct printer
-      if (device.id === PRINTER_ID || (savedPrinterId && device.id === savedPrinterId)) {
-        const isConnected = await connectToDevice(device);
-        if (!isConnected) {
-          throw new Error('Failed to connect to the printer');
-        }
-      } else {
-        setStatus('Printer found but ID does not match');
-      }
-    } catch (err) {
-      console.error('Auto-connect failed:', err);
-      setError(err instanceof Error ? err.message : 'Failed to automatically connect to Bluetooth printer');
-      setStatus('Auto-connect failed');
-    } finally {
-      setIsScanning(false);
-      setAutoConnectAttempted(true);
-    }
-  };
-
+  // Auto-connect on component mount
   useEffect(() => {
-    // Attempt to auto-connect when the component mounts
-    if (typeof window !== 'undefined' && !connectedPrinter && !autoConnectAttempted) {
-      autoConnect();
+    if (typeof window !== 'undefined') {
+      attemptReconnect();
     }
 
     return () => {
@@ -474,7 +468,7 @@ export default function BluetoothPrinter() {
         }
       }
     };
-  }, [autoConnectAttempted]);
+  }, []);
 
   const requestBluetooth = async () => {
     try {
