@@ -41,6 +41,7 @@ import TermsAndConditionsPage from "./pages/TermsAndConditionsPage";
 import ExpensesListPage from "./pages/ExpensesListPage";
 import AddExpensePage from "./pages/AddExpensePage";
 import EditExpensePage from "./pages/EditExpensePage";
+import BluetoothPrinterPage from "./pages/admin/BluetoothPrinterPage";
 
 interface TableData {
   id: number;
@@ -355,6 +356,7 @@ function AppContent() {
             <Route path="/admin/reports" element={<ReportsPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
             <Route path="/admin/plans" element={<PlansPage />} />
+            <Route path="/admin/bluetooth-printer" element={<BluetoothPrinterPage />} />
             <Route path="/admin/expenses">
               <Route path="list" element={<ExpensesListPage />} />
               <Route path="add" element={<AddExpensePage />} />

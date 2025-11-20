@@ -18,6 +18,8 @@ import {
   CreditCard,
   ShoppingCart,
   DollarSign,
+  Printer,
+  Bluetooth,
 } from "lucide-react";
 import { getCurrentUser, logout } from "../utils/auth";
 import { useState, useEffect } from "react";
@@ -149,6 +151,11 @@ export function AdminSidebar({
       label: "Settings",
       icon: Settings,
     },
+    {
+      id: "bluetooth-printer",
+      label: "Bluetooth Printer",
+      icon: Printer,
+    },
   ];
 
   // Map sidebar item id to route path
@@ -166,7 +173,8 @@ export function AdminSidebar({
     "reports": "/admin/reports",
     "plans": "/admin/plans",
     "settings": "/admin/settings",
-  "add-expense": "/admin/expenses/add",
+    "add-expense": "/admin/expenses/add",
+    "bluetooth-printer": "/admin/bluetooth-printer",
   };
 
   const isMenuItemActive = (item: any) => {
