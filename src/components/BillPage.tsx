@@ -56,6 +56,9 @@ interface BillPageProps {
   initialAdditionalPrice?: number; // Optional initial additional price
   onBack: () => void;
   onSaveAndPrint?: (data: any) => void;
+  isEdit?: boolean; // Whether this is an edit operation
+  originalBillId?: string; // MongoDB ID of the bill being edited
+  originalBillNumber?: string; // Original bill number to preserve
 }
 
 export function BillPage({ 
@@ -66,7 +69,10 @@ export function BillPage({
   initialTotalDiscount = 0,
   initialAdditionalPrice = 0,
   onBack,
-  onSaveAndPrint
+  onSaveAndPrint,
+  isEdit = false,
+  originalBillId,
+  originalBillNumber
 }: BillPageProps) {
   const user = getCurrentUser();
   const [cart, setCart] = useState<CartItem[]>(initialCart);
@@ -193,7 +199,11 @@ export function BillPage({
       throw new Error("User information missing");
     }
     
-    const billNumber = billNum || `BILL-${Date.now()}`;
+    // Use original bill number if editing, otherwise generate new one
+    const billNumber = isEdit && originalBillNumber 
+      ? originalBillNumber 
+      : (billNum || `BILL-${Date.now()}`);
+    
     const billRecord = {
       billNumber,
       tableId: tableId.toString(),
@@ -214,24 +224,13 @@ export function BillPage({
     }
 
     try {
-      // Save to API (database) - THIS IS PRIMARY
-      console.log("Attempting to save bill to API (database) with:", {
-        billNumber,
-        restaurantId: user.restaurantId,
-        username: user.username,
-        itemsCount: cart.length,
-        grandTotal: total
-      });
-      
       // Calculate item discounts for API
       const itemsWithDiscounts = cart.map(item => ({
         ...item,
         discountAmount: item.discountAmount || 0
       }));
       
-      const { createBill } = await import("../api/billApi");
-      const savedBill = await createBill({
-        billNumber,
+      const billData = {
         tableId: tableId.toString(),
         tableName,
         persons,
@@ -242,25 +241,77 @@ export function BillPage({
         grandTotal: total,
         restaurantId: user.restaurantId, // Explicitly pass restaurantId
         createdBy: user.username || 'staff'
-      } as any);
-      
-      console.log("✅ Bill saved to database successfully:", savedBill);
-      
-      // Also save to localStorage as backup/cache
-      try {
-        const key = getRestaurantKey("billHistory", user.restaurantId);
-        const stored = localStorage.getItem(key);
-        const history = stored ? JSON.parse(stored) : [];
-        const updated = [billRecord, ...history];
-        localStorage.setItem(key, JSON.stringify(updated));
-      } catch (e) {
-        console.warn("Failed to save bill to localStorage cache:", e);
+      };
+
+      if (isEdit && originalBillId) {
+        // Update existing bill
+        console.log("Attempting to update bill in API (database) with:", {
+          billId: originalBillId,
+          billNumber,
+          restaurantId: user.restaurantId,
+          username: user.username,
+          itemsCount: cart.length,
+          grandTotal: total
+        });
+        
+        const { updateBill } = await import("../api/billApi");
+        const updatedBill = await updateBill(originalBillId, billData);
+        
+        console.log("✅ Bill updated in database successfully:", updatedBill);
+        
+        // Update localStorage cache
+        try {
+          const key = getRestaurantKey("billHistory", user.restaurantId);
+          const stored = localStorage.getItem(key);
+          if (stored) {
+            const history = JSON.parse(stored);
+            const updated = history.map((bill: any) => 
+              bill._id === originalBillId || bill.billNumber === billNumber
+                ? { ...billRecord, _id: originalBillId }
+                : bill
+            );
+            localStorage.setItem(key, JSON.stringify(updated));
+          }
+        } catch (e) {
+          console.warn("Failed to update bill in localStorage cache:", e);
+        }
+        
+        toast.success("Bill updated successfully!");
+        return billNumber;
+      } else {
+        // Create new bill
+        console.log("Attempting to save bill to API (database) with:", {
+          billNumber,
+          restaurantId: user.restaurantId,
+          username: user.username,
+          itemsCount: cart.length,
+          grandTotal: total
+        });
+        
+        const { createBill } = await import("../api/billApi");
+        const savedBill = await createBill({
+          ...billData,
+          billNumber
+        } as any);
+        
+        console.log("✅ Bill saved to database successfully:", savedBill);
+        
+        // Also save to localStorage as backup/cache
+        try {
+          const key = getRestaurantKey("billHistory", user.restaurantId);
+          const stored = localStorage.getItem(key);
+          const history = stored ? JSON.parse(stored) : [];
+          const updated = [billRecord, ...history];
+          localStorage.setItem(key, JSON.stringify(updated));
+        } catch (e) {
+          console.warn("Failed to save bill to localStorage cache:", e);
+        }
+        
+        toast.success("Bill saved to database successfully!");
+        return billNumber;
       }
-      
-      toast.success("Bill saved to database successfully!");
-      return billNumber;
     } catch (error: any) {
-      console.error("❌ Failed to save bill to API (database):", error);
+      console.error(`❌ Failed to ${isEdit ? 'update' : 'save'} bill to API (database):`, error);
       
       // Extract error message from various possible locations
       let errorMessage = "Unknown error";
@@ -287,7 +338,7 @@ export function BillPage({
       });
       
       // Don't save to localStorage if API fails - we want to force database saves
-      toast.error(`Failed to save bill: ${errorMessage}. Please check your connection and try again.`);
+      toast.error(`Failed to ${isEdit ? 'update' : 'save'} bill: ${errorMessage}. Please check your connection and try again.`);
       throw error; // Re-throw to prevent navigation
     }
   };
@@ -329,13 +380,16 @@ export function BillPage({
     }
 
     try {
-      const billNumber = `BILL-${Date.now()}`;
+      // Use original bill number if editing, otherwise generate new one
+      const billNumber = isEdit && originalBillNumber 
+        ? originalBillNumber 
+        : `BILL-${Date.now()}`;
 
-      // Save bill to database FIRST (this will throw if it fails)
+      // Save/Update bill to database FIRST (this will throw if it fails)
       await persistBillHistory(billNumber);
 
-      // Clear the draft only after successful save
-      if (user?.restaurantId && user?.username) {
+      // Clear the draft only after successful save (not for edits)
+      if (!isEdit && user?.restaurantId && user?.username) {
         try {
           await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
         } catch (draftError) {
@@ -366,9 +420,9 @@ export function BillPage({
         toast.error("Print functionality not available");
       }
     } catch (error) {
-      console.error("Error saving bill:", error);
+      console.error(`Error ${isEdit ? 'updating' : 'saving'} bill:`, error);
       // Error message already shown in persistBillHistory
-      // Don't proceed with print if save failed
+      // Don't proceed with print if save/update failed
     }
   };
 
@@ -695,7 +749,7 @@ export function BillPage({
                   disabled={cart.length === 0}
                 >
                   <Save className="h-5 w-5 mr-2" />
-                  Save Only
+                  {isEdit ? "Update Only" : "Save Only"}
                 </Button>
                 <Button
                   onClick={handleSaveAndPrint}
@@ -704,7 +758,7 @@ export function BillPage({
                   disabled={cart.length === 0}
                 >
                   <Printer className="h-5 w-5 mr-2" />
-                  Save & Print
+                  {isEdit ? "Update & Print" : "Save & Print"}
                 </Button>
               </div>
             </Card>

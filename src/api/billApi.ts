@@ -124,6 +124,29 @@ export const getBillById = async (id: string): Promise<Bill> => {
 };
 
 /**
+ * Update an existing bill
+ */
+export const updateBill = async (id: string, billData: Partial<CreateBillData>): Promise<Bill> => {
+  try {
+    const response = await makeApi(`/api/bills/${id}`, 'PUT', billData);
+    if (response.data && response.data.bill) {
+      return response.data.bill;
+    }
+    if (response.data) {
+      return response.data;
+    }
+    throw new Error('Invalid response from server');
+  } catch (error: any) {
+    console.error('Error updating bill:', error);
+    if (error.response) {
+      const errorMsg = error.response.data?.error || error.response.data?.message || 'Failed to update bill';
+      throw new Error(errorMsg);
+    }
+    throw error;
+  }
+};
+
+/**
  * Delete a bill
  */
 export const deleteBill = async (id: string): Promise<void> => {

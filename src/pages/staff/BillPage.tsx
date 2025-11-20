@@ -12,6 +12,9 @@ export default function BillPage() {
   const personsData = location.state?.persons;
   const totalDiscountData = location.state?.totalDiscount || 0;
   const additionalPriceData = location.state?.additionalPrice || 0;
+  const isEdit = location.state?.isEdit || false;
+  const originalBillId = location.state?.originalBillId;
+  const originalBillNumber = location.state?.originalBillNumber;
   
   if (!tableData) {
     navigate("/order-tables");
@@ -37,6 +40,9 @@ export default function BillPage() {
       initialAdditionalPrice={additionalPriceData}
       onBack={handleBack}
       onSaveAndPrint={handleSaveAndPrint}
+      isEdit={isEdit}
+      originalBillId={originalBillId}
+      originalBillNumber={originalBillNumber}
     />
   );
 }

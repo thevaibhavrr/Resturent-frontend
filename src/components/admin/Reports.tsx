@@ -17,6 +17,7 @@ import {
   Award,
 } from "lucide-react";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
+import { Button } from "../ui/button";
 import { toast } from "sonner";
 
 interface BillHistoryItem {
@@ -32,6 +33,11 @@ interface BillHistoryItem {
 export function Reports() {
   const user = getCurrentUser();
   const [period, setPeriod] = useState("today");
+  const [customDateRange, setCustomDateRange] = useState({
+    start: '',
+    end: ''
+  });
+  const [showCustomDateRange, setShowCustomDateRange] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalRevenue: 0,
@@ -51,7 +57,7 @@ export function Reports() {
   useEffect(() => {
     loadReports();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period]);
+  }, [period, customDateRange]);
 
   const loadReports = async () => {
     if (!user) return;
@@ -65,29 +71,36 @@ export function Reports() {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       
-      switch (period) {
-        case "today":
-          startDate = today.toISOString();
-          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
-          break;
-        case "week":
-          const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-          startDate = weekAgo.toISOString();
-          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
-          break;
-        case "month":
-          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-          startDate = monthStart.toISOString();
-          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
-          break;
-        case "year":
-          const yearStart = new Date(now.getFullYear(), 0, 1);
-          startDate = yearStart.toISOString();
-          endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
-          break;
-        default:
-          // All time - no date filter
-          break;
+      if (period === 'custom' && customDateRange.start && customDateRange.end) {
+        // Use custom date range
+        startDate = new Date(customDateRange.start).toISOString();
+        endDate = new Date(new Date(customDateRange.end).setHours(23, 59, 59, 999)).toISOString();
+      } else {
+        // Use predefined periods
+        switch (period) {
+          case "today":
+            startDate = today.toISOString();
+            endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+            break;
+          case "week":
+            const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+            startDate = weekAgo.toISOString();
+            endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+            break;
+          case "month":
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            startDate = monthStart.toISOString();
+            endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+            break;
+          case "year":
+            const yearStart = new Date(now.getFullYear(), 0, 1);
+            startDate = yearStart.toISOString();
+            endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+            break;
+          default:
+            // All time - no date filter
+            break;
+        }
       }
 
       // Load bills from API
@@ -443,28 +456,112 @@ export function Reports() {
   }, [period]);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl mb-2">Reports & Analytics</h1>
-          <p className="text-muted-foreground">
-            View detailed business insights and trends
-          </p>
+        <div className="flex flex-col space-y-4 w-full">
+          <div className="flex flex-col space-y-4 w-full">
+            <div className="mb-2">
+              <h1 className="text-2xl md:text-3xl font-semibold">Reports</h1>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+              <div className="w-full sm:w-auto">
+                <Select 
+                  value={period} 
+                  onValueChange={(value: string) => {
+                    setPeriod(value);
+                    if (value !== 'custom') {
+                      setShowCustomDateRange(false);
+                    }
+                  }} 
+                  disabled={loading}
+                >
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="week">This Week</SelectItem>
+                    <SelectItem value="month">This Month</SelectItem>
+                    <SelectItem value="year">This Year</SelectItem>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowCustomDateRange(!showCustomDateRange)}
+                disabled={period !== 'custom'}
+                className={`w-full sm:w-auto justify-center ${period === 'custom' ? 'bg-primary/10' : ''}`}
+              >
+                <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
+                <span className="truncate">
+                  {period === 'custom' && customDateRange.start && customDateRange.end 
+                    ? `${new Date(customDateRange.start).toLocaleDateString()} - ${new Date(customDateRange.end).toLocaleDateString()}`
+                    : 'Select Dates'}
+                </span>
+              </Button>
+            </div>
+          </div>
+          
+          {showCustomDateRange && period === 'custom' && (
+            <div className="flex flex-col sm:flex-row gap-4 p-4 bg-muted/20 rounded-md">
+              <div className="flex-1 min-w-0">
+                <label htmlFor="start-date" className="block text-sm font-medium text-muted-foreground mb-1">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  id="start-date"
+                  value={customDateRange.start}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setCustomDateRange(prev => ({
+                      ...prev,
+                      start: newDate,
+                      end: prev.end && new Date(newDate) > new Date(prev.end) ? newDate : prev.end
+                    }));
+                  }}
+                  max={new Date().toISOString().split('T')[0]}
+                  className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <label htmlFor="end-date" className="block text-sm font-medium text-muted-foreground mb-1">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  id="end-date"
+                  value={customDateRange.end}
+                  min={customDateRange.start || new Date().toISOString().split('T')[0]}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    setCustomDateRange(prev => ({
+                      ...prev,
+                      end: e.target.value
+                    }));
+                  }}
+                  disabled={!customDateRange.start}
+                  className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                />
+              </div>
+              <div className="flex sm:items-end">
+                <Button 
+                  onClick={() => {
+                    if (customDateRange.start && customDateRange.end) {
+                      setShowCustomDateRange(false);
+                    }
+                  }}
+                  disabled={!customDateRange.start || !customDateRange.end}
+                  className="w-full sm:w-auto h-10 sm:h-9"
+                >
+                  Apply
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
-        <Select value={period} onValueChange={setPeriod} disabled={loading}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="week">This Week</SelectItem>
-            <SelectItem value="month">This Month</SelectItem>
-            <SelectItem value="year">This Year</SelectItem>
-            <SelectItem value="all">All Time</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
       {loading && (
         <div className="text-center py-12">
@@ -535,18 +632,18 @@ export function Reports() {
           <p className="text-sm text-muted-foreground">Most ordered</p>
         </Card>
 
-        <Card className="p-6">
+        {/* <Card className="p-6">
           <div className="flex items-center gap-3 mb-3">
             <BarChart3 className="w-6 h-6 text-primary" />
             <h3 className="font-semibold">Top Table</h3>
           </div>
           <p className="text-2xl mb-1">{stats.topTable}</p>
           <p className="text-sm text-muted-foreground">Most orders</p>
-        </Card>
+        </Card> */}
       </div>
 
       {/* Top 5 Selling Items */}
-      <Card className="p-6">
+      {/* <Card className="p-6">
         <h2 className="text-xl mb-4 flex items-center gap-2">
           <Award className="w-5 h-5" />
           Top 5 Selling Items
@@ -583,7 +680,7 @@ export function Reports() {
             ))}
           </div>
         )}
-      </Card>
+      </Card> */}
 
       {/* Revenue by Category */}
       <Card className="p-6">

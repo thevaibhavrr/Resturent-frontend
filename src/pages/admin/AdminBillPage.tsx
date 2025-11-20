@@ -33,6 +33,9 @@ export default function AdminBillPage() {
       initialAdditionalPrice={billData.additionalPrice || 0}
       onBack={handleBack}
       onSaveAndPrint={handleSaveAndPrint}
+      isEdit={billData.isEdit || false}
+      originalBillId={billData.originalBillId}
+      originalBillNumber={billData.originalBillNumber}
     />
   );
 }

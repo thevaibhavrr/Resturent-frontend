@@ -38,6 +38,9 @@ import { SubscriptionExpiredModal } from "./components/SubscriptionExpiredModal"
 import { getRestaurantSubscription } from "./api/planApi";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsAndConditionsPage from "./pages/TermsAndConditionsPage";
+import ExpensesListPage from "./pages/ExpensesListPage";
+import AddExpensePage from "./pages/AddExpensePage";
+import EditExpensePage from "./pages/EditExpensePage";
 
 interface TableData {
   id: number;
@@ -352,7 +355,12 @@ function AppContent() {
             <Route path="/admin/reports" element={<ReportsPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
             <Route path="/admin/plans" element={<PlansPage />} />
-            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/admin/expenses">
+              <Route path="list" element={<ExpensesListPage />} />
+              <Route path="add" element={<AddExpensePage />} />
+              <Route path="edit/:id" element={<EditExpensePage />} />
+              <Route path="*" element={<Navigate to="list" replace />} />
+            </Route>
             <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
             <Route path="*" element={<Navigate to="/admin" />} />
           </Routes>

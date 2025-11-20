@@ -953,9 +953,9 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                                     <p className="font-bold text-base">{item.name}</p>
                                     <div className="text-xs text-muted-foreground text-right">
                                       <div>Added by: {item.addedBy.userName}</div>
-                                      {item.lastUpdatedBy && item.lastUpdatedBy.userId !== item.addedBy.userId && (
+                                      {/* {item.lastUpdatedBy && item.lastUpdatedBy.userId !== item.addedBy.userId && (
                                         <div>Updated by: {item.lastUpdatedBy.userName}</div>
-                                      )}
+                                      )} */}
                                       {item.lastUpdatedBy && (
                                         <div className="text-xxs opacity-70">
                                           {new Date(item.lastUpdatedBy.timestamp).toLocaleString()}

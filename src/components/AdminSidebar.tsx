@@ -1,4 +1,3 @@
-
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 import {
@@ -18,6 +17,7 @@ import {
   ChevronRight,
   CreditCard,
   ShoppingCart,
+  DollarSign,
 } from "lucide-react";
 import { getCurrentUser, logout } from "../utils/auth";
 import { useState, useEffect } from "react";
@@ -38,8 +38,8 @@ export function AdminSidebar({
   const user = getCurrentUser();
   const [isOpen, setIsOpen] = useState(false);
   const [menuManagementOpen, setMenuManagementOpen] = useState(false);
+  const [tablesManagementOpen, setTablesManagementOpen] = useState(false);
   const visible = typeof menuOpen === 'boolean' ? menuOpen : isOpen;
-
 
   useEffect(() => {
     const handler = () => setIsOpen((s) => !s);
@@ -68,6 +68,10 @@ export function AdminSidebar({
     setMenuManagementOpen(!menuManagementOpen);
   };
 
+  const toggleTablesManagement = () => {
+    setTablesManagementOpen(!tablesManagementOpen);
+  };
+
   const menuItems = [
     {
       id: "admin-dashboard",
@@ -83,22 +87,30 @@ export function AdminSidebar({
       id: "manage-tables",
       label: "Manage Tables",
       icon: TableProperties,
+      hasChildren: true,
+      children: [
+        {
+          id: "space-management",
+          label: "Space Management",
+          icon: MapPin,
+        },
+        {
+          id: "table-management",
+          label: "Manage Tables",
+          icon: TableProperties,
+        }
+      ]
     },
     {
       id: "user-management",
       label: "User Management",
       icon: Users,
     },
-    {
-      id: "user-bills",
-      label: "User Bills",
-      icon: FileText,
-    },
-    {
-      id: "space-management",
-      label: "Space Management",
-      icon: MapPin,
-    },
+    // {
+    //   id: "user-bills",
+    //   label: "User Bills",
+    //   icon: FileText,
+    // },
     {
       id: "menu-management",
       label: "Menu Management",
@@ -128,9 +140,9 @@ export function AdminSidebar({
       icon: FileText,
     },
     {
-      id: "plans",
-      label: "Subscription Plans",
-      icon: CreditCard,
+      id: "add-expense",
+      label: "Add Expense",
+      icon: DollarSign,
     },
     {
       id: "settings",
@@ -144,6 +156,7 @@ export function AdminSidebar({
     "admin-dashboard": "/admin",
     "take-orders": "/admin/order-tables",
     "manage-tables": "/admin/tables",
+    "table-management": "/admin/tables",
     "user-management": "/admin/users",
     "space-management": "/admin/locations",
     "menu-management": "/admin/menu",
@@ -153,6 +166,7 @@ export function AdminSidebar({
     "reports": "/admin/reports",
     "plans": "/admin/plans",
     "settings": "/admin/settings",
+  "add-expense": "/admin/expenses/add",
   };
 
   const isMenuItemActive = (item: any) => {
@@ -163,7 +177,6 @@ export function AdminSidebar({
     }
     return false;
   };
-
 
   return (
     <>
@@ -213,7 +226,7 @@ export function AdminSidebar({
                           ? "bg-primary/10 text-primary border-r-2 border-primary font-semibold" 
                           : "hover:bg-accent hover:text-accent-foreground"
                       }`}
-                      onClick={toggleMenuManagement}
+                      onClick={item.id === "menu-management" ? toggleMenuManagement : toggleTablesManagement}
                     >
                       <div className="flex items-center gap-3">
                         <div className={`p-1.5 rounded-lg transition-colors ${
@@ -227,16 +240,14 @@ export function AdminSidebar({
                       </div>
                       <ChevronDown 
                         className={`w-4 h-4 transition-transform duration-200 ${
-                          menuManagementOpen ? "rotate-180" : ""
+                          (item.id === "menu-management" && menuManagementOpen) || 
+                          (item.id === "manage-tables" && tablesManagementOpen) 
+                            ? "rotate-180" : ""
                         }`} 
                       />
                     </Button>
                   ) : (
-                    <Link to={(() => {
-                      if (item.id === "space-management") return "/admin/locations";
-                      if (item.id === "menu-item-management") return "/admin/menu";
-                      return pathMap[item.id];
-                    })()} className="w-full" style={{ textDecoration: 'none' }}>
+                    <Link to={pathMap[item.id]} className="w-full" style={{ textDecoration: 'none' }}>
                       <Button
                         variant={isActive ? "secondary" : "ghost"}
                         className={`w-full justify-between gap-3 px-3 py-2 h-11 transition-all duration-200 ${
@@ -260,20 +271,47 @@ export function AdminSidebar({
                   )}
 
                   {/* Dropdown for Menu Management */}
-                  {hasChildren && menuManagementOpen && (
+                  {hasChildren && item.id === "menu-management" && menuManagementOpen && (
                     <div className="ml-4 mt-1 space-y-1 border-l-2 border-muted pl-2">
                       {item.children?.map((child) => {
                         const ChildIcon = child.icon;
                         const isChildActive = location.pathname === pathMap[child.id];
                         
                         return (
-                          <Link to={(() => {
-                            if (child.id === "category-management") return "/admin/categories";
-                            if (child.id === "menu-item-management") return "/admin/menu";
-                            return pathMap[child.id];
-                          })()} className="w-full">
+                          <Link key={child.id} to={pathMap[child.id]} className="w-full" style={{ textDecoration: 'none' }}>
                             <Button
-                              key={child.id}
+                              variant={isChildActive ? "secondary" : "ghost"}
+                              className={`w-full justify-start gap-3 px-3 py-2 h-10 transition-all duration-200 ${
+                                isChildActive 
+                                  ? "bg-primary/10 text-primary border-r-2 border-primary font-semibold" 
+                                  : "hover:bg-accent hover:text-accent-foreground"
+                              }`}
+                            >
+                              <div className={`p-1 rounded transition-colors ${
+                                isChildActive 
+                                  ? "bg-primary text-primary-foreground" 
+                                  : "bg-muted/50 text-muted-foreground"
+                              }`}>
+                                <ChildIcon className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="text-sm">{child.label}</span>
+                            </Button>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Dropdown for Tables Management */}
+                  {hasChildren && item.id === "manage-tables" && tablesManagementOpen && (
+                    <div className="ml-4 mt-1 space-y-1 border-l-2 border-muted pl-2">
+                      {item.children?.map((child) => {
+                        const ChildIcon = child.icon;
+                        const isChildActive = location.pathname === pathMap[child.id];
+                        
+                        return (
+                          <Link key={child.id} to={pathMap[child.id]} className="w-full" style={{ textDecoration: 'none' }}>
+                            <Button
                               variant={isChildActive ? "secondary" : "ghost"}
                               className={`w-full justify-start gap-3 px-3 py-2 h-10 transition-all duration-200 ${
                                 isChildActive 
