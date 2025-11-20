@@ -332,6 +332,7 @@
 //   writeValue(value: ArrayBuffer): Promise<void>;
 // }
 
+
 import { useState, useEffect } from 'react';
 import { Bluetooth, Printer, CheckCircle, AlertCircle } from 'lucide-react';
 
@@ -345,8 +346,9 @@ export default function BluetoothPrinter() {
   const [printers, setPrinters] = useState<BluetoothDevice[]>([]);
   const [connectedPrinter, setConnectedPrinter] = useState<BluetoothDevice | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string>('Disconnected');
+  const [status, setStatus] = useState<string>('Initializing...');
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const [autoConnectAttempted, setAutoConnectAttempted] = useState(false);
   const maxReconnectAttempts = 3;
 
   const savePrinterToStorage = (device: BluetoothDevice) => {
@@ -417,9 +419,51 @@ export default function BluetoothPrinter() {
     }
   };
 
+  // New function for automatic connection on page load
+  const autoConnect = async () => {
+    if (!navigator.bluetooth) {
+      setError('Web Bluetooth API is not supported in your browser. Please use Chrome 56+ or Edge 79+');
+      setStatus('Bluetooth not supported');
+      return;
+    }
+
+    // Check if we already have a saved printer
+    const savedPrinterId = localStorage.getItem(PRINTER_STORAGE_KEY);
+    
+    try {
+      setStatus('Searching for printer...');
+      setIsScanning(true);
+      
+      // Try to connect to the specific printer
+      const device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: false,
+        filters: [{ name: PRINTER_NAME }],
+        optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
+      });
+      
+      // Verify this is the correct printer
+      if (device.id === PRINTER_ID || (savedPrinterId && device.id === savedPrinterId)) {
+        const isConnected = await connectToDevice(device);
+        if (!isConnected) {
+          throw new Error('Failed to connect to the printer');
+        }
+      } else {
+        setStatus('Printer found but ID does not match');
+      }
+    } catch (err) {
+      console.error('Auto-connect failed:', err);
+      setError(err instanceof Error ? err.message : 'Failed to automatically connect to Bluetooth printer');
+      setStatus('Auto-connect failed');
+    } finally {
+      setIsScanning(false);
+      setAutoConnectAttempted(true);
+    }
+  };
+
   useEffect(() => {
-    if (typeof window !== 'undefined' && !connectedPrinter) {
-      attemptReconnect();
+    // Attempt to auto-connect when the component mounts
+    if (typeof window !== 'undefined' && !connectedPrinter && !autoConnectAttempted) {
+      autoConnect();
     }
 
     return () => {
@@ -430,7 +474,7 @@ export default function BluetoothPrinter() {
         }
       }
     };
-  }, []);
+  }, [autoConnectAttempted]);
 
   const requestBluetooth = async () => {
     try {
@@ -507,7 +551,6 @@ export default function BluetoothPrinter() {
     }
   };
 
-  // Rest of your component JSX remains the same
   return (
     <div className="p-6">
       <div className="mb-8">
