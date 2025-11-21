@@ -1,9 +1,20 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { ArrowLeft, Printer, CheckCircle2 } from "lucide-react";
 import { getCurrentUser } from "../utils/auth";
 import { getRestaurantSettings } from "./admin/Settings";
 import { toast } from "sonner";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+
+// Type declarations for Flutter webview communication
+declare global {
+  interface Window {
+    MOBILE_CHANNEL?: {
+      postMessage: (message: string) => void;
+    };
+  }
+}
 
 interface BillItem {
   id: number;
@@ -63,6 +74,7 @@ export function PrintBill({
   });
   const [printAttempted, setPrintAttempted] = useState(false);
   const [showPrintAgain, setShowPrintAgain] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -86,20 +98,55 @@ export function PrintBill({
     const itemDiscount = item.discountAmount || 0;
     return sum + itemTotal - itemDiscount;
   }, 0);
-  
+
   const additionalTotal = additionalCharges.reduce(
     (sum, charge) => sum + Number(charge.amount),
     0
   );
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     setPrintAttempted(true);
-    window.print();
-    
-    // Show print again button after a delay (in case print was cancelled)
-    setTimeout(() => {
-      setShowPrintAgain(true);
-    }, 1000);
+
+    try {
+      const billElement = document.getElementById("bill-content");
+      if (!billElement) {
+        toast.error("Bill content not found");
+        return;
+      }
+
+      // Capture the bill content as canvas for 58mm thermal printer
+      const canvas = await html2canvas(billElement, {
+        scale: 1.1, // Higher scale for crisp thermal printing (3x = ~300 DPI)
+      });
+
+      const imgData = canvas.toDataURL("image/png", 1.0); // Maximum quality
+
+      // Check if running in Flutter webview
+      if (window.MOBILE_CHANNEL) {
+        // Send print request to Flutter
+        window.MOBILE_CHANNEL.postMessage(
+          JSON.stringify({
+            event: "flutterPrint",
+            deviceMacAddress: "66:32:B1:BE:4E:AF", // TODO: Get device MAC address from API
+            imageBase64: imgData.replace("data:image/png;base64,", ""), // Remove data URL prefix
+          })
+        );
+
+        toast.success("Print request sent to Flutter!");
+      } else {
+        // Fallback for web browsers - set image URL
+        setPdfUrl(imgData);
+        toast.success("Image generated successfully!");
+      }
+
+      // Show print again button after a delay
+      setTimeout(() => {
+        setShowPrintAgain(true);
+      }, 1000);
+    } catch (error) {
+      console.error("Error generating image:", error);
+      toast.error("Failed to generate image");
+    }
   };
 
   const handlePrintAgain = () => {
@@ -125,38 +172,64 @@ export function PrintBill({
             <ArrowLeft className="w-4 h-4" />
             Back to Bill
           </Button>
-          
+
           <div className="flex items-center gap-3">
             {printAttempted && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CheckCircle2 className="w-4 h-4 text-green-600" />
-                <span>Print dialog opened</span>
+                <span>
+                  {window.MOBILE_CHANNEL
+                    ? "Print sent to device"
+                    : "Image generated"}
+                </span>
               </div>
             )}
-            <Button 
-              variant="default" 
-              onClick={handlePrintAgain} 
+            {pdfUrl && !window.MOBILE_CHANNEL && (
+              <Button
+                variant="outline"
+                onClick={() => window.open(pdfUrl, "_blank")}
+                className="gap-2"
+              >
+                <Printer className="w-4 h-4" />
+                View Image
+              </Button>
+            )}
+            <Button
+              variant="default"
+              onClick={handlePrintAgain}
               className="gap-2 bg-primary hover:bg-primary/90"
             >
               <Printer className="w-4 h-4" />
-              {showPrintAgain ? "Print Again" : "Print"}
+              {showPrintAgain
+                ? "Print Again"
+                : window.MOBILE_CHANNEL
+                ? "Print Bill"
+                : "Generate Image"}
             </Button>
           </div>
         </div>
-        
+
         {showPrintAgain && (
           <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
-              <strong>Note:</strong> If the bill didn't print, click "Print Again" to retry. 
-              Make sure your printer is connected and ready.
+              <strong>Note:</strong>{" "}
+              {window.MOBILE_CHANNEL
+                ? "If the print didn't work, click 'Print Again' to retry. The bill will be sent to your thermal printer."
+                : "If the image didn't generate properly, click 'Generate Again' to retry. You can also click 'View Image' to open the generated image in a new tab."}
             </p>
           </div>
+        )}
+        {pdfUrl && !window.MOBILE_CHANNEL && (
+          <p className="text-sm text-blue-800">Image URL: {pdfUrl}</p>
         )}
       </div>
 
       {/* Print Bill Content */}
       <div className="flex items-center justify-center min-h-screen p-4 print:p-0 print:block">
-        <div className="w-full max-w-[80mm] bg-white text-black p-3 print:p-3" id="bill-content">
+        <div
+          className="w-[58mm] bg-white text-black p-2 print:p-2"
+          id="bill-content"
+        >
           {/* Premium Header with Logo */}
           <div className="text-center mb-2 pb-2 border-b-4 border-double border-gray-800">
             {restaurantSettings.logo ? (
@@ -172,19 +245,26 @@ export function PrintBill({
             ) : (
               <div className="mb-1 flex justify-center">
                 <div className="w-14 h-14 bg-gradient-to-br from-gray-800 to-gray-600 text-white rounded-full flex items-center justify-center text-xl font-black border-4 border-gray-800 shadow-lg">
-                  {restaurantSettings.name ? restaurantSettings.name.charAt(0).toUpperCase() : 'R'}
+                  {restaurantSettings.name
+                    ? restaurantSettings.name.charAt(0).toUpperCase()
+                    : "R"}
                 </div>
               </div>
             )}
-            <h1 className="text-xl font-black uppercase tracking-wider mb-1" style={{ 
-              letterSpacing: '2px',
-              textShadow: '1px 1px 2px rgba(0,0,0,0.1)'
-            }}>
+            <h1
+              className="text-xl font-black uppercase tracking-wider mb-1"
+              style={{
+                letterSpacing: "2px",
+                textShadow: "1px 1px 2px rgba(0,0,0,0.1)",
+              }}
+            >
               {restaurantSettings.name || "Restaurant Name"}
             </h1>
             <div className="flex items-center justify-center gap-2 mt-1">
               <div className="h-px bg-gray-400 flex-1"></div>
-              <div className="text-[8px] text-gray-500 font-semibold">* * *</div>
+              <div className="text-[8px] text-gray-500 font-semibold">
+                * * *
+              </div>
               <div className="h-px bg-gray-400 flex-1"></div>
             </div>
           </div>
@@ -192,7 +272,6 @@ export function PrintBill({
           {/* Bill Information - Premium Style */}
           <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
             <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-             
               <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
                 <span className="font-semibold text-gray-700">Date:</span>
                 <span className="font-medium">{currentDate}</span>
@@ -218,9 +297,15 @@ export function PrintBill({
               <thead>
                 <tr className="bg-gray-800 text-black">
                   <th className="text-left py-1.5 px-1 font-bold">Item</th>
-                  <th className="text-center py-1.5 px-1 font-bold w-12">Qty</th>
-                  <th className="text-right py-1.5 px-1 font-bold w-16">Price</th>
-                  <th className="text-right py-1.5 px-1 font-bold w-20">Amount</th>
+                  <th className="text-center py-1.5 px-1 font-bold w-12">
+                    Qty
+                  </th>
+                  <th className="text-right py-1.5 px-1 font-bold w-16">
+                    Price
+                  </th>
+                  <th className="text-right py-1.5 px-1 font-bold w-20">
+                    Amount
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -228,15 +313,17 @@ export function PrintBill({
                   const itemTotal = item.price * item.quantity;
                   const itemDiscount = item.discountAmount || 0;
                   const itemFinalAmount = itemTotal - itemDiscount;
-                  
+
                   return (
-                    <tr 
-                      key={item.id} 
-                      className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                    <tr
+                      key={item.id}
+                      className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
                     >
                       <td className="py-1.5 px-1">
                         <div>
-                          <span className="font-semibold text-gray-900">{item.name}</span>
+                          <span className="font-semibold text-gray-900">
+                            {item.name}
+                          </span>
                           {item.note && (
                             <div className="text-[9px] text-gray-600 italic mt-0.5 font-light">
                               Note: {item.note}
@@ -249,9 +336,15 @@ export function PrintBill({
                           )}
                         </div>
                       </td>
-                      <td className="text-center font-medium text-gray-800">{item.quantity}</td>
-                      <td className="text-right font-medium text-gray-700">₹{item.price.toFixed(2)}</td>
-                      <td className="text-right font-bold text-gray-900">₹{itemFinalAmount.toFixed(2)}</td>
+                      <td className="text-center font-medium text-gray-800">
+                        {item.quantity}
+                      </td>
+                      <td className="text-right font-medium text-gray-700">
+                        ₹{item.price.toFixed(2)}
+                      </td>
+                      <td className="text-right font-bold text-gray-900">
+                        ₹{itemFinalAmount.toFixed(2)}
+                      </td>
                     </tr>
                   );
                 })}
@@ -263,9 +356,16 @@ export function PrintBill({
           {additionalCharges.length > 0 && (
             <div className="mb-2 pb-1.5 border-b border-dashed border-gray-400">
               {additionalCharges.map((charge) => (
-                <div key={charge.id} className="flex justify-between text-[11px] py-0.5">
-                  <span className="font-medium text-gray-700">{charge.name}:</span>
-                  <span className="font-semibold text-gray-900">₹{charge.amount.toFixed(2)}</span>
+                <div
+                  key={charge.id}
+                  className="flex justify-between text-[11px] py-0.5"
+                >
+                  <span className="font-medium text-gray-700">
+                    {charge.name}:
+                  </span>
+                  <span className="font-semibold text-gray-900">
+                    ₹{charge.amount.toFixed(2)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -276,25 +376,35 @@ export function PrintBill({
             <div className="space-y-1 mb-2">
               <div className="flex justify-between text-[11px]">
                 <span className="text-gray-700">Subtotal:</span>
-                <span className="font-semibold text-gray-900">₹{subtotal.toFixed(2)}</span>
+                <span className="font-semibold text-gray-900">
+                  ₹{subtotal.toFixed(2)}
+                </span>
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between text-[11px] text-red-600">
                   <span>Total Discount:</span>
-                  <span className="font-semibold">-₹{discountAmount.toFixed(2)}</span>
+                  <span className="font-semibold">
+                    -₹{discountAmount.toFixed(2)}
+                  </span>
                 </div>
               )}
               {additionalTotal > 0 && (
                 <div className="flex justify-between text-[11px] text-green-600">
                   <span>Additional Charges:</span>
-                  <span className="font-semibold">+₹{additionalTotal.toFixed(2)}</span>
+                  <span className="font-semibold">
+                    +₹{additionalTotal.toFixed(2)}
+                  </span>
                 </div>
               )}
             </div>
             <div className="bg-gradient-to-r from-gray-100 to-gray-50 -mx-2 px-3 py-1.5 rounded border border-gray-300">
               <div className="flex justify-between items-center">
-                <span className="text-base font-black uppercase tracking-wider text-gray-900">TOTAL</span>
-                <span className="text-xl font-black text-gray-900">₹{grandTotal.toFixed(2)}</span>
+                <span className="text-base font-black uppercase tracking-wider text-gray-900">
+                  TOTAL
+                </span>
+                <span className="text-xl font-black text-gray-900">
+                  ₹{grandTotal.toFixed(2)}
+                </span>
               </div>
             </div>
           </div>
@@ -319,32 +429,43 @@ export function PrintBill({
 
           {/* Premium Thank You Section */}
           <div className="text-center mb-0 pb-0 border-t-2 border-dashed border-gray-500 pt-0">
-            <div className="text-lg font-black uppercase" style={{ letterSpacing: '2px' }}>
+            <div
+              className="text-lg font-black uppercase"
+              style={{ letterSpacing: "2px" }}
+            >
               THANK YOU
             </div>
-           
-           
           </div>
 
           {/* Premium Footer with Contact */}
           <div className="text-center border-t-2 border-dashed border-gray-500 pt-2">
             <div className="space-y-0.5 text-[10px]">
               {restaurantSettings.name && (
-                <p className="font-bold text-gray-900 uppercase tracking-wide">{restaurantSettings.name}</p>
+                <p className="font-bold text-gray-900 uppercase tracking-wide">
+                  {restaurantSettings.name}
+                </p>
               )}
               {restaurantSettings.address && (
-                <p className="font-medium text-gray-700 leading-tight">{restaurantSettings.address}</p>
+                <p className="font-medium text-gray-700 leading-tight">
+                  {restaurantSettings.address}
+                </p>
               )}
               {restaurantSettings.phone && (
-                <p className="font-semibold text-gray-800 mt-0.5">Phone: {restaurantSettings.phone}</p>
+                <p className="font-semibold text-gray-800 mt-0.5">
+                  Phone: {restaurantSettings.phone}
+                </p>
               )}
               {restaurantSettings.gstin && (
-                <p className="text-[9px] text-gray-600 mt-0.5">GSTIN: {restaurantSettings.gstin}</p>
+                <p className="text-[9px] text-gray-600 mt-0.5">
+                  GSTIN: {restaurantSettings.gstin}
+                </p>
               )}
             </div>
             <div className="flex items-center justify-center gap-2 mt-1.5 pt-1.5 border-t border-dashed border-gray-400">
               <div className="h-px bg-gray-400 flex-1"></div>
-              <div className="text-[8px] text-gray-500 font-semibold">* * *</div>
+              <div className="text-[8px] text-gray-500 font-semibold">
+                * * *
+              </div>
               <div className="h-px bg-gray-400 flex-1"></div>
             </div>
           </div>
@@ -355,7 +476,7 @@ export function PrintBill({
       <style>{`
         @media print {
           @page {
-            size: 80mm auto;
+            size: 58mm auto;
             margin: 0;
           }
           
@@ -378,8 +499,8 @@ export function PrintBill({
             position: absolute;
             left: 0;
             top: 0;
-            width: 80mm;
-            padding: 3mm;
+            width: 58mm;
+            padding: 2mm;
             background: white;
             box-shadow: none;
           }
