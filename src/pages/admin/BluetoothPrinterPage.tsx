@@ -333,22 +333,113 @@
 // }
 
 
-import { useState, useEffect } from 'react';
-import { Bluetooth, Printer, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Bluetooth, Printer, CheckCircle, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 
 // Constants
 const PRINTER_STORAGE_KEY = 'bluetoothPrinterId';
 const PRINTER_NAME = 'MPT-II';
 const PRINTER_ID = 'I06j+tmy9c4QGoFIz9glHQ==';
+const SERVICE_UUID = '000018f0-0000-1000-8000-00805f9b34fb';
+const CHARACTERISTIC_UUID = '00002af1-0000-1000-8000-00805f9b34fb';
 
 export default function BluetoothPrinter() {
   const [isScanning, setIsScanning] = useState(false);
-  const [printers, setPrinters] = useState<BluetoothDevice[]>([]);
   const [connectedPrinter, setConnectedPrinter] = useState<BluetoothDevice | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string>('Initializing...');
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const [isOnline, setIsOnline] = useState(true);
+  const [appInstalled, setAppInstalled] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallButton, setShowInstallButton] = useState(false);
+  
   const maxReconnectAttempts = 3;
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const bluetoothDeviceRef = useRef<BluetoothDevice | null>(null);
+
+  // PWA Installation handling
+  useEffect(() => {
+    // Check if app is already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setAppInstalled(true);
+    }
+
+    // Listen for beforeinstallprompt event
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallButton(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    
+    // Check if service worker is supported and register it
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(registration => {
+          console.log('Service Worker registered with scope:', registration.scope);
+        })
+        .catch(error => {
+          console.error('Service Worker registration failed:', error);
+        });
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  // Handle PWA installation
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    if (outcome === 'accepted') {
+      setAppInstalled(true);
+      setShowInstallButton(false);
+    }
+    
+    setDeferredPrompt(null);
+  };
+
+  // Network status monitoring
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    setIsOnline(navigator.onLine);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // PWA lifecycle handling
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !connectedPrinter) {
+        // App came to foreground and printer is not connected
+        setStatus('App in foreground, attempting to reconnect...');
+        attemptReconnect();
+      } else if (document.visibilityState === 'hidden' && connectedPrinter) {
+        // App went to background, keep connection but update status
+        setStatus('App in background, maintaining connection');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [connectedPrinter]);
 
   const savePrinterToStorage = (device: BluetoothDevice) => {
     if (device.id) {
@@ -363,20 +454,36 @@ export default function BluetoothPrinter() {
   const connectToDevice = async (device: BluetoothDevice) => {
     try {
       setStatus('Connecting to printer...');
+      setIsScanning(true);
+      
+      // Clear any existing reconnect timeout
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      
+      // Disconnect if already connected
+      if (device.gatt?.connected) {
+        device.gatt.disconnect();
+      }
+      
       const server = await device.gatt?.connect();
       
       if (server) {
         device.addEventListener('gattserverdisconnected', handleDisconnect);
         setConnectedPrinter(device);
+        bluetoothDeviceRef.current = device;
         savePrinterToStorage(device);
         setStatus('Connected to printer');
         setReconnectAttempts(0);
+        setIsScanning(false);
         return true;
       }
       return false;
     } catch (err) {
       console.error('Connection error:', err);
       setStatus('Connection failed');
+      setIsScanning(false);
       return false;
     }
   };
@@ -384,11 +491,14 @@ export default function BluetoothPrinter() {
   const handleDisconnect = () => {
     setStatus('Disconnected');
     setConnectedPrinter(null);
-    if (reconnectAttempts < maxReconnectAttempts) {
+    bluetoothDeviceRef.current = null;
+    
+    // Only attempt to reconnect if we're not in the background
+    if (document.visibilityState === 'visible' && reconnectAttempts < maxReconnectAttempts) {
       setReconnectAttempts(prev => prev + 1);
       setStatus(`Attempting to reconnect (${reconnectAttempts + 1}/${maxReconnectAttempts})...`);
-      setTimeout(attemptReconnect, 2000);
-    } else {
+      reconnectTimeoutRef.current = setTimeout(attemptReconnect, 2000);
+    } else if (reconnectAttempts >= maxReconnectAttempts) {
       removePrinterFromStorage();
       setStatus('Max reconnection attempts reached');
     }
@@ -428,7 +538,7 @@ export default function BluetoothPrinter() {
         const device = await navigator.bluetooth.requestDevice({
           acceptAllDevices: false,
           filters: [{ name: PRINTER_NAME }],
-          optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
+          optionalServices: [SERVICE_UUID]
         });
 
         if (device.id === PRINTER_ID || device.name === PRINTER_NAME) {
@@ -447,7 +557,7 @@ export default function BluetoothPrinter() {
       console.error('Reconnection failed:', err);
       setStatus('Connection failed');
       if (reconnectAttempts < maxReconnectAttempts) {
-        setTimeout(attemptReconnect, 2000);
+        reconnectTimeoutRef.current = setTimeout(attemptReconnect, 2000);
       } else {
         removePrinterFromStorage();
       }
@@ -461,6 +571,10 @@ export default function BluetoothPrinter() {
     }
 
     return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      
       if (connectedPrinter) {
         connectedPrinter.removeEventListener('gattserverdisconnected', handleDisconnect);
         if (connectedPrinter.gatt?.connected) {
@@ -483,7 +597,7 @@ export default function BluetoothPrinter() {
       const device = await navigator.bluetooth.requestDevice({
         acceptAllDevices: false,
         filters: [{ name: PRINTER_NAME }],
-        optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb'],
+        optionalServices: [SERVICE_UUID],
       });
 
       const isConnected = await connectToDevice(device);
@@ -505,6 +619,7 @@ export default function BluetoothPrinter() {
         connectedPrinter.gatt.disconnect();
       }
       setConnectedPrinter(null);
+      bluetoothDeviceRef.current = null;
       removePrinterFromStorage();
       setStatus('Disconnected');
       setReconnectAttempts(0);
@@ -516,8 +631,8 @@ export default function BluetoothPrinter() {
     
     try {
       setStatus('Sending test print...');
-      const service = await connectedPrinter.gatt?.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
-      const characteristic = await service?.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
+      const service = await connectedPrinter.gatt?.getPrimaryService(SERVICE_UUID);
+      const characteristic = await service?.getCharacteristic(CHARACTERISTIC_UUID);
       
       const encoder = new TextEncoder();
       const commands = [
@@ -548,8 +663,39 @@ export default function BluetoothPrinter() {
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Bluetooth Printer</h1>
-        <p className="text-gray-600">Connect and manage your Bluetooth thermal printer</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Bluetooth Printer</h1>
+            <p className="text-gray-600">Connect and manage your Bluetooth thermal printer</p>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            {showInstallButton && !appInstalled && (
+              <button
+                onClick={handleInstallClick}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Install App
+              </button>
+            )}
+            
+            <div className={`flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+              isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}>
+              {isOnline ? (
+                <>
+                  <Wifi className="w-4 h-4 mr-1" />
+                  Online
+                </>
+              ) : (
+                <>
+                  <WifiOff className="w-4 h-4 mr-1" />
+                  Offline
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow p-6 mb-6">
