@@ -1,20 +1,11 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "./ui/button";
-import { ArrowLeft, Printer, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Printer, CheckCircle2, Bluetooth, Loader2 } from "lucide-react";
 import { getCurrentUser } from "../utils/auth";
 import { getRestaurantSettings } from "./admin/Settings";
 import { toast } from "sonner";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
-
-// Type declarations for Flutter webview communication
-declare global {
-  interface Window {
-    MOBILE_CHANNEL?: {
-      postMessage: (message: string) => void;
-    };
-  }
-}
+import { BluetoothPrinterService } from "../utils/bluetoothPrinter";
+import { BluetoothPrinterStatus } from "./BluetoothPrinterStatus";
 
 interface BillItem {
   id: number;
@@ -74,7 +65,9 @@ export function PrintBill({
   });
   const [printAttempted, setPrintAttempted] = useState(false);
   const [showPrintAgain, setShowPrintAgain] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [isBluetoothPrinting, setIsBluetoothPrinting] = useState(false);
+  const [bluetoothStatus, setBluetoothStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const printerService = useRef<BluetoothPrinterService | null>(null);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -104,60 +97,121 @@ export function PrintBill({
     0
   );
 
-  const handlePrint = async () => {
-    setPrintAttempted(true);
+  // Initialize Bluetooth printer service
+  useEffect(() => {
+    if (navigator.bluetooth) {
+      printerService.current = new BluetoothPrinterService(setBluetoothStatus);
+      return () => {
+        if (printerService.current) {
+          printerService.current.disconnect();
+        }
+      };
+    }
+  }, []);
 
-    try {
-      const billElement = document.getElementById("bill-content");
-      if (!billElement) {
-        toast.error("Bill content not found");
-        return;
+  const formatForThermalPrinter = (): string => {
+    // Create a simple text-based receipt
+    let receipt = '\x1B@'; // Initialize printer
+    receipt += '\x1B!\x00'; // Normal text
+    
+    // Add header
+    receipt += `${'='.repeat(32)}\n`;
+    receipt += `${restaurantSettings.name || 'RESTAURANT'}\n`;
+    receipt += `${'='.repeat(32)}\n\n`;
+    
+    // Add order info
+    receipt += `Bill #: ${billNumber.padEnd(20)}${currentDate}\n`;
+    receipt += `Table: ${tableName.padEnd(20)}${currentTime}\n`;
+    receipt += `Persons: ${persons.toString().padEnd(16)}${' '.repeat(6)}\n`;
+    receipt += '-'.repeat(32) + '\n';
+    
+    // Add items
+    items.forEach(item => {
+      const name = item.name.length > 20 ? item.name.substring(0, 17) + '...' : item.name;
+      const price = `₹${(item.price * item.quantity).toFixed(2)}`;
+      receipt += `${name}\n`;
+      receipt += `  ${item.quantity} x ₹${item.price.toFixed(2)}`.padEnd(20) + price.padStart(12) + '\n';
+      if (item.note) {
+        receipt += `  (${item.note})\n`;
       }
-
-      // Capture the bill content as canvas for 58mm thermal printer
-      const canvas = await html2canvas(billElement, {
-        scale: 1.1, // Higher scale for crisp thermal printing (3x = ~300 DPI)
+    });
+    
+    // Add totals
+    receipt += '\n';
+    receipt += 'Subtotal:'.padEnd(20) + `₹${subtotal.toFixed(2)}\n`;
+    
+    if (discountAmount > 0) {
+      receipt += 'Discount:'.padEnd(20) + `-₹${discountAmount.toFixed(2)}\n`;
+    }
+    
+    if (additionalCharges.length > 0) {
+      additionalCharges.forEach(charge => {
+        receipt += `${charge.name}:`.padEnd(20) + `₹${charge.amount.toFixed(2)}\n`;
       });
+    }
+    
+    if (cgst > 0) {
+      receipt += 'CGST:'.padEnd(20) + `₹${cgst.toFixed(2)}\n`;
+    }
+    
+    if (sgst > 0) {
+      receipt += 'SGST:'.padEnd(20) + `₹${sgst.toFixed(2)}\n`;
+    }
+    
+    receipt += '\n';
+    receipt += 'TOTAL:'.padEnd(20) + `₹${grandTotal.toFixed(2)}\n\n`;
+    
+    // Add footer
+    receipt += '\n';
+    receipt += `${'Thank you for dining with us!'.padStart(24)}\n`;
+    receipt += `${'='.repeat(32)}\n\n\n\n`;
+    
+    // Add paper cut command (if supported by printer)
+    receipt += '\x1DVA\x00'; // Partial cut
+    
+    return receipt;
+  };
 
-      const imgData = canvas.toDataURL("image/png", 1.0); // Maximum quality
-
-      // Check if running in Flutter webview
-      if (window.MOBILE_CHANNEL) {
-        // Send print request to Flutter
-        window.MOBILE_CHANNEL.postMessage(
-          JSON.stringify({
-            event: "flutterPrint",
-            deviceMacAddress: "66:32:B1:BE:4E:AF", // TODO: Get device MAC address from API
-            imageBase64: imgData.replace("data:image/png;base64,", ""), // Remove data URL prefix
-          })
-        );
-
-        toast.success("Print request sent to Flutter!");
-      } else {
-        // Fallback for web browsers - set image URL
-        setPdfUrl(imgData);
-        toast.success("Image generated successfully!");
+  const handlePrint = async (useBluetooth: boolean = false) => {
+    if (useBluetooth && printerService.current) {
+      try {
+        setIsBluetoothPrinting(true);
+        const receipt = formatForThermalPrinter();
+        const success = await printerService.current.print(receipt);
+        if (success) {
+          toast.success('Receipt sent to Bluetooth printer');
+        } else {
+          toast.error('Failed to print via Bluetooth');
+        }
+      } catch (error) {
+        console.error('Bluetooth print error:', error);
+        toast.error(`Print error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      } finally {
+        setIsBluetoothPrinting(false);
       }
-
-      // Show print again button after a delay
+    } else {
+      // Fall back to regular printing
+      setPrintAttempted(true);
+      window.print();
+      
+      // Show print again button after a delay (in case print was cancelled)
       setTimeout(() => {
         setShowPrintAgain(true);
       }, 1000);
-    } catch (error) {
-      console.error("Error generating image:", error);
-      toast.error("Failed to generate image");
     }
   };
 
-  const handlePrintAgain = () => {
-    handlePrint();
-    toast.success("Print dialog opened. Please confirm to print.");
+  const handlePrintAgain = (useBluetooth: boolean = false) => {
+    handlePrint(useBluetooth);
+    if (!useBluetooth) {
+      toast.success("Print dialog opened. Please confirm to print.");
+    }
   };
 
   useEffect(() => {
-    // Auto print on mount
+    // Auto print on mount (regular print, not Bluetooth)
     const timer = setTimeout(() => {
-      handlePrint();
+      handlePrint(false);
     }, 500);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -174,7 +228,7 @@ export function PrintBill({
           </Button>
 
           <div className="flex items-center gap-3">
-            {printAttempted && (
+            {printAttempted && !isBluetoothPrinting && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CheckCircle2 className="w-4 h-4 text-green-600" />
                 <span>
@@ -184,43 +238,69 @@ export function PrintBill({
                 </span>
               </div>
             )}
-            {pdfUrl && !window.MOBILE_CHANNEL && (
-              <Button
-                variant="outline"
-                onClick={() => window.open(pdfUrl, "_blank")}
-                className="gap-2"
+            {isBluetoothPrinting && (
+              <div className="flex items-center gap-2 text-sm text-blue-600">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Printing via Bluetooth...</span>
+              </div>
+            )}
+            
+            <div className="flex items-center gap-2">
+              {navigator.bluetooth && (
+                <Button
+                  variant="outline"
+                  onClick={() => handlePrintAgain(true)}
+                  disabled={isBluetoothPrinting || bluetoothStatus === 'connecting'}
+                  className="gap-2"
+                >
+                  {bluetoothStatus === 'connected' ? (
+                    <>
+                      <Bluetooth className="w-4 h-4" />
+                      Print via Bluetooth
+                    </>
+                  ) : (
+                    <>
+                      <Bluetooth className="w-4 h-4" />
+                      {bluetoothStatus === 'connecting' ? 'Connecting...' : 'Connect & Print'}
+                    </>
+                  )}
+                </Button>
+              )}
+              
+              <Button 
+                variant="default" 
+                onClick={() => handlePrintAgain(false)} 
+                disabled={isBluetoothPrinting}
+                className="gap-2 bg-primary hover:bg-primary/90"
               >
                 <Printer className="w-4 h-4" />
-                View Image
+                {showPrintAgain ? "Print Again" : "Print"}
               </Button>
-            )}
-            <Button
-              variant="default"
-              onClick={handlePrintAgain}
-              className="gap-2 bg-primary hover:bg-primary/90"
-            >
-              <Printer className="w-4 h-4" />
-              {showPrintAgain
-                ? "Print Again"
-                : window.MOBILE_CHANNEL
-                ? "Print Bill"
-                : "Generate Image"}
-            </Button>
+            </div>
           </div>
         </div>
 
         {showPrintAgain && (
           <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
-              <strong>Note:</strong>{" "}
-              {window.MOBILE_CHANNEL
-                ? "If the print didn't work, click 'Print Again' to retry. The bill will be sent to your thermal printer."
-                : "If the image didn't generate properly, click 'Generate Again' to retry. You can also click 'View Image' to open the generated image in a new tab."}
+              <strong>Note:</strong> If the bill didn't print, try the following:
+              <ul className="list-disc pl-5 mt-1 space-y-1">
+                <li>Click "Print" to try regular printing again</li>
+                <li>For Bluetooth printing, ensure your printer is turned on and in range</li>
+                <li>Check that your browser has Bluetooth permissions enabled</li>
+              </ul>
             </p>
           </div>
         )}
-        {pdfUrl && !window.MOBILE_CHANNEL && (
-          <p className="text-sm text-blue-800">Image URL: {pdfUrl}</p>
+        
+        {navigator.bluetooth && (
+          <div className="mt-3">
+            <BluetoothPrinterStatus 
+              onConnect={() => setBluetoothStatus('connected')}
+              onDisconnect={() => setBluetoothStatus('disconnected')}
+              onError={() => setBluetoothStatus('error')}
+            />
+          </div>
         )}
       </div>
 
