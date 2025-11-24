@@ -3,14 +3,14 @@
 :root {
   --font-size: 16px;
   --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
+  --foreground: rgb(37, 37, 37);
   --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --card-foreground: rgb(37, 37, 37);
+  --popover: rgb(255, 255, 255);
+  --popover-foreground: rgb(37, 37, 37);
   --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
+  --primary-foreground: rgb(255, 255, 255);
+  --secondary: rgb(240, 240, 250);
   --secondary-foreground: #030213;
   --muted: #ececf0;
   --muted-foreground: #717182;
@@ -22,60 +22,77 @@
   --input: transparent;
   --input-background: #f3f3f5;
   --switch-background: #cbced4;
+
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+
+  --ring: rgb(180, 180, 180);
+
+  /* Converted chart colors */
+  --chart-1: rgb(255, 180, 120);
+  --chart-2: rgb(100, 150, 255);
+  --chart-3: rgb(80, 120, 255);
+  --chart-4: rgb(255, 240, 150);
+  --chart-5: rgb(255, 220, 130);
+
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
+
+  --sidebar: rgb(250, 250, 250);
+  --sidebar-foreground: rgb(37, 37, 37);
   --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-primary-foreground: rgb(250, 250, 250);
+  --sidebar-accent: rgb(244, 244, 244);
+  --sidebar-accent-foreground: rgb(60, 60, 60);
+  --sidebar-border: rgb(235, 235, 235);
+  --sidebar-ring: rgb(180, 180, 180);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --background: rgb(37, 37, 37);
+  --foreground: rgb(251, 251, 251);
+
+  --card: rgb(37, 37, 37);
+  --card-foreground: rgb(251, 251, 251);
+
+  --popover: rgb(37, 37, 37);
+  --popover-foreground: rgb(251, 251, 251);
+
+  --primary: rgb(251, 251, 251);
+  --primary-foreground: rgb(60, 60, 60);
+
+  --secondary: rgb(70, 70, 70);
+  --secondary-foreground: rgb(251, 251, 251);
+
+  --muted: rgb(70, 70, 70);
+  --muted-foreground: rgb(180, 180, 180);
+
+  --accent: rgb(70, 70, 70);
+  --accent-foreground: rgb(251, 251, 251);
+
+  --destructive: rgb(180, 40, 40);
+  --destructive-foreground: rgb(255, 200, 200);
+
+  --border: rgb(70, 70, 70);
+  --input: rgb(70, 70, 70);
+
+  --ring: rgb(120, 120, 120);
+
+  --chart-1: rgb(150, 120, 255);
+  --chart-2: rgb(120, 200, 180);
+  --chart-3: rgb(255, 220, 130);
+  --chart-4: rgb(180, 140, 255);
+  --chart-5: rgb(255, 180, 180);
+
+  --sidebar: rgb(60, 60, 60);
+  --sidebar-foreground: rgb(251, 251, 251);
+  --sidebar-primary: rgb(150, 120, 255);
+  --sidebar-primary-foreground: rgb(251, 251, 251);
+
+  --sidebar-accent: rgb(70, 70, 70);
+  --sidebar-accent-foreground: rgb(251, 251, 251);
+
+  --sidebar-border: rgb(70, 70, 70);
+  --sidebar-ring: rgb(120, 120, 120);
 }
 
 @theme inline {
@@ -105,10 +122,12 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -127,63 +146,4 @@
   body {
     @apply bg-background text-foreground;
   }
-}
-
-/**
- * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
- */
-@layer base {
-  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
-    h1 {
-      font-size: var(--text-2xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    h2 {
-      font-size: var(--text-xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    h3 {
-      font-size: var(--text-lg);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    h4 {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    p {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-normal);
-      line-height: 1.5;
-    }
-
-    label {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    button {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    input {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-normal);
-      line-height: 1.5;
-    }
-  }
-}
-
-html {
-  font-size: var(--font-size);
 }
