@@ -8,7 +8,7 @@ import {
   Bluetooth,
   Loader2,
 } from "lucide-react";
-import { getCurrentUser } from "../utils/auth";
+import { getCurrentUser, getRestaurantKey } from "../utils/auth";
 import { getRestaurantSettings } from "./admin/Settings";
 import { toast } from "sonner";
 import { BluetoothPrinterService } from "../utils/bluetoothPrinter";
@@ -72,9 +72,10 @@ export function PrintBill({
   const user = getCurrentUser();
   const [isLoading, setIsLoading] = useState(true);
   const [restaurantSettings, setRestaurantSettings] = useState(() => {
-    // Try to load from localStorage first
-    if (typeof window !== 'undefined') {
-      const savedSettings = localStorage.getItem('restaurantSettings');
+    // Try to load from localStorage first using restaurant-specific key
+    if (typeof window !== 'undefined' && user?.restaurantId) {
+      const key = getRestaurantKey("settings", user.restaurantId);
+      const savedSettings = localStorage.getItem(key);
       return savedSettings ? JSON.parse(savedSettings) : {
         name: "Restaurant Name",
         address: "",
@@ -110,46 +111,46 @@ export function PrintBill({
 
   useEffect(() => {
     const loadSettings = async () => {
-      if (!user?.restaurantId) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        // Always try to fetch fresh settings first
+      if (user?.restaurantId) {
         try {
+          setIsLoading(true);
+          // Always fetch fresh settings from API to ensure updates are reflected
           const settings = await getRestaurantSettings(user.restaurantId);
           setRestaurantSettings(settings);
-          // Update cache with fresh data
+          // Always update localStorage with fresh data using restaurant-specific key
           if (typeof window !== 'undefined') {
-            localStorage.setItem('restaurantSettings', JSON.stringify(settings));
+            const key = getRestaurantKey("settings", user.restaurantId);
+            localStorage.setItem(key, JSON.stringify(settings));
           }
         } catch (error) {
-          console.error("Error loading fresh settings, using cached version:", error);
-          // If fresh fetch fails, try to use cached version
+          console.error("Error loading restaurant settings:", error);
+          // If API fails, try to use cached settings from localStorage
           if (typeof window !== 'undefined') {
-            const cachedSettings = localStorage.getItem('restaurantSettings');
+            const key = getRestaurantKey("settings", user.restaurantId);
+            const cachedSettings = localStorage.getItem(key);
             if (cachedSettings) {
-              setRestaurantSettings(JSON.parse(cachedSettings));
+              try {
+                setRestaurantSettings(JSON.parse(cachedSettings));
+              } catch (parseError) {
+                console.error("Error parsing cached settings:", parseError);
+                // Use default settings if parsing fails
+              }
             }
           }
+        } finally {
+          setIsLoading(false);
         }
-      } catch (error) {
-        console.error("Error in settings loading:", error);
-      } finally {
+      } else {
         setIsLoading(false);
       }
     };
-    
+
+    // Always load fresh settings when component mounts
     loadSettings();
 
-    // Set up a refresh interval to keep settings updated (every 5 minutes)
-    const refreshInterval = setInterval(loadSettings, 5 * 60 * 1000);
-    
     // Cleanup function
     return () => {
-      clearInterval(refreshInterval);
+      // Any cleanup if needed
     };
   }, [user]);
 
