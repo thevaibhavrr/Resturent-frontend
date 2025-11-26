@@ -19,7 +19,7 @@ import {
 import { getCurrentUser, getRestaurantKey } from "../utils/auth";
 import { toast } from "sonner";
 import { getMenuItems, getCategories } from "../api/menuApi";
-import { clearTableDraft } from "../api/tableDraftApi";
+import { clearTableDraft, getTableDraft, deleteTableDraft } from "../api/tableDraftApi";
 
 interface MenuItem {
   _id: string;
@@ -357,7 +357,19 @@ export function BillPage({
       // Clear the draft only after successful save
       if (user?.restaurantId && user?.username) {
         try {
-          await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
+          const clearResp = await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
+          console.log("clearTableDraft response:", clearResp);
+
+          // Verify draft actually cleared server-side. If still present, attempt delete as a fallback.
+          try {
+            const remaining = await getTableDraft(tableId.toString(), user.restaurantId);
+            if (remaining && remaining.cartItems && remaining.cartItems.length > 0) {
+              console.warn("Draft still present after clear, attempting deleteTableDraft");
+              await deleteTableDraft(tableId.toString(), user.restaurantId);
+            }
+          } catch (verifyErr) {
+            console.warn("Failed to verify or delete draft after clear:", verifyErr);
+          }
         } catch (draftError) {
           console.warn("Failed to clear draft, but bill is saved:", draftError);
         }
@@ -389,7 +401,19 @@ export function BillPage({
       // Clear the draft after successful update
       if (user?.restaurantId && user?.username) {
         try {
-          await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
+          const clearResp = await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
+          console.log("clearTableDraft response:", clearResp);
+
+          try {
+            const remaining = await getTableDraft(tableId.toString(), user.restaurantId);
+            if (remaining && remaining.cartItems && remaining.cartItems.length > 0) {
+              console.warn("Draft still present after clear, attempting deleteTableDraft");
+              await deleteTableDraft(tableId.toString(), user.restaurantId);
+            }
+          } catch (verifyErr) {
+            console.warn("Failed to verify or delete draft after clear:", verifyErr);
+          }
+
           console.log("✅ Draft cleared successfully after update and print");
           toast.success("Bill updated and draft cleared successfully!");
         } catch (draftError) {
@@ -445,7 +469,19 @@ export function BillPage({
       // Clear the draft only after successful save
       if (user?.restaurantId && user?.username) {
         try {
-          await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
+          const clearResp = await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
+          console.log("clearTableDraft response:", clearResp);
+
+          try {
+            const remaining = await getTableDraft(tableId.toString(), user.restaurantId);
+            if (remaining && remaining.cartItems && remaining.cartItems.length > 0) {
+              console.warn("Draft still present after clear, attempting deleteTableDraft");
+              await deleteTableDraft(tableId.toString(), user.restaurantId);
+            }
+          } catch (verifyErr) {
+            console.warn("Failed to verify or delete draft after clear:", verifyErr);
+          }
+
           console.log("✅ Draft cleared successfully after save and print");
           toast.success("Bill saved and draft cleared successfully!");
         } catch (draftError) {
