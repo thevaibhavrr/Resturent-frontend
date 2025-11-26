@@ -391,6 +391,7 @@ export function BillPage({
         try {
           await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
           console.log("✅ Draft cleared successfully after update and print");
+          toast.success("Bill updated and draft cleared successfully!");
         } catch (draftError) {
           console.error("❌ Failed to clear draft after update and print:", draftError);
           toast.warning("Bill updated but failed to clear draft. Please clear it manually.");
@@ -446,6 +447,7 @@ export function BillPage({
         try {
           await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
           console.log("✅ Draft cleared successfully after save and print");
+          toast.success("Bill saved and draft cleared successfully!");
         } catch (draftError) {
           console.error("❌ Failed to clear draft after save and print:", draftError);
           toast.warning("Bill saved but failed to clear draft. Please clear it manually.");
