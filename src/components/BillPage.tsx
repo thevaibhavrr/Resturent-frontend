@@ -429,7 +429,7 @@ export function BillPage({
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-card shadow-sm sticky top-0 z-40">
+      {/* <header className="border-b bg-card shadow-sm sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4" style={{ marginTop: '100px' }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -458,7 +458,7 @@ export function BillPage({
             </div>
           </div>
         </div>
-      </header>
+      </header> */}
 
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

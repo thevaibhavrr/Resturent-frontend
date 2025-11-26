@@ -334,9 +334,11 @@ function AppContent() {
             daysRemaining={subscriptionData.daysRemaining}
           />
         )}
-        <div className="lg:hidden">
-          <Header onToggleMenu={() => setMenuOpen((s) => !s)} onLogout={handleLogout} />
-        </div>
+        {location.pathname !== "/admin/order-tables/print-bill" && (
+          <div className="lg:hidden">
+            <Header onToggleMenu={() => setMenuOpen((s) => !s)} onLogout={handleLogout} />
+          </div>
+        )}
         <AdminSidebar onLogout={handleLogout} menuOpen={menuOpen} onCloseMenu={() => setMenuOpen(false)} />
         <main className="lg:ml-64 pt-20 lg:pt-0">
           <Routes>
@@ -372,7 +374,7 @@ function AppContent() {
   }
 
   // Staff Interface - Tables Page
-  // Show header only on /order-tables page
+  // Show header only on /order-tables page, but not on print-bill page
   const showHeader = location.pathname === "/order-tables";
   
   return (
