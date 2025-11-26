@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Check, CreditCard, Loader2, Upload, X, QrCode } from 'lucide-react';
+import { Check, CreditCard, Upload, X, QrCode } from 'lucide-react';
 import { Loader } from '../../components/ui/loader';
+import { NewtonsCradleLoader } from '../../components/ui/newtons-cradle-loader';
 import { toast } from 'sonner';
 import { getAllPlans, Plan } from '../../api/planApi';
 import {
@@ -270,7 +271,7 @@ export function Plans() {
               >
                 {processingPayment ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <NewtonsCradleLoader size={16} speed={1.2} color="#ffffff" />
                     Submitting...
                   </>
                 ) : (

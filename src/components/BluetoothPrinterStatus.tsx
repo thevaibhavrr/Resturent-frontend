@@ -1,8 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Bluetooth, BluetoothOff, Loader2, AlertCircle } from 'lucide-react';
+import { Bluetooth, BluetoothOff, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
+import { NewtonsCradleLoader } from './ui/newtons-cradle-loader';
 import { toast } from 'sonner';
 import { BluetoothPrinterService, PrinterStatus } from '../utils/bluetoothPrinter';
+
+// Type declaration for Web Bluetooth API
+declare global {
+  interface Navigator {
+    bluetooth?: any; // Web Bluetooth API
+  }
+  
+  interface Window {
+    MOBILE_CHANNEL?: {
+      postMessage: (message: string) => void;
+    };
+  }
+}
 
 interface BluetoothPrinterStatusProps {
   onConnect?: () => void;
@@ -76,7 +90,7 @@ export function BluetoothPrinterStatus({
       case 'connecting':
         return (
           <div className="flex items-center gap-2 text-blue-600">
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <NewtonsCradleLoader size={20} speed={1.2} color="#3b82f6" />
             <span className="text-sm font-medium">Connecting...</span>
           </div>
         );
@@ -113,7 +127,7 @@ export function BluetoothPrinterStatus({
             className="gap-2"
           >
             {isInitializing ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <NewtonsCradleLoader size={16} speed={1.2} color="#ffffff" />
             ) : (
               <Bluetooth className="w-4 h-4" />
             )}

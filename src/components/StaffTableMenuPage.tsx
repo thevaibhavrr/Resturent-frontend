@@ -5,6 +5,7 @@ import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { NewtonsCradleLoader } from "./ui/newtons-cradle-loader";
 import { 
   ArrowLeft, 
   Search, 
@@ -113,6 +114,55 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     localStorage.setItem(key, JSON.stringify(updated));
   };
 
+  // Get cached menu data from localStorage with 5-minute expiration
+  const getCachedMenuData = () => {
+    if (!user?.restaurantId) return null;
+    
+    const cacheKey = `menuCache_${user.restaurantId}`;
+    const cached = localStorage.getItem(cacheKey);
+    
+    if (!cached) return null;
+    
+    try {
+      const { data, timestamp } = JSON.parse(cached);
+      const now = Date.now();
+      const fiveMinutesInMs = 5 * 60 * 1000;
+      
+      // Check if cache is still valid (less than 5 minutes old)
+      if (now - timestamp < fiveMinutesInMs) {
+        return data;
+      } else {
+        // Cache expired, remove it
+        localStorage.removeItem(cacheKey);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error parsing cached menu data:', error);
+      localStorage.removeItem(cacheKey);
+      return null;
+    }
+  };
+
+  // Save menu data to localStorage with timestamp
+  const cacheMenuData = (categoriesData: Category[], menuItemsData: MenuItem[]) => {
+    if (!user?.restaurantId) return;
+    
+    const cacheKey = `menuCache_${user.restaurantId}`;
+    const cacheData = {
+      data: {
+        categories: categoriesData,
+        menuItems: menuItemsData
+      },
+      timestamp: Date.now()
+    };
+    
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+    } catch (error) {
+      console.error('Error caching menu data:', error);
+    }
+  };
+
   const setSpicePercent = (itemId: string, percent: number) => {
     setSelectedSpicePercent(prev => ({ ...prev, [itemId]: percent }));
     // Update cart items with this itemId to have the new spice percent
@@ -154,7 +204,103 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       setLoading(true);
       setError(null);
 
-      // Load categories, menu items, and table draft in parallel
+      // First, try to get cached menu data
+      const cachedData = getCachedMenuData();
+      
+      if (cachedData) {
+        // Use cached data immediately for faster loading
+        setCategories(cachedData.categories);
+        setMenuItems(cachedData.menuItems);
+        
+        // Still load table draft in parallel
+        const draftData = await getTableDraft(tableId.toString(), user.restaurantId);
+        
+        // Load existing draft if available
+        if (draftData) {
+          setTableDraft(draftData);
+          setPersons(draftData.persons);
+          
+          // Restore cart items and quantities
+          const restoredCart: CartItem[] = [];
+          const restoredQuantities: Record<string, number> = {};
+          
+          draftData.cartItems.forEach((item: any) => {
+            // For backward compatibility, if addedBy is not present, use the draft's updatedBy
+            const addedBy = (item as any).addedBy 
+              ? {
+                  userId: (item as any).addedBy.userId || 'system',
+                  userName: (item as any).addedBy.userName || 'System'
+                }
+              : {
+                  userId: draftData.updatedBy || 'system',
+                  userName: draftData.updatedBy || 'System'
+                };
+            
+            // For backward compatibility, if lastUpdatedBy is not present, use the draft's updatedBy
+            const lastUpdated = (item as any).lastUpdatedBy
+              ? {
+                  userId: (item as any).lastUpdatedBy.userId || draftData.updatedBy || 'system',
+                  userName: (item as any).lastUpdatedBy.userName || draftData.updatedBy || 'System',
+                  timestamp: (item as any).lastUpdatedBy.timestamp || new Date().toISOString()
+                }
+              : {
+                  userId: draftData.updatedBy || 'system',
+                  userName: draftData.updatedBy || 'System',
+                  timestamp: new Date().toISOString()
+                };
+            
+            // Create the cart item with all the information
+            const cartItem: CartItem = {
+              id: item.itemId,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+              note: (item as any).note || "",
+              spiceLevel: (item as any).spiceLevel ?? 0,
+              spicePercent: (item as any).spicePercent ?? 50,
+              isJain: (item as any).isJain ?? false,
+              updatedBy: (item as any).updatedBy || draftData.updatedBy || 'System',
+              addedBy: addedBy,
+              lastUpdatedBy: lastUpdated
+            };
+            
+            restoredCart.push(cartItem);
+            restoredQuantities[item.itemId] = item.quantity;
+          });
+          
+          setCart(restoredCart);
+          setItemQuantities(restoredQuantities);
+          
+          toast.success("Table draft loaded successfully");
+        }
+        
+        setLoading(false);
+        
+        // Check if cache is close to expiration (within 30 seconds)
+        const cacheKey = `menuCache_${user.restaurantId}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            const { timestamp } = JSON.parse(cached);
+            const now = Date.now();
+            const fiveMinutesInMs = 5 * 60 * 1000;
+            const timeUntilExpiration = fiveMinutesInMs - (now - timestamp);
+            
+            // If cache will expire within 30 seconds, refresh it in background
+            if (timeUntilExpiration < 30000) {
+              setTimeout(() => {
+                refreshMenuData();
+              }, 1000);
+            }
+          } catch (error) {
+            console.error('Error checking cache expiration:', error);
+          }
+        }
+        
+        return;
+      }
+
+      // If no cached data, fetch fresh data
       const [categoriesData, menuItemsData, draftData] = await Promise.all([
         getCategories(user.restaurantId),
         getMenuItems(user.restaurantId),
@@ -163,6 +309,9 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
       setCategories(categoriesData);
       setMenuItems(menuItemsData);
+      
+      // Cache the fresh data
+      cacheMenuData(categoriesData, menuItemsData);
       
       // Load existing draft if available
       if (draftData) {
@@ -173,7 +322,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         const restoredCart: CartItem[] = [];
         const restoredQuantities: Record<string, number> = {};
         
-        draftData.cartItems.forEach(item => {
+        draftData.cartItems.forEach((item: any) => {
           // For backward compatibility, if addedBy is not present, use the draft's updatedBy
           const addedBy = (item as any).addedBy 
             ? {
@@ -231,6 +380,28 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     }
   };
 
+  // Function to refresh menu data (called when cache expires)
+  const refreshMenuData = async () => {
+    if (!user?.restaurantId) return;
+    
+    try {
+      const [categoriesData, menuItemsData] = await Promise.all([
+        getCategories(user.restaurantId),
+        getMenuItems(user.restaurantId)
+      ]);
+
+      setCategories(categoriesData);
+      setMenuItems(menuItemsData);
+      
+      // Cache the fresh data
+      cacheMenuData(categoriesData, menuItemsData);
+      
+      console.log("Menu data refreshed and cached");
+    } catch (error) {
+      console.error("Error refreshing menu data:", error);
+    }
+  };
+
   useEffect(() => {
     loadMenuData();
   }, [user?.restaurantId, tableId]);
@@ -260,7 +431,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     if (user?.restaurantId && user?.username) {
       const timeoutId = setTimeout(() => {
         autoSaveDraft(cart, persons);
-      }, 1000); // Debounce for 1 second
+      }, 100); // Debounce for 1 second
 
       return () => clearTimeout(timeoutId);
     }
@@ -759,9 +930,9 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
             {/* Loading State */}
             {loading && (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin mr-2" />
-                <p className="text-muted-foreground">Loading menu items...</p>
+              <div className="flex flex-col items-center justify-center py-12">
+                <NewtonsCradleLoader size={60} speed={1.2} color="#030213" className="mb-4" />
+                <p className="text-muted-foreground text-sm">Loading menu items...</p>
               </div>
             )}
 
@@ -800,15 +971,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                 >
                   <div className="relative">
                     <div className="relative h-32 sm:h-40 max-h-48 w-full overflow-hidden bg-gradient-to-br from-orange-50 to-amber-50">
-                      {/* <img
-                        src={item.image}
-                        alt={item.name}
-                        style={{
-                          maxHeight:"200px",
-                          objectFit:"cover"
-                        }}
-                        className="w-full h-full max-h-48 object-cover hover:scale-110 transition-transform duration-500"
-                      /> */}
+                      
                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                       {getItemQuantity(item._id) > 0 && (
                         <div className="absolute top-3 right-3 bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-lg animate-pulse">

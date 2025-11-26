@@ -725,13 +725,13 @@ import {
   Printer, 
   CheckCircle2,
   Bluetooth,
-  Loader2,
 } from "lucide-react";
 import { getCurrentUser } from "../utils/auth";
 import { getRestaurantSettings } from "./admin/Settings";
 import { toast } from "sonner";
 import { BluetoothPrinterService } from "../utils/bluetoothPrinter";
 import { BluetoothPrinterStatus } from "./BluetoothPrinterStatus";
+import { NewtonsCradleLoader } from "./ui/newtons-cradle-loader";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -1047,7 +1047,7 @@ export function PrintBill({
             )}
             {isBluetoothPrinting && ( 
               <div className="flex items-center gap-2 text-sm text-blue-600">
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <NewtonsCradleLoader size={16} speed={1.2} color="#3b82f6" />
                 <span>Printing via Bluetooth...</span>
               </div>
             )}
@@ -1128,7 +1128,7 @@ export function PrintBill({
           id="bill-content"
         >
           {/* Premium Header with Logo */}
-          <div className="text-center mb-2 pb-2 border-b-4 border-double border-gray-800">
+          <div className="text-center mb-1 pb-1 border-b-4 border-double border-gray-800">
             {restaurantSettings.logo ? (
               <div className="mb-1 flex justify-center">
                 <div className="w-30 h-30 border-4 border-gray-800 rounded-full p-1 flex items-center justify-center">
@@ -1310,7 +1310,7 @@ export function PrintBill({
           {restaurantSettings.qrCode && (
             <div className="mb-2 pb-2 border-t-2 border-dashed border-gray-500 pt-2 text-center">
               <div className="flex flex-col items-center gap-2">
-                <div className="w-30 h-30 border-2 border-gray-300 rounded-lg p-2 bg-white">
+                <div className="w-25 h-25 border-2 border-gray-300 rounded-lg p-2 bg-white">
                   <img
                     src={restaurantSettings.qrCode}
                     alt="QR Code"
@@ -1318,7 +1318,7 @@ export function PrintBill({
                   />
                 </div>
                 <p className="text-[12px] font-semibold text-gray-700 uppercase tracking-wide">
-                  Scan and view our menu
+                  Scan and view our details
                 </p>
               </div>
             </div>
