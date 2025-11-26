@@ -28,6 +28,8 @@ export default function PrintBillPage() {
       sgst={printData.sgst || 0}
       grandTotal={printData.grandTotal}
       onBack={handleBack}
+      autoPrint={printData.autoPrint || false}
+      redirectAfterPrint={printData.redirectAfterPrint || false}
     />
   );
 }

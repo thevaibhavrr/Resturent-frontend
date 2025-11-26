@@ -1475,6 +1475,8 @@ export function BillPage({
       // Call parent callback if provided
       if (onSaveAndPrint) {
         onSaveAndPrint(printData);
+        // Note: Navigation and auto-print happens in parent component
+        // No need to call onBack() here as print component handles redirect
       } else {
         toast.error("Print functionality not available");
       }
