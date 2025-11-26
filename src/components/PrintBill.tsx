@@ -70,16 +70,34 @@ export function PrintBill({
   });
 
   const user = getCurrentUser();
-  const [restaurantSettings, setRestaurantSettings] = useState({
-    name: "Restaurant Name",
-    address: "",
-    phone: "",
-    gstin: "",
-    logo: "",
-    qrCode: "",
-    email: "",
-    website: "",
-    description: "",
+  const [isLoading, setIsLoading] = useState(true);
+  const [restaurantSettings, setRestaurantSettings] = useState(() => {
+    // Try to load from localStorage first
+    if (typeof window !== 'undefined') {
+      const savedSettings = localStorage.getItem('restaurantSettings');
+      return savedSettings ? JSON.parse(savedSettings) : {
+        name: "Restaurant Name",
+        address: "",
+        phone: "",
+        gstin: "",
+        logo: "",
+        qrCode: "",
+        email: "",
+        website: "",
+        description: "",
+      };
+    }
+    return {
+      name: "Restaurant Name",
+      address: "",
+      phone: "",
+      gstin: "",
+      logo: "",
+      qrCode: "",
+      email: "",
+      website: "",
+      description: "",
+    };
   });
   const [printAttempted, setPrintAttempted] = useState(false);
   const [showPrintAgain, setShowPrintAgain] = useState(false);
@@ -94,16 +112,36 @@ export function PrintBill({
     const loadSettings = async () => {
       if (user?.restaurantId) {
         try {
+          setIsLoading(true);
           const settings = await getRestaurantSettings(user.restaurantId);
           setRestaurantSettings(settings);
+          // Save to localStorage
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('restaurantSettings', JSON.stringify(settings));
+          }
         } catch (error) {
           console.error("Error loading restaurant settings:", error);
           // Don't show error toast - settings are optional for printing
           // Just use default settings if API fails
+        } finally {
+          setIsLoading(false);
         }
+      } else {
+        setIsLoading(false);
       }
     };
-    loadSettings();
+    
+    // Only load settings if we don't have them in localStorage
+    if (typeof window !== 'undefined' && !localStorage.getItem('restaurantSettings')) {
+      loadSettings();
+    } else {
+      setIsLoading(false);
+    }
+    
+    // Cleanup function
+    return () => {
+      // Any cleanup if needed
+    };
   }, [user]);
 
   // Calculate subtotal with item discounts
@@ -258,6 +296,18 @@ export function PrintBill({
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Show loading state while data is being fetched
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-12 h-12 animate-spin text-primary" />
+          <p className="text-lg font-medium">Loading bill details...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
