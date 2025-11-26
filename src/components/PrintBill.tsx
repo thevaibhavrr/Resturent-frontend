@@ -722,11 +722,20 @@ import React from 'react';
 import { useEffect, useState, useRef } from "react";
 import { Button } from "./ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import {
   ArrowLeft,
   Printer, 
   CheckCircle2,
   Bluetooth,
   Loader2,
+  Home,
 } from "lucide-react";
 import { getCurrentUser } from "../utils/auth";
 import { getRestaurantSettings } from "./admin/Settings";
@@ -822,6 +831,8 @@ export function PrintBill({
   >("disconnected");
   const printerService = useRef<BluetoothPrinterService | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const [hasAutoPrinted, setHasAutoPrinted] = useState(false);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -848,6 +859,23 @@ export function PrintBill({
 
     loadSettings();
   }, [user]);
+
+  // Auto-print on mount after settings are loaded
+  useEffect(() => {
+    if (!isLoading && !hasAutoPrinted) {
+      const timer = setTimeout(() => {
+        // Trigger browser print dialog directly
+        window.print();
+        setHasAutoPrinted(true);
+        setPrintAttempted(true);
+        // Show dialog after print attempt
+        setTimeout(() => {
+          setShowPrintDialog(true);
+        }, 1500);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, hasAutoPrinted]);
 
   // Calculate subtotal with item discounts
   const subtotal = items.reduce((sum, item) => {
@@ -941,13 +969,19 @@ export function PrintBill({
     return receipt;
   };
 
-  const handlePrint = async () => {
+  const handlePrint = async (triggerBrowserPrint: boolean = false) => {
     setPrintAttempted(true);
 
     try {
       const billElement = document.getElementById("bill-content");
       if (!billElement) {
         toast.error("Bill content not found");
+        return;
+      }
+
+      // If triggerBrowserPrint is true, directly trigger browser print dialog
+      if (triggerBrowserPrint) {
+        window.print();
         return;
       }
 
@@ -971,9 +1005,12 @@ export function PrintBill({
 
         toast.success("Print request sent to Flutter!");
       } else {
-        // Fallback for web browsers - set image URL
+        // For web browsers - trigger print dialog
         setPdfUrl(imgData);
-        toast.success("Image generated successfully!");
+        // Trigger browser print dialog
+        setTimeout(() => {
+          window.print();
+        }, 100);
       }
 
       // Show print again button after a delay
@@ -987,20 +1024,64 @@ export function PrintBill({
   };
 
   const handlePrintAgain = (useBluetooth: boolean = false) => {
-    handlePrint(useBluetooth);
-    if (!useBluetooth) {
-      toast.success("Print dialog opened. Please confirm to print.");
+    if (useBluetooth) {
+      handlePrint(false);
+    } else {
+      handlePrint(true); // Trigger browser print dialog
     }
+  };
+
+  const handleGoBack = () => {
+    setShowPrintDialog(false);
+    onBack();
+  };
+
+  const handlePrintAgainFromDialog = () => {
+    setShowPrintDialog(false);
+    handlePrintAgain(false);
+    // Show dialog again after print attempt
+    setTimeout(() => {
+      setShowPrintDialog(true);
+    }, 1500);
   };
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Print Dialog */}
+      <Dialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Print Complete</DialogTitle>
+            <DialogDescription>
+              Bill has been saved and printed. What would you like to do next?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={handlePrintAgainFromDialog}
+              className="w-full sm:w-auto"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Print Again
+            </Button>
+            <Button
+              onClick={handleGoBack}
+              className="w-full sm:w-auto"
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Go Back
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Action Buttons - Hidden on print */}
       <div className="print:hidden p-4 border-b bg-card">
         <div className="flex items-center justify-between gap-4">
-          <Button variant="outline" onClick={onBack} className="gap-2">
+          <Button variant="outline" onClick={handleGoBack} className="gap-2">
             <ArrowLeft className="w-4 h-4" />
-            Back to Bill
+            Go Back
           </Button>
 
           <div className="flex items-center gap-3">

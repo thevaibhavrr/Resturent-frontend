@@ -466,23 +466,34 @@ export function BillPage({
       // Save bill to database FIRST (this will throw if it fails)
       await persistBillHistory(billNumber);
 
-      // Clear the draft only after successful save
+      // Clear the draft only after successful save - MUST complete before navigation
       if (user?.restaurantId && user?.username) {
         try {
           const clearResp = await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
           console.log("clearTableDraft response:", clearResp);
 
+          // Verify draft is actually cleared
           try {
             const remaining = await getTableDraft(tableId.toString(), user.restaurantId);
             if (remaining && remaining.cartItems && remaining.cartItems.length > 0) {
               console.warn("Draft still present after clear, attempting deleteTableDraft");
               await deleteTableDraft(tableId.toString(), user.restaurantId);
+              // Verify again after delete
+              const stillRemaining = await getTableDraft(tableId.toString(), user.restaurantId);
+              if (stillRemaining && stillRemaining.cartItems && stillRemaining.cartItems.length > 0) {
+                console.error("Draft still exists after both clear and delete attempts");
+                toast.warning("Draft may not have been fully cleared. Please check manually.");
+              } else {
+                console.log("✅ Draft successfully cleared after delete fallback");
+              }
+            } else {
+              console.log("✅ Draft cleared successfully after save and print");
             }
           } catch (verifyErr) {
-            console.warn("Failed to verify or delete draft after clear:", verifyErr);
+            console.warn("Failed to verify draft after clear:", verifyErr);
+            // Don't block navigation if verification fails - draft clearing was attempted
           }
 
-          console.log("✅ Draft cleared successfully after save and print");
           toast.success("Bill saved and draft cleared successfully!");
         } catch (draftError) {
           console.error("❌ Failed to clear draft after save and print:", draftError);
@@ -507,7 +518,8 @@ export function BillPage({
         grandTotal: total,
       };
 
-      // Call parent callback if provided
+      // Call parent callback if provided - this will navigate to print page
+      // Draft clearing is complete at this point
       if (onSaveAndPrint) {
         onSaveAndPrint(printData);
       } else {
