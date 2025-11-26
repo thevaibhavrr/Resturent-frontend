@@ -1131,7 +1131,7 @@ export function PrintBill({
           <div className="text-center mb-2 pb-2 border-b-4 border-double border-gray-800">
             {restaurantSettings.logo ? (
               <div className="mb-1 flex justify-center">
-                <div className="w-20 h-20 border-4 border-gray-800 rounded-full p-1 flex items-center justify-center">
+                <div className="w-30 h-30 border-4 border-gray-800 rounded-full p-1 flex items-center justify-center">
                   <img
                     src={restaurantSettings.logo}
                     alt="Logo"
@@ -1155,7 +1155,7 @@ export function PrintBill({
                 textShadow: "1px 1px 2px rgba(0,0,0,0.1)",
               }}
             >
-              {restaurantSettings.name || "Restaurant Name"}
+              {restaurantSettings.name || "Restaurant"}
             </h1>
             <div className="flex items-center justify-center gap-2 mt-1">
               <div className="h-px bg-gray-400 flex-1"></div>
@@ -1310,7 +1310,7 @@ export function PrintBill({
           {restaurantSettings.qrCode && (
             <div className="mb-2 pb-2 border-t-2 border-dashed border-gray-500 pt-2 text-center">
               <div className="flex flex-col items-center gap-2">
-                <div className="w-40 h-40 border-2 border-gray-300 rounded-lg p-2 bg-white">
+                <div className="w-30 h-30 border-2 border-gray-300 rounded-lg p-2 bg-white">
                   <img
                     src={restaurantSettings.qrCode}
                     alt="QR Code"
