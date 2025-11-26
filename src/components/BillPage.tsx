@@ -398,32 +398,59 @@ export function BillPage({
       // Update bill to database FIRST (this will throw if it fails)
       await persistBillHistory(billNumber);
 
-      // Clear the draft after successful update
+      // Clear the draft after successful update - MUST complete before navigation
       if (user?.restaurantId && user?.username) {
         try {
-          const clearResp = await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
-          console.log("clearTableDraft response:", clearResp);
+          // First attempt: clear the draft
+          await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
+          console.log("clearTableDraft called successfully");
 
+          // Wait a moment for server to process
+          await new Promise(resolve => setTimeout(resolve, 300));
+
+          // Verify draft is actually cleared
+          let remaining: any = null;
           try {
-            const remaining = await getTableDraft(tableId.toString(), user.restaurantId);
-            if (remaining && remaining.cartItems && remaining.cartItems.length > 0) {
-              console.warn("Draft still present after clear, attempting deleteTableDraft");
-              await deleteTableDraft(tableId.toString(), user.restaurantId);
+            remaining = await getTableDraft(tableId.toString(), user.restaurantId);
+          } catch (getErr) {
+            // If getTableDraft fails (e.g., draft doesn't exist), that's good - draft is cleared
+            console.log("getTableDraft failed (likely draft doesn't exist - this is good):", getErr);
+          }
+
+          // If draft still exists, try delete as fallback
+          if (remaining && remaining.cartItems && remaining.cartItems.length > 0) {
+            console.warn("Draft still present after clear, attempting deleteTableDraft");
+            await deleteTableDraft(tableId.toString(), user.restaurantId);
+            
+            // Wait again and verify after delete
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            try {
+              const stillRemaining = await getTableDraft(tableId.toString(), user.restaurantId);
+              if (stillRemaining && stillRemaining.cartItems && stillRemaining.cartItems.length > 0) {
+                console.error("❌ Draft still exists after both clear and delete attempts");
+                toast.error("Failed to clear draft. Please clear it manually from the table.");
+                // Don't proceed with print if draft couldn't be cleared
+                return;
+              }
+            } catch (finalVerifyErr) {
+              // If getTableDraft fails now, draft is cleared - that's good
+              console.log("Draft cleared after delete (getTableDraft failed - expected):", finalVerifyErr);
             }
-          } catch (verifyErr) {
-            console.warn("Failed to verify or delete draft after clear:", verifyErr);
           }
 
           console.log("✅ Draft cleared successfully after update and print");
           toast.success("Bill updated and draft cleared successfully!");
         } catch (draftError) {
           console.error("❌ Failed to clear draft after update and print:", draftError);
-          toast.warning("Bill updated but failed to clear draft. Please clear it manually.");
-          // Continue with print even if draft clearing fails - bill is already updated
+          toast.error("Bill updated but failed to clear draft. Please clear it manually.");
+          // Don't proceed with print if draft clearing fails - ensure data consistency
+          return;
         }
       }
 
       // Create print data with discounts and additional charges
+      // Only proceed if draft clearing was successful (or skipped if no user info)
       const printData = {
         billNumber,
         tableName,
@@ -439,7 +466,7 @@ export function BillPage({
         grandTotal: total,
       };
 
-      // Call parent callback if provided
+      // Call parent callback if provided - draft clearing is complete at this point
       if (onSaveAndPrint) {
         onSaveAndPrint(printData);
       } else {
@@ -469,40 +496,56 @@ export function BillPage({
       // Clear the draft only after successful save - MUST complete before navigation
       if (user?.restaurantId && user?.username) {
         try {
-          const clearResp = await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
-          console.log("clearTableDraft response:", clearResp);
+          // First attempt: clear the draft
+          await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
+          console.log("clearTableDraft called successfully");
+
+          // Wait a moment for server to process
+          await new Promise(resolve => setTimeout(resolve, 300));
 
           // Verify draft is actually cleared
+          let remaining: any = null;
           try {
-            const remaining = await getTableDraft(tableId.toString(), user.restaurantId);
-            if (remaining && remaining.cartItems && remaining.cartItems.length > 0) {
-              console.warn("Draft still present after clear, attempting deleteTableDraft");
-              await deleteTableDraft(tableId.toString(), user.restaurantId);
-              // Verify again after delete
-              const stillRemaining = await getTableDraft(tableId.toString(), user.restaurantId);
-              if (stillRemaining && stillRemaining.cartItems && stillRemaining.cartItems.length > 0) {
-                console.error("Draft still exists after both clear and delete attempts");
-                toast.warning("Draft may not have been fully cleared. Please check manually.");
-              } else {
-                console.log("✅ Draft successfully cleared after delete fallback");
-              }
-            } else {
-              console.log("✅ Draft cleared successfully after save and print");
-            }
-          } catch (verifyErr) {
-            console.warn("Failed to verify draft after clear:", verifyErr);
-            // Don't block navigation if verification fails - draft clearing was attempted
+            remaining = await getTableDraft(tableId.toString(), user.restaurantId);
+          } catch (getErr) {
+            // If getTableDraft fails (e.g., draft doesn't exist), that's good - draft is cleared
+            console.log("getTableDraft failed (likely draft doesn't exist - this is good):", getErr);
           }
 
+          // If draft still exists, try delete as fallback
+          if (remaining && remaining.cartItems && remaining.cartItems.length > 0) {
+            console.warn("Draft still present after clear, attempting deleteTableDraft");
+            await deleteTableDraft(tableId.toString(), user.restaurantId);
+            
+            // Wait again and verify after delete
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            try {
+              const stillRemaining = await getTableDraft(tableId.toString(), user.restaurantId);
+              if (stillRemaining && stillRemaining.cartItems && stillRemaining.cartItems.length > 0) {
+                console.error("❌ Draft still exists after both clear and delete attempts");
+                toast.error("Failed to clear draft. Please clear it manually from the table.");
+                // Don't proceed with print if draft couldn't be cleared
+                return;
+              }
+            } catch (finalVerifyErr) {
+              // If getTableDraft fails now, draft is cleared - that's good
+              console.log("Draft cleared after delete (getTableDraft failed - expected):", finalVerifyErr);
+            }
+          }
+
+          console.log("✅ Draft cleared successfully after save and print");
           toast.success("Bill saved and draft cleared successfully!");
         } catch (draftError) {
           console.error("❌ Failed to clear draft after save and print:", draftError);
-          toast.warning("Bill saved but failed to clear draft. Please clear it manually.");
-          // Continue with print even if draft clearing fails - bill is already saved
+          toast.error("Bill saved but failed to clear draft. Please clear it manually.");
+          // Don't proceed with print if draft clearing fails - ensure data consistency
+          return;
         }
       }
 
       // Create print data with discounts and additional charges
+      // Only proceed if draft clearing was successful (or skipped if no user info)
       const printData = {
         billNumber,
         tableName,
@@ -518,8 +561,7 @@ export function BillPage({
         grandTotal: total,
       };
 
-      // Call parent callback if provided - this will navigate to print page
-      // Draft clearing is complete at this point
+      // Call parent callback if provided - draft clearing is complete at this point
       if (onSaveAndPrint) {
         onSaveAndPrint(printData);
       } else {
