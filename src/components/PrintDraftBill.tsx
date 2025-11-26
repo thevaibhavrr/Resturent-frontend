@@ -1,6 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Printer } from "lucide-react";
+import { toast } from "sonner";
+import html2canvas from "html2canvas";
 
 interface DraftBillItem {
   id: string;
@@ -20,6 +22,14 @@ interface PrintDraftBillProps {
   onBack: () => void;
 }
 
+declare global {
+  interface Window {
+    MOBILE_CHANNEL?: {
+      postMessage: (message: string) => void;
+    };
+  }
+}
+
 export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraftBillProps) {
   const currentDate = new Date().toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -31,22 +41,129 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
     minute: "2-digit",
   });
 
+  const [printAttempted, setPrintAttempted] = useState(false);
+  const [showPrintAgain, setShowPrintAgain] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const handlePrint = async () => {
+    setPrintAttempted(true);
+
+    try {
+      const billElement = document.getElementById("draft-bill-content");
+      if (!billElement) {
+        toast.error("Draft bill content not found");
+        return;
+      }
+
+      // Capture the bill content as canvas for 58mm thermal printer
+      const canvas = await html2canvas(billElement, {
+        scale: 1.1, // Higher scale for crisp thermal printing
+      });
+
+      const imgData = canvas.toDataURL("image/png", 1.0); // Maximum quality
+
+      // Check if running in Flutter webview
+      if (window.MOBILE_CHANNEL) {
+        // Send print request to Flutter
+        window.MOBILE_CHANNEL.postMessage(
+          JSON.stringify({
+            event: "flutterPrint",
+            deviceMacAddress: "66:32:B1:BE:4E:AF", // TODO: Get device MAC address from API
+            imageBase64: imgData.replace("data:image/png;base64,", ""), // Remove data URL prefix
+          })
+        );
+
+        toast.success("Print request sent to Flutter!");
+      } else {
+        // Fallback for web browsers - use native print dialog
+        const printWindow = window.open();
+        if (printWindow) {
+          printWindow.document.write(`
+            <html>
+              <head>
+                <title>Draft Bill</title>
+                <style>
+                  @page { size: 58mm auto; margin: 0; }
+                  body { margin: 0; padding: 0; }
+                  img { width: 100%; height: auto; display: block; }
+                </style>
+              </head>
+              <body>
+                <img src="${imgData}" />
+              </body>
+            </html>
+          `);
+          printWindow.document.close();
+          setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+          }, 250);
+        }
+        toast.success("Print dialog opened. Please confirm to print.");
+      }
+
+      // Show print again button after a delay
+      setTimeout(() => {
+        setShowPrintAgain(true);
+      }, 1000);
+    } catch (error) {
+      console.error("Error generating image:", error);
+      toast.error("Failed to generate draft bill image");
+    }
+  };
+
+  const handlePrintAgain = () => {
+    handlePrint();
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      window.print();
+      handlePrint();
     }, 300);
     return () => clearTimeout(timer);
   }, []);
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="print:hidden p-3 border-b">
-        <Button variant="outline" onClick={onBack} className="gap-2">
-          <ArrowLeft className="w-4 h-4" />
-          Back
-        </Button>
+      <div className="print:hidden p-4 border-b bg-card">
+        <div className="flex items-center justify-between gap-4">
+          <Button variant="outline" onClick={onBack} className="gap-2">
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
+
+          <div className="flex items-center gap-3">
+            {printAttempted && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                <span>
+                  {window.MOBILE_CHANNEL 
+                    ? "Print sent to device"
+                    : "Draft bill generated"}
+                </span>
+              </div>
+            )}
+
+            <Button
+              variant="default"
+              onClick={handlePrintAgain}
+              className="gap-2 bg-primary hover:bg-primary/90"
+            >
+              <Printer className="w-4 h-4" />
+              {showPrintAgain ? "Print Again" : "Print"}
+            </Button>
+          </div>
+        </div>
+
+        {showPrintAgain && (
+          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> If the draft bill didn't print, click "Print Again" to retry.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-center min-h-screen p-2 print:p-0 print:block">

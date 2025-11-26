@@ -4,13 +4,13 @@ import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import { Input } from "./ui/input";
-import { 
-  ArrowLeft, 
-  Plus, 
-  Minus, 
-  Trash2, 
-  Save, 
-  Printer, 
+import {
+  ArrowLeft,
+  Plus,
+  Minus,
+  Trash2,
+  Save,
+  Printer,
   ShoppingCart,
   Users,
   Clock,
@@ -61,11 +61,11 @@ interface BillPageProps {
   originalBillNumber?: string; // Original bill number to preserve
 }
 
-export function BillPage({ 
-  tableId, 
-  tableName, 
-  initialCart, 
-  initialPersons, 
+export function BillPage({
+  tableId,
+  tableName,
+  initialCart,
+  initialPersons,
   initialTotalDiscount = 0,
   initialAdditionalPrice = 0,
   onBack,
@@ -126,11 +126,11 @@ export function BillPage({
       if (existingItem) {
         return prevCart.map(cartItem =>
           cartItem.id === item._id
-            ? { 
-                ...cartItem, 
-                quantity: cartItem.quantity + 1,
-                addedBy: user ? { userId: user.id, userName: user.name } : cartItem.addedBy
-              }
+            ? {
+              ...cartItem,
+              quantity: cartItem.quantity + 1,
+              addedBy: user ? { userId: user.id, userName: user.name } : cartItem.addedBy
+            }
             : cartItem
         );
       }
@@ -188,7 +188,7 @@ export function BillPage({
     const itemDiscount = item.discountAmount || 0;
     return sum + itemTotal - itemDiscount;
   }, 0);
-  
+
   // Apply total discount and additional price
   const total = Math.max(0, subtotal - totalDiscount + additionalPrice);
 
@@ -198,12 +198,12 @@ export function BillPage({
       toast.error("User information missing. Cannot save bill.");
       throw new Error("User information missing");
     }
-    
+
     // Use original bill number if editing, otherwise generate new one
-    const billNumber = isEdit && originalBillNumber 
-      ? originalBillNumber 
+    const billNumber = isEdit && originalBillNumber
+      ? originalBillNumber
       : (billNum || `BILL-${Date.now()}`);
-    
+
     const billRecord = {
       billNumber,
       tableId: tableId.toString(),
@@ -229,7 +229,7 @@ export function BillPage({
         ...item,
         discountAmount: item.discountAmount || 0
       }));
-      
+
       const billData = {
         tableId: tableId.toString(),
         tableName,
@@ -253,19 +253,19 @@ export function BillPage({
           itemsCount: cart.length,
           grandTotal: total
         });
-        
+
         const { updateBill } = await import("../api/billApi");
         const updatedBill = await updateBill(originalBillId, billData);
-        
+
         console.log("✅ Bill updated in database successfully:", updatedBill);
-        
+
         // Update localStorage cache
         try {
           const key = getRestaurantKey("billHistory", user.restaurantId);
           const stored = localStorage.getItem(key);
           if (stored) {
             const history = JSON.parse(stored);
-            const updated = history.map((bill: any) => 
+            const updated = history.map((bill: any) =>
               bill._id === originalBillId || bill.billNumber === billNumber
                 ? { ...billRecord, _id: originalBillId }
                 : bill
@@ -275,7 +275,7 @@ export function BillPage({
         } catch (e) {
           console.warn("Failed to update bill in localStorage cache:", e);
         }
-        
+
         toast.success("Bill updated successfully!");
         return billNumber;
       } else {
@@ -287,15 +287,15 @@ export function BillPage({
           itemsCount: cart.length,
           grandTotal: total
         });
-        
+
         const { createBill } = await import("../api/billApi");
         const savedBill = await createBill({
           ...billData,
           billNumber
         } as any);
-        
+
         console.log("✅ Bill saved to database successfully:", savedBill);
-        
+
         // Also save to localStorage as backup/cache
         try {
           const key = getRestaurantKey("billHistory", user.restaurantId);
@@ -306,13 +306,13 @@ export function BillPage({
         } catch (e) {
           console.warn("Failed to save bill to localStorage cache:", e);
         }
-        
+
         toast.success("Bill saved to database successfully!");
         return billNumber;
       }
     } catch (error: any) {
       console.error(`❌ Failed to ${isEdit ? 'update' : 'save'} bill to API (database):`, error);
-      
+
       // Extract error message from various possible locations
       let errorMessage = "Unknown error";
       if (error?.response?.data?.error) {
@@ -324,7 +324,7 @@ export function BillPage({
       } else if (typeof error?.response?.data === 'string') {
         errorMessage = error.response.data;
       }
-      
+
       console.error("Full error details:", {
         message: errorMessage,
         status: error?.response?.status,
@@ -336,7 +336,7 @@ export function BillPage({
         tokenLength: token?.length,
         fullError: error
       });
-      
+
       // Don't save to localStorage if API fails - we want to force database saves
       toast.error(`Failed to ${isEdit ? 'update' : 'save'} bill: ${errorMessage}. Please check your connection and try again.`);
       throw error; // Re-throw to prevent navigation
@@ -421,10 +421,10 @@ export function BillPage({
           if (remaining && remaining.cartItems && remaining.cartItems.length > 0) {
             console.warn("Draft still present after clear, attempting deleteTableDraft");
             await deleteTableDraft(tableId.toString(), user.restaurantId);
-            
+
             // Wait again and verify after delete
             await new Promise(resolve => setTimeout(resolve, 300));
-            
+
             try {
               const stillRemaining = await getTableDraft(tableId.toString(), user.restaurantId);
               if (stillRemaining && stillRemaining.cartItems && stillRemaining.cartItems.length > 0) {
@@ -516,10 +516,10 @@ export function BillPage({
           if (remaining && remaining.cartItems && remaining.cartItems.length > 0) {
             console.warn("Draft still present after clear, attempting deleteTableDraft");
             await deleteTableDraft(tableId.toString(), user.restaurantId);
-            
+
             // Wait again and verify after delete
             await new Promise(resolve => setTimeout(resolve, 300));
-            
+
             try {
               const stillRemaining = await getTableDraft(tableId.toString(), user.restaurantId);
               if (stillRemaining && stillRemaining.cartItems && stillRemaining.cartItems.length > 0) {
@@ -577,7 +577,7 @@ export function BillPage({
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      {/* <header className="border-b bg-card shadow-sm sticky top-0 z-40">
+      <header className="border-b bg-card shadow-sm sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4" style={{ marginTop: '100px' }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -606,7 +606,7 @@ export function BillPage({
             </div>
           </div>
         </div>
-      </header> */}
+      </header>
 
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -636,7 +636,7 @@ export function BillPage({
                       const itemTotal = item.price * item.quantity;
                       const itemDiscount = item.discountAmount || 0;
                       const itemFinalAmount = itemTotal - itemDiscount;
-                      
+
                       return (
                         <div key={item.id} className="p-3 border rounded-lg space-y-2">
                           <div className="flex items-center justify-between">
@@ -679,7 +679,7 @@ export function BillPage({
                               </Button>
                             </div>
                           </div>
-                          
+
                           {/* Discount Input for Item */}
                           <div className="flex items-center gap-2 pt-2 border-t">
                             <label className="text-xs text-muted-foreground whitespace-nowrap">Discount (₹):</label>
@@ -740,7 +740,7 @@ export function BillPage({
             {showAddItems && (
               <Card className="p-6 mt-6">
                 <h3 className="text-lg font-semibold mb-4">Add More Items</h3>
-                
+
                 {/* Search and Category Filter */}
                 <div className="flex gap-4 mb-4">
                   <Input
@@ -794,7 +794,7 @@ export function BillPage({
           <div className="lg:col-span-1">
             <Card className="p-6 sticky top-24">
               <h2 className="text-xl font-semibold mb-4">Bill Summary</h2>
-              
+
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4" />
@@ -832,7 +832,7 @@ export function BillPage({
                   <span className="text-muted-foreground">Subtotal:</span>
                   <span>₹{subtotal.toFixed(2)}</span>
                 </div>
-                
+
                 {/* Total Discount Input */}
                 <div className="flex items-center justify-between gap-2 py-2 border-t">
                   <label className="text-sm text-muted-foreground whitespace-nowrap">Total Discount (₹):</label>
@@ -851,14 +851,14 @@ export function BillPage({
                     className="h-8 text-sm w-32"
                   />
                 </div>
-                
+
                 {totalDiscount > 0 && (
                   <div className="flex justify-between text-sm text-red-600">
                     <span>Discount Applied:</span>
                     <span>- ₹{totalDiscount.toFixed(2)}</span>
                   </div>
                 )}
-                
+
                 {/* Additional Price Input */}
                 <div className="flex items-center justify-between gap-2 py-2 border-t">
                   <label className="text-sm text-muted-foreground whitespace-nowrap">Additional Price (₹):</label>
@@ -875,14 +875,14 @@ export function BillPage({
                     className="h-8 text-sm w-32"
                   />
                 </div>
-                
+
                 {additionalPrice > 0 && (
                   <div className="flex justify-between text-sm text-green-600">
                     <span>Additional Charges:</span>
                     <span>+ ₹{additionalPrice.toFixed(2)}</span>
                   </div>
                 )}
-                
+
                 <div className="flex justify-between font-bold text-lg border-t pt-2">
                   <span>Grand Total:</span>
                   <span>₹{total.toFixed(2)}</span>
@@ -899,7 +899,7 @@ export function BillPage({
                   <Save className="h-5 w-5 mr-2" />
                   {isEdit ? "Update Only" : "Save Only"}
                 </Button>
-                
+
                 {isEdit ? (
                   <Button
                     onClick={handleUpdateAndPrint}
