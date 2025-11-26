@@ -372,28 +372,29 @@ export function BillPage({
     }
   };
 
-  // Save and print bill
-  const handleSaveAndPrint = async () => {
+  // Update and print bill (for edit operations)
+  const handleUpdateAndPrint = async () => {
     if (cart.length === 0) {
       toast.error("Cart is empty");
       return;
     }
 
     try {
-      // Use original bill number if editing, otherwise generate new one
-      const billNumber = isEdit && originalBillNumber 
-        ? originalBillNumber 
-        : `BILL-${Date.now()}`;
+      // Use original bill number if editing
+      const billNumber = originalBillNumber || `BILL-${Date.now()}`;
 
-      // Save/Update bill to database FIRST (this will throw if it fails)
+      // Update bill to database FIRST (this will throw if it fails)
       await persistBillHistory(billNumber);
 
-      // Clear the draft only after successful save (not for edits)
-      if (!isEdit && user?.restaurantId && user?.username) {
+      // Clear the draft after successful update
+      if (user?.restaurantId && user?.username) {
         try {
           await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
+          console.log("✅ Draft cleared successfully after update and print");
         } catch (draftError) {
-          console.warn("Failed to clear draft, but bill is saved:", draftError);
+          console.error("❌ Failed to clear draft after update and print:", draftError);
+          toast.warning("Bill updated but failed to clear draft. Please clear it manually.");
+          // Continue with print even if draft clearing fails - bill is already updated
         }
       }
 
@@ -420,9 +421,64 @@ export function BillPage({
         toast.error("Print functionality not available");
       }
     } catch (error) {
-      console.error(`Error ${isEdit ? 'updating' : 'saving'} bill:`, error);
+      console.error("Error updating bill:", error);
       // Error message already shown in persistBillHistory
-      // Don't proceed with print if save/update failed
+      // Don't proceed with print if update failed
+    }
+  };
+
+  // Save and print bill (for new bills)
+  const handleSaveAndPrint = async () => {
+    if (cart.length === 0) {
+      toast.error("Cart is empty");
+      return;
+    }
+
+    try {
+      // Generate new bill number
+      const billNumber = `BILL-${Date.now()}`;
+
+      // Save bill to database FIRST (this will throw if it fails)
+      await persistBillHistory(billNumber);
+
+      // Clear the draft only after successful save
+      if (user?.restaurantId && user?.username) {
+        try {
+          await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
+          console.log("✅ Draft cleared successfully after save and print");
+        } catch (draftError) {
+          console.error("❌ Failed to clear draft after save and print:", draftError);
+          toast.warning("Bill saved but failed to clear draft. Please clear it manually.");
+          // Continue with print even if draft clearing fails - bill is already saved
+        }
+      }
+
+      // Create print data with discounts and additional charges
+      const printData = {
+        billNumber,
+        tableName,
+        persons,
+        items: cart.map(item => ({
+          ...item,
+          discountAmount: item.discountAmount || 0
+        })),
+        additionalCharges: additionalPrice > 0 ? [{ id: Date.now(), name: "Additional Charges", amount: additionalPrice }] : [],
+        discountAmount: totalDiscount,
+        cgst: 0,
+        sgst: 0,
+        grandTotal: total,
+      };
+
+      // Call parent callback if provided
+      if (onSaveAndPrint) {
+        onSaveAndPrint(printData);
+      } else {
+        toast.error("Print functionality not available");
+      }
+    } catch (error) {
+      console.error("Error saving bill:", error);
+      // Error message already shown in persistBillHistory
+      // Don't proceed with print if save failed
     }
   };
 
@@ -751,15 +807,28 @@ export function BillPage({
                   <Save className="h-5 w-5 mr-2" />
                   {isEdit ? "Update Only" : "Save Only"}
                 </Button>
-                <Button
-                  onClick={handleSaveAndPrint}
-                  variant="outline"
-                  className="w-full"
-                  disabled={cart.length === 0}
-                >
-                  <Printer className="h-5 w-5 mr-2" />
-                  {isEdit ? "Update & Print" : "Save & Print"}
-                </Button>
+                
+                {isEdit ? (
+                  <Button
+                    onClick={handleUpdateAndPrint}
+                    variant="outline"
+                    className="w-full"
+                    disabled={cart.length === 0}
+                  >
+                    <Printer className="h-5 w-5 mr-2" />
+                    Update & Print
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSaveAndPrint}
+                    variant="outline"
+                    className="w-full"
+                    disabled={cart.length === 0}
+                  >
+                    <Printer className="h-5 w-5 mr-2" />
+                    Save & Print
+                  </Button>
+                )}
               </div>
             </Card>
           </div>
