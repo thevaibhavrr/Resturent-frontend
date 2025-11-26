@@ -863,19 +863,62 @@ export function PrintBill({
   // Auto-print on mount after settings are loaded
   useEffect(() => {
     if (!isLoading && !hasAutoPrinted) {
+      // Wait for DOM to be fully rendered
       const timer = setTimeout(() => {
-        // Trigger browser print dialog directly
-        window.print();
-        setHasAutoPrinted(true);
-        setPrintAttempted(true);
-        // Show dialog after print attempt
-        setTimeout(() => {
-          setShowPrintDialog(true);
-        }, 1500);
-      }, 500);
+        const billElement = document.getElementById("bill-content");
+        if (billElement) {
+          // Trigger browser print dialog directly
+          window.print();
+          setHasAutoPrinted(true);
+          setPrintAttempted(true);
+        } else {
+          // Retry if element not found
+          console.warn("Bill content not found, retrying...");
+          setTimeout(() => {
+            const retryElement = document.getElementById("bill-content");
+            if (retryElement) {
+              window.print();
+              setHasAutoPrinted(true);
+              setPrintAttempted(true);
+            }
+          }, 500);
+        }
+      }, 800); // Increased delay to ensure DOM is ready
       return () => clearTimeout(timer);
     }
   }, [isLoading, hasAutoPrinted]);
+
+  // Listen for print dialog close to show our dialog
+  useEffect(() => {
+    if (!hasAutoPrinted) return;
+
+    let dialogShown = false;
+    
+    const showDialog = () => {
+      if (!dialogShown) {
+        dialogShown = true;
+        setShowPrintDialog(true);
+      }
+    };
+
+    const handleAfterPrint = () => {
+      // Show dialog after print dialog is closed
+      setTimeout(showDialog, 300);
+    };
+
+    // Use both afterprint event and a fallback timer
+    window.addEventListener("afterprint", handleAfterPrint);
+    
+    // Fallback: show dialog after a delay (some browsers don't fire afterprint reliably)
+    const fallbackTimer = setTimeout(() => {
+      showDialog();
+    }, 2500);
+    
+    return () => {
+      window.removeEventListener("afterprint", handleAfterPrint);
+      clearTimeout(fallbackTimer);
+    };
+  }, [hasAutoPrinted]);
 
   // Calculate subtotal with item discounts
   const subtotal = items.reduce((sum, item) => {
