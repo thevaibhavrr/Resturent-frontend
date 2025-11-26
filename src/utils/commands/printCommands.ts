@@ -31,6 +31,7 @@ export interface BillData {
   cgst: number;
   sgst: number;
   grandTotal: number;
+  restaurantSettings?: RestaurantSettings;
 }
 
 export interface RestaurantSettings {

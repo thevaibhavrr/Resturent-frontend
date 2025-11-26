@@ -114,6 +114,17 @@ export function PrintBill({
     cgst,
     sgst,
     grandTotal,
+    restaurantSettings: {
+      name: restaurantSettings.name,
+      address: restaurantSettings.address,
+      phone: restaurantSettings.phone,
+      gstin: restaurantSettings.gstin,
+      logo: restaurantSettings.logo,
+      qrCode: restaurantSettings.qrCode || '',
+      email: restaurantSettings.email,
+      website: restaurantSettings.website,
+      description: restaurantSettings.description
+    }
   };
 
   const handlePrint = async (useBluetooth: boolean = false) => {
