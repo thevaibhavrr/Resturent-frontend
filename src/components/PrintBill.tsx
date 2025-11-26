@@ -110,37 +110,46 @@ export function PrintBill({
 
   useEffect(() => {
     const loadSettings = async () => {
-      if (user?.restaurantId) {
+      if (!user?.restaurantId) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        // Always try to fetch fresh settings first
         try {
-          setIsLoading(true);
           const settings = await getRestaurantSettings(user.restaurantId);
           setRestaurantSettings(settings);
-          // Save to localStorage
+          // Update cache with fresh data
           if (typeof window !== 'undefined') {
             localStorage.setItem('restaurantSettings', JSON.stringify(settings));
           }
         } catch (error) {
-          console.error("Error loading restaurant settings:", error);
-          // Don't show error toast - settings are optional for printing
-          // Just use default settings if API fails
-        } finally {
-          setIsLoading(false);
+          console.error("Error loading fresh settings, using cached version:", error);
+          // If fresh fetch fails, try to use cached version
+          if (typeof window !== 'undefined') {
+            const cachedSettings = localStorage.getItem('restaurantSettings');
+            if (cachedSettings) {
+              setRestaurantSettings(JSON.parse(cachedSettings));
+            }
+          }
         }
-      } else {
+      } catch (error) {
+        console.error("Error in settings loading:", error);
+      } finally {
         setIsLoading(false);
       }
     };
     
-    // Only load settings if we don't have them in localStorage
-    if (typeof window !== 'undefined' && !localStorage.getItem('restaurantSettings')) {
-      loadSettings();
-    } else {
-      setIsLoading(false);
-    }
+    loadSettings();
+
+    // Set up a refresh interval to keep settings updated (every 5 minutes)
+    const refreshInterval = setInterval(loadSettings, 5 * 60 * 1000);
     
     // Cleanup function
     return () => {
-      // Any cleanup if needed
+      clearInterval(refreshInterval);
     };
   }, [user]);
 
