@@ -338,7 +338,7 @@
 //             )}
 
 //             <div className="flex items-center gap-2">
-//               {navigator.bluetooth && (
+//               {typeof navigator !== "undefined" && navigator.bluetooth && (
 //                 <Button
 //                   variant="outline"
 //                   onClick={() => handlePrintAgain(true)}
@@ -395,7 +395,7 @@
 //           </div>
 //         )}
 
-//         {navigator.bluetooth && (
+//         {typeof navigator !== "undefined" && navigator.bluetooth && (
 //           <div className="mt-3">
 //             <BluetoothPrinterStatus
 //               onConnect={() => setBluetoothStatus("connected")}
@@ -825,7 +825,6 @@ export function PrintBill({
 
   useEffect(() => {
     const loadSettings = async () => {
-      // If we already have settings from localStorage, skip API
       if (!user?.restaurantId) {
         setIsLoading(false);
         return;
@@ -847,12 +846,7 @@ export function PrintBill({
       }
     };
 
-    // If settings not in localStorage, fetch from API
-    if (typeof window !== "undefined" && !localStorage.getItem("restaurantSettings")) {
-      loadSettings();
-    } else {
-      setIsLoading(false);
-    }
+    loadSettings();
   }, [user]);
 
   // Calculate subtotal with item discounts
@@ -869,7 +863,7 @@ export function PrintBill({
 
   // Initialize Bluetooth printer service
   useEffect(() => {
-    if (navigator.bluetooth) {
+    if (typeof navigator !== "undefined" && navigator.bluetooth) {
       printerService.current = new BluetoothPrinterService(setBluetoothStatus);
       return () => {
         if (printerService.current) {
@@ -1028,7 +1022,7 @@ export function PrintBill({
             )}
 
             <div className="flex items-center gap-2">
-              {navigator.bluetooth && (
+              {typeof navigator !== "undefined" && navigator.bluetooth && (
                 <Button
                   variant="outline"
                   onClick={() => handlePrintAgain(true)}
@@ -1085,7 +1079,7 @@ export function PrintBill({
           </div>
         )}
 
-        {navigator.bluetooth && (
+        {typeof navigator !== "undefined" && navigator.bluetooth && (
           <div className="mt-3">
             <BluetoothPrinterStatus
               onConnect={() => setBluetoothStatus("connected")}
