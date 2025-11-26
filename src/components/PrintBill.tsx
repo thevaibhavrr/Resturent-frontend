@@ -1,9 +1,9 @@
-import React from "react";
-import { useEffect, useState } from "react";
+import React from 'react';
+import { useEffect, useState, useRef } from "react";
 import { Button } from "./ui/button";
 import {
   ArrowLeft,
-  Printer,
+  Printer, 
   CheckCircle2,
   Bluetooth,
   Loader2,
@@ -11,27 +11,40 @@ import {
 import { getCurrentUser } from "../utils/auth";
 import { getRestaurantSettings } from "./admin/Settings";
 import { toast } from "sonner";
-import { printCommands, type BillData } from "../utils/commands/printCommands";
+import { BluetoothPrinterService } from "../utils/bluetoothPrinter";
 import { BluetoothPrinterStatus } from "./BluetoothPrinterStatus";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
-// Type declarations for Web Bluetooth API
-declare global {
-  interface Navigator {
-    bluetooth?: any;
-  }
+interface BillItem {
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+  note?: string;
+  discountAmount?: number; // Discount in ₹ for this item
 }
 
 interface PrintBillProps {
   billNumber: string;
   tableName: string;
   persons: number;
-  items: import("../utils/commands/printCommands").BillItem[];
-  additionalCharges: import("../utils/commands/printCommands").AdditionalCharge[];
+  items: BillItem[];
+  additionalCharges: Array<{ id: number; name: string; amount: number }>;
   discountAmount: number;
   cgst: number;
   sgst: number;
   grandTotal: number;
   onBack: () => void;
+}
+
+// Type declarations for Flutter webview communication
+declare global {
+  interface Window {
+    MOBILE_CHANNEL?: {
+      postMessage: (message: string) => void;
+    };
+  }
 }
 
 export function PrintBill({
@@ -74,6 +87,8 @@ export function PrintBill({
   const [bluetoothStatus, setBluetoothStatus] = useState<
     "disconnected" | "connecting" | "connected" | "error"
   >("disconnected");
+  const printerService = useRef<BluetoothPrinterService | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -103,39 +118,119 @@ export function PrintBill({
     0
   );
 
-  // Create bill data object for printing
-  const billData: BillData = {
-    billNumber,
-    tableName,
-    persons,
-    items,
-    additionalCharges,
-    discountAmount,
-    cgst,
-    sgst,
-    grandTotal,
-    restaurantSettings: {
-      name: restaurantSettings.name,
-      address: restaurantSettings.address,
-      phone: restaurantSettings.phone,
-      gstin: restaurantSettings.gstin,
-      logo: restaurantSettings.logo,
-      qrCode: restaurantSettings.qrCode || '',
-      email: restaurantSettings.email,
-      website: restaurantSettings.website,
-      description: restaurantSettings.description
+  // Initialize Bluetooth printer service
+  useEffect(() => {
+    if (navigator.bluetooth) {
+      printerService.current = new BluetoothPrinterService(setBluetoothStatus);
+      return () => {
+        if (printerService.current) {
+          printerService.current.disconnect();
+        }
+      };
     }
+  }, []);
+
+  const formatForThermalPrinter = (): string => {
+    // Create a simple text-based receipt
+    let receipt = "\x1B@"; // Initialize printer
+    receipt += "\x1B!\x00"; // Normal text
+
+    // Add header
+    receipt += `${"=".repeat(32)}\n`;
+    receipt += `${restaurantSettings.name || "RESTAURANT"}\n`;
+    receipt += `${"=".repeat(32)}\n\n`;
+
+    // Add order info
+    receipt += `Bill #: ${billNumber.padEnd(20)}${currentDate}\n`;
+    receipt += `Table: ${tableName.padEnd(20)}${currentTime}\n`;
+    receipt += `Persons: ${persons.toString().padEnd(16)}${" ".repeat(6)}\n`;
+    receipt += "-".repeat(32) + "\n";
+
+    // Add items
+    items.forEach((item) => {
+      const name =
+        item.name.length > 20 ? item.name.substring(0, 17) + "..." : item.name;
+      const price = `₹${(item.price * item.quantity).toFixed(2)}`;
+      receipt += `${name}\n`;
+      receipt +=
+        `  ${item.quantity} x ₹${item.price.toFixed(2)}`.padEnd(20) +
+        price.padStart(12) +
+        "\n";
+      if (item.note) {
+        receipt += `  (${item.note})\n`;
+      }
+    });
+
+    // Add totals
+    receipt += "\n";
+    receipt += "Subtotal:".padEnd(20) + `₹${subtotal.toFixed(2)}\n`;
+
+    if (discountAmount > 0) {
+      receipt += "Discount:".padEnd(20) + `-₹${discountAmount.toFixed(2)}\n`;
+    }
+
+    if (additionalCharges.length > 0) {
+      additionalCharges.forEach((charge) => {
+        receipt +=
+          `${charge.name}:`.padEnd(20) + `₹${charge.amount.toFixed(2)}\n`;
+      });
+    }
+
+    if (cgst > 0) {
+      receipt += "CGST:".padEnd(20) + `₹${cgst.toFixed(2)}\n`;
+    }
+
+    if (sgst > 0) {
+      receipt += "SGST:".padEnd(20) + `₹${sgst.toFixed(2)}\n`;
+    }
+
+    receipt += "\n";
+    receipt += "TOTAL:".padEnd(20) + `₹${grandTotal.toFixed(2)}\n\n`;
+
+    // Add footer
+    receipt += "\n";
+    receipt += `${"Thank you for dining with us!".padStart(24)}\n`;
+    receipt += `${"=".repeat(32)}\n\n\n\n`;
+
+    // Add paper cut command (if supported by printer)
+    receipt += "\x1DVA\x00"; // Partial cut
+
+    return receipt;
   };
 
-  const handlePrint = async (useBluetooth: boolean = false) => {
+  const handlePrint = async () => {
     setPrintAttempted(true);
 
     try {
-      if (useBluetooth) {
-        setIsBluetoothPrinting(true);
-        await printCommands.printBillViaBluetooth(billData);
+      const billElement = document.getElementById("bill-content");
+      if (!billElement) {
+        toast.error("Bill content not found");
+        return;
+      }
+
+      // Capture the bill content as canvas for 58mm thermal printer
+      const canvas = await html2canvas(billElement, {
+        scale: 1.1, // Higher scale for crisp thermal printing (3x = ~300 DPI)
+      });
+
+      const imgData = canvas.toDataURL("image/png", 1.0); // Maximum quality
+
+      // Check if running in Flutter webview
+      if (window.MOBILE_CHANNEL) {
+        // Send print request to Flutter
+        window.MOBILE_CHANNEL.postMessage(
+          JSON.stringify({
+            event: "flutterPrint",
+            deviceMacAddress: "66:32:B1:BE:4E:AF", // TODO: Get device MAC address from API
+            imageBase64: imgData.replace("data:image/png;base64,", ""), // Remove data URL prefix
+          })
+        );
+
+        toast.success("Print request sent to Flutter!");
       } else {
-        await printCommands.printBillToPDF(billData, "bill-content");
+        // Fallback for web browsers - set image URL
+        setPdfUrl(imgData);
+        toast.success("Image generated successfully!");
       }
 
       // Show print again button after a delay
@@ -143,10 +238,8 @@ export function PrintBill({
         setShowPrintAgain(true);
       }, 1000);
     } catch (error) {
-      console.error("Error printing bill:", error);
-      toast.error("Failed to print bill");
-    } finally {
-      setIsBluetoothPrinting(false);
+      console.error("Error generating image:", error); 
+      toast.error("Failed to generate image");
     }
   };
 
@@ -163,6 +256,7 @@ export function PrintBill({
       handlePrint(false);
     }, 500);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -180,13 +274,13 @@ export function PrintBill({
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CheckCircle2 className="w-4 h-4 text-green-600" />
                 <span>
-                  {window.MOBILE_CHANNEL
+                  {window.MOBILE_CHANNEL 
                     ? "Print sent to device"
                     : "Image generated"}
                 </span>
               </div>
             )}
-            {isBluetoothPrinting && (
+            {isBluetoothPrinting && ( 
               <div className="flex items-center gap-2 text-sm text-blue-600">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Printing via Bluetooth...</span>

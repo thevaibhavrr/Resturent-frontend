@@ -14,7 +14,7 @@ import BillHistoryPage from "./pages/admin/BillHistoryPage";
 import ReportsPage from "./pages/admin/ReportsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import PlansPage from "./pages/admin/PlansPage";
-import AdminOrderTablesPage from "./pages/admin/AdminOrderTablesPage";
+import AdminOrderTablesPage from "./pages/admin/AdminOrderTablesPage";    
 import AdminTableMenuPage from "./pages/admin/AdminTableMenuPage";
 import AdminBillPage from "./pages/admin/AdminBillPage";
 import AdminPrintDraftPage from "./pages/admin/AdminPrintDraftPage";
@@ -406,6 +406,7 @@ function AppContent() {
       <Route path="/staff/table-menu" element={<Navigate to="/order-tables/table-menu" />} />
       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
       <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
+      {/* test */}
       <Route path="*" element={<Navigate to="/order-tables" />} />
         </Routes>
       </main>
