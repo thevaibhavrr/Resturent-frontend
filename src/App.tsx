@@ -28,6 +28,7 @@ import StaffTableMenuPage from "./pages/staff/StaffTableMenuPage";
 import StaffBillPage from "./pages/staff/BillPage";
 import StaffBillHistoryPage from "./pages/staff/BillHistoryPage";
 import PrintDraftPage from "./pages/staff/PrintDraftPage";
+import { settingsService } from "./utils/settingsService";
 import PrintBillPage from "./pages/staff/PrintBillPage";
 import { TestNavigation } from "./components/TestNavigation";
 import { colorThemes } from "./components/ThemeCustomizer";
@@ -153,6 +154,18 @@ function AppContent() {
       });
     }
   }, [currentTheme]);
+
+  // Initialize settings service
+  useEffect(() => {
+    if (isLoggedIn && currentUser) {
+      settingsService.initialize();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      settingsService.destroy();
+    };
+  }, [isLoggedIn, currentUser]);
 
   // Get tables data
   const getTablesData = (): TableData[] => {

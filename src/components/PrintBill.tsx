@@ -727,7 +727,7 @@ import {
   Bluetooth,
 } from "lucide-react";
 import { getCurrentUser } from "../utils/auth";
-import { getRestaurantSettings } from "./admin/Settings";
+import { settingsService } from "../utils/settingsService";
 import { toast } from "sonner";
 import { BluetoothPrinterService } from "../utils/bluetoothPrinter";
 import { BluetoothPrinterStatus } from "./BluetoothPrinterStatus";
@@ -796,16 +796,20 @@ export function PrintBill({
 
   const user = getCurrentUser();
   const [isLoading, setIsLoading] = useState(true);
-  const [restaurantSettings, setRestaurantSettings] = useState({
-    name: "Loading...",
-    address: "",
-    phone: "",
-    gstin: "",
-    logo: "",
-    qrCode: "",
-    email: "",
-    website: "",
-    description: "",
+  const [restaurantSettings, setRestaurantSettings] = useState(() => {
+    // Initialize with localStorage data immediately
+    const cached = settingsService.getSettings();
+    return cached || {
+      name: "Restaurant Name",
+      address: "",
+      phone: "",
+      gstin: "",
+      logo: "",
+      qrCode: "",
+      email: "",
+      website: "",
+      description: "",
+    };
   });
   const [printAttempted, setPrintAttempted] = useState(false);
   const [showPrintAgain, setShowPrintAgain] = useState(false);
@@ -818,53 +822,33 @@ export function PrintBill({
   const [autoPrintCompleted, setAutoPrintCompleted] = useState(false);
 
   useEffect(() => {
-    const loadSettings = async () => {
-      // Use restaurantId from props if available, otherwise from user
-      const restaurantIdToUse = restaurantId || user?.restaurantId;
+    console.log("PrintBill: Loading settings from localStorage");
 
-    console.log("PrintBill: Loading settings for restaurantId:", restaurantIdToUse);
-    console.log("PrintBill: Props restaurantId:", restaurantId);
-    console.log("PrintBill: User restaurantId:", user?.restaurantId);
-    console.log("PrintBill: User object:", user);
+    // Get settings from localStorage via settingsService
+    const settings = settingsService.getSettings();
 
-      if (!restaurantIdToUse) {
-        console.log("PrintBill: No restaurantId found, using defaults");
-        setIsLoading(false);
-        return;
-      }
+    if (settings) {
+      console.log("PrintBill: Loaded settings from localStorage:", settings);
+      console.log("PrintBill: Restaurant name from settings:", settings.name);
+      setRestaurantSettings(settings);
+    } else {
+      console.log("PrintBill: No settings found in localStorage, keeping defaults");
+      // Keep the default "Loading..." state or fallback to basic defaults
+      setRestaurantSettings({
+        name: "Restaurant Name",
+        address: "",
+        phone: "",
+        gstin: "",
+        logo: "",
+        qrCode: "",
+        email: "",
+        website: "",
+        description: "",
+      });
+    }
 
-      try {
-        setIsLoading(true);
-        console.log("PrintBill: Calling getRestaurantSettings for:", restaurantIdToUse);
-        console.log("PrintBill: Full API URL would be:", `/api/settings/${restaurantIdToUse}`);
-        const settings = await getRestaurantSettings(restaurantIdToUse);
-        console.log("PrintBill: Loaded settings:", settings);
-        console.log("PrintBill: Settings keys:", Object.keys(settings || {}));
-        console.log("PrintBill: Restaurant name from settings:", settings?.name);
-        setRestaurantSettings(settings);
-        console.log("PrintBill: Restaurant settings state updated");
-        console.log("PrintBill: New restaurantSettings:", settings);
-
-        // Clear any existing settings from localStorage when printing
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("restaurantSettings");
-        }
-      } catch (error: any) {
-        console.error("PrintBill: Error loading restaurant settings:", error);
-        console.error("PrintBill: Error details:", {
-          message: error?.message,
-          response: error?.response,
-          status: error?.response?.status,
-          data: error?.response?.data
-        });
-        // Use existing/default settings if API fails
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadSettings();
-  }, [restaurantId, user?.restaurantId]); // Prioritize restaurantId prop over user
+    setIsLoading(false);
+  }, []); // Only run once on mount
 
   // Auto print effect
   useEffect(() => {
