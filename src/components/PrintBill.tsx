@@ -286,7 +286,7 @@
 //     try {
 //       await handlePrint();
 //       setAutoPrintCompleted(true);
-      
+
 //       // If redirect is enabled, wait a bit then redirect
 //       if (redirectAfterPrint) {
 //         setTimeout(() => {
@@ -659,22 +659,22 @@
 //             size: 58mm auto;
 //             margin: 0;
 //           }
-          
+
 //           body {
 //             margin: 0;
 //             padding: 0;
 //             background: white;
 //           }
-          
+
 //           body * {
 //             visibility: hidden;
 //           }
-          
+
 //           #bill-content,
 //           #bill-content * {
 //             visibility: visible;
 //           }
-          
+
 //           #bill-content {
 //             position: absolute;
 //             left: 0;
@@ -684,26 +684,26 @@
 //             background: white;
 //             box-shadow: none;
 //           }
-          
+
 //           .print\\:hidden {
 //             display: none !important;
 //           }
-          
+
 //           .print\\:p-0 {
 //             padding: 0 !important;
 //           }
-          
+
 //           .print\\:block {
 //             display: block !important;
 //           }
-          
+
 //           /* Ensure borders print correctly */
 //           #bill-content table,
 //           #bill-content th,
 //           #bill-content td {
 //             border-color: #000 !important;
 //           }
-          
+
 //           /* Better print quality */
 //           #bill-content {
 //             -webkit-print-color-adjust: exact;
@@ -722,7 +722,7 @@ import { useEffect, useState, useRef } from "react";
 import { Button } from "./ui/button";
 import {
   ArrowLeft,
-  Printer, 
+  Printer,
   CheckCircle2,
   Bluetooth,
 } from "lucide-react";
@@ -993,7 +993,7 @@ export function PrintBill({
         setShowPrintAgain(true);
       }, 1000);
     } catch (error) {
-      console.error("Error generating image:", error); 
+      console.error("Error generating image:", error);
       toast.error("Failed to generate image");
     }
   };
@@ -1003,7 +1003,7 @@ export function PrintBill({
     try {
       await handlePrint();
       setAutoPrintCompleted(true);
-      
+
       // If redirect is enabled, wait a bit then redirect
       if (redirectAfterPrint) {
         setTimeout(() => {
@@ -1039,13 +1039,13 @@ export function PrintBill({
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CheckCircle2 className="w-4 h-4 text-green-600" />
                 <span>
-                  {window.MOBILE_CHANNEL 
+                  {window.MOBILE_CHANNEL
                     ? "Print sent to device"
                     : "Image generated"}
                 </span>
               </div>
             )}
-            {isBluetoothPrinting && ( 
+            {isBluetoothPrinting && (
               <div className="flex items-center gap-2 text-sm text-blue-600">
                 <NewtonsCradleLoader size={16} speed={1.2} color="#3b82f6" />
                 <span>Printing via Bluetooth...</span>
@@ -1128,10 +1128,10 @@ export function PrintBill({
           id="bill-content"
         >
           {/* Premium Header with Logo */}
-          <div className="text-center mb-1 pb-1 border-b-4 border-double border-gray-800">
+          <div className="text-center mb pb-1 border-b-4 border-double border-gray-800">
             {restaurantSettings.logo ? (
               <div className="mb-1 flex justify-center">
-                <div className="w-30 h-30 border-4 border-gray-800 rounded-full p-1 flex items-center justify-center">
+                <div className="w-25 h-25 border-4 border-gray-800 rounded-full p-1 flex items-center justify-center">
                   <img
                     src={restaurantSettings.logo}
                     alt="Logo"
@@ -1190,7 +1190,7 @@ export function PrintBill({
 
           {/* Premium Item Table */}
           <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
-            <table className="w-full text-[13px]">
+            <table className="w-full text-[14px]">
               <thead>
                 <tr className="bg-gray-800 text-black">
                   <th className="text-left py-1.5 px-1 font-bold">Item</th>
@@ -1222,12 +1222,12 @@ export function PrintBill({
                             {item.name}
                           </span>
                           {item.note && (
-                            <div className="text-[11px] text-gray-600 italic mt-0.5 font-light">
+                            <div className="text-[12px] text-gray-600 italic mt-0.5 font-light">
                               Note: {item.note}
                             </div>
                           )}
                           {itemDiscount > 0 && (
-                            <div className="text-[11px] text-red-600 mt-0.5 font-medium">
+                            <div className="text-[12px] text-red-600 mt-0.5 font-medium">
                               Discount: -₹{itemDiscount.toFixed(2)}
                             </div>
                           )}
@@ -1248,7 +1248,6 @@ export function PrintBill({
               </tbody>
             </table>
           </div>
-
           {/* Additional Charges */}
           {additionalCharges.length > 0 && (
             <div className="mb-2 pb-1.5 border-b border-dashed border-gray-400">
@@ -1310,7 +1309,7 @@ export function PrintBill({
           {restaurantSettings.qrCode && (
             <div className="mb-2 pb-2 border-t-2 border-dashed border-gray-500 pt-2 text-center">
               <div className="flex flex-col items-center gap-2">
-                <div className="w-25 h-25 border-2 border-gray-300 rounded-lg p-2 bg-white">
+                <div className="w-20 h-20 border-2 border-gray-300 rounded-lg p-2 bg-white">
                   <img
                     src={restaurantSettings.qrCode}
                     alt="QR Code"

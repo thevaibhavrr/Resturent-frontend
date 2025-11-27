@@ -5,7 +5,7 @@ import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { Card } from "../ui/card";
 import { Separator } from "../ui/separator";
-import { Settings as SettingsIcon, Upload, Save } from "lucide-react";
+import { Settings as SettingsIcon, Upload, Save, Loader2 } from "lucide-react";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
 import { toast } from "sonner@2.0.3";
 import { makeApi } from "../../api/makeapi";
@@ -178,6 +178,15 @@ export function Settings() {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading settings...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
