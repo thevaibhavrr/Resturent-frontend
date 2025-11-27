@@ -398,7 +398,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     }
   };
 
-  // Function to refresh menu data (called when cache expires)
+  // Function to refresh menu data (called when cache expires or on interval)
   const refreshMenuData = async () => {
     if (!user?.restaurantId) return;
     
@@ -414,14 +414,25 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       // Cache the fresh data
       cacheMenuData(categoriesData, menuItemsData);
       
-      console.log("Menu data refreshed and cached");
+      console.log(`Menu data refreshed at ${new Date().toLocaleTimeString()}`);
     } catch (error) {
       console.error("Error refreshing menu data:", error);
     }
   };
 
+  // Load menu data on component mount and set up auto-refresh
   useEffect(() => {
+    // Initial load
     loadMenuData();
+    
+    // Set up auto-refresh every 5 minutes (300,000 ms)
+    const refreshInterval = setInterval(() => {
+      console.log('Auto-refreshing menu data...');
+      refreshMenuData();
+    }, 5 * 60 * 1000);
+    
+    // Clean up interval on component unmount
+    return () => clearInterval(refreshInterval);
   }, [user?.restaurantId, tableId]);
 
   // Removed page-level refresh control per request
