@@ -26,8 +26,8 @@ export default function BillPage() {
   };
 
   const handleSaveAndPrint = (printData: any) => {
-    // Navigate to staff home page after save and print
-    navigate("/order-tables", { replace: true });
+    // Navigate to print bill page for printing
+    navigate("/order-tables/print-bill", { state: printData, replace: true });
   };
 
   return (

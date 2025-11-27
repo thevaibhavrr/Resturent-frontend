@@ -19,8 +19,8 @@ export default function AdminBillPage() {
   };
 
   const handleSaveAndPrint = (data: any) => {
-    // Navigate to admin home page after save and print
-    navigate("/admin/order-tables", { replace: true });
+    // Navigate to print bill page for printing
+    navigate("/admin/order-tables/print-bill", { state: data, replace: true });
   };
 
   return (

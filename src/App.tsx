@@ -231,14 +231,9 @@ function AppContent() {
   };
 
   const handleSaveAndPrint = (data: any) => {
-    // Navigate to home page after save and print
-    if (currentUser?.role === "admin") {
-      navigate("/admin");
-    } else {
-      navigate("/");
-    }
+    // Show print component for printing
+    setPrintData(data);
     setBillData(null);
-    setTableUpdates((prev) => prev + 1);
   };
 
   const handleBackFromPrint = () => {
