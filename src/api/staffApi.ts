@@ -1,5 +1,14 @@
 import { makeApi } from './makeapi';
 
+export const checkUsername = async (username: string, excludeId?: string) => {
+    const params = new URLSearchParams({ username });
+    if (excludeId) {
+        params.append('excludeId', excludeId);
+    }
+    const response = await makeApi(`/api/staff/check-username?${params}`, 'GET');
+    return response.data;
+};
+
 export const getAllStaff = async () => {
     const response = await makeApi('/api/staff', 'GET');
     return response.data;

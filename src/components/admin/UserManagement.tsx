@@ -13,17 +13,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { Plus, Edit2, Trash2, User } from "lucide-react";
+import { Plus, Edit2, Trash2, User, Check, X } from "lucide-react";
 import { Loader } from "../ui/loader";
 import { getCurrentUser } from "../../utils/auth";
 import { toast } from "sonner@2.0.3";
-import { getAllStaff, getStaffByRestaurant, createStaff, updateStaff, deleteStaff } from '../../api/staffApi';
+import { getAllStaff, getStaffByRestaurant, createStaff, updateStaff, deleteStaff, checkUsername } from '../../api/staffApi';
 
 interface StaffUser {
   _id: string;
-  name: string;
-  position: string;
-  phone: string;
   username: string;
   password: string;
   restaurantId?: string;
@@ -36,12 +33,11 @@ export function UserManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<StaffUser | null>(null);
   const [formData, setFormData] = useState({
-    name: "",
-    position: "",
-    phone: "",
     username: "",
     password: "",
   });
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState<{ available: boolean | null; message: string }>({ available: null, message: '' });
 
   useEffect(() => {
     loadStaffUsers();
@@ -71,51 +67,74 @@ export function UserManagement() {
 
   const handleAdd = () => {
     setEditingUser(null);
-    setFormData({ name: "", position: "", phone: "", username: "", password: "" });
+    setFormData({ username: "", password: "" });
+    setUsernameStatus({ available: null, message: '' });
     setIsDialogOpen(true);
   };
 
   const handleEdit = (staff: StaffUser) => {
     setEditingUser(staff);
     setFormData({ 
-      name: staff.name, 
-      position: staff.position, 
-      phone: staff.phone,
       username: staff.username,
       password: staff.password
     });
+    setUsernameStatus({ available: true, message: '' });
     setIsDialogOpen(true);
+  };
+
+  const checkUsernameAvailability = async (username: string, excludeId?: string) => {
+    if (!username) {
+      setUsernameStatus({ available: null, message: '' });
+      return false;
+    }
+
+    try {
+      const { available } = await checkUsername(username, excludeId);
+      setUsernameStatus({
+        available,
+        message: available ? 'Username is available' : 'Username is already taken'
+      });
+      return !available; // Return true if username is taken
+    } catch (error) {
+      console.error('Error checking username:', error);
+      setUsernameStatus({
+        available: false,
+        message: 'Error checking username availability'
+      });
+      return true; // Assume username is taken to prevent submission on error
+    }
   };
 
   const handleSave = async () => {
     if (!user) return;
 
-    if (!formData.name || !formData.position || !formData.phone || !formData.username || !formData.password) {
+    if (!formData.username || !formData.password) {
       toast.error("Please fill all required fields");
+      return;
+    }
+
+    // First check if username is available
+    const isTaken = await checkUsernameAvailability(formData.username, editingUser?._id);
+    if (isTaken) {
+      toast.error("Please choose a different username");
       return;
     }
 
     try {
       if (editingUser) {
         await updateStaff(editingUser._id, {
-          name: formData.name,
-          position: formData.position,
-          phone: formData.phone,
           username: formData.username,
           password: formData.password,
           restaurantId: user.restaurantId,
         });
-        toast.success("Staff updated successfully");
+        toast.success("User updated successfully");
       } else {
         await createStaff({
-          name: formData.name,
-          position: formData.position,
-          phone: formData.phone,
           username: formData.username,
           password: formData.password,
           restaurantId: user.restaurantId,
         });
-        toast.success("Staff added successfully");
+        toast.success("User added successfully");
       }
       loadStaffUsers();
       setIsDialogOpen(false);
@@ -174,7 +193,7 @@ export function UserManagement() {
         <p className="text-xs">User: {user ? `${user.username} (${user.role})` : 'No user'}</p>
         <p className="text-xs">Restaurant ID: {user?.restaurantId || 'No restaurant ID'}</p>
         {staffUsers.length > 0 && (
-          <p className="text-xs">First staff: {staffUsers[0].name} - {staffUsers[0].position} (Restaurant: {staffUsers[0].restaurantId})</p>
+          <p className="text-xs">First staff: {staffUsers[0].username}</p>
         )}
       </Card>
 
@@ -189,16 +208,10 @@ export function UserManagement() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                  {staff.name.charAt(0).toUpperCase()}
+                  {staff.username.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <p className="font-medium">{staff.name}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="secondary" className="text-xs">
-                      {staff.position}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">{staff.phone}</span>
-                  </div>
+                  <p className="font-medium">{staff.username}</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -250,60 +263,37 @@ export function UserManagement() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="name">Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                placeholder="Enter staff name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="position">Position *</Label>
-              <Select
-                value={formData.position}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, position: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select position" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Manager">Manager</SelectItem>
-                  <SelectItem value="Chef">Chef</SelectItem>
-                  <SelectItem value="Waiter">Waiter</SelectItem>
-                  <SelectItem value="Cashier">Cashier</SelectItem>
-                  <SelectItem value="Host">Host</SelectItem>
-                  <SelectItem value="Bartender">Bartender</SelectItem>
-                  <SelectItem value="Kitchen Staff">Kitchen Staff</SelectItem>
-                  <SelectItem value="Cleaner">Cleaner</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="phone">Phone *</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
-                placeholder="Enter phone number"
-              />
-            </div>
-            <div>
-              <Label htmlFor="username">Username *</Label>
-              <Input
-                id="username"
-                value={formData.username}
-                onChange={(e) =>
-                  setFormData({ ...formData, username: e.target.value })
-                }
-                placeholder="Enter username for login"
-              />
+              <div>
+                <Label htmlFor="username">Username *</Label>
+                <div className="relative">
+                  <Input
+                    id="username"
+                    value={formData.username}
+                    onChange={(e) => {
+                      setFormData({ ...formData, username: e.target.value });
+                      setUsernameStatus({ available: null, message: '' });
+                    }}
+                    onBlur={(e) => checkUsernameAvailability(e.target.value, editingUser?._id)}
+                    placeholder="Enter unique username for login"
+                    className="pr-10"
+                  />
+                  {formData.username && (
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                      {usernameStatus.available === true && (
+                        <Check className="h-5 w-5 text-green-500" />
+                      )}
+                      {usernameStatus.available === false && (
+                        <X className="h-5 w-5 text-red-500" />
+                      )}
+                    </div>
+                  )}
+                </div>
+                {usernameStatus.message && (
+                  <p className={`mt-1 text-sm ${usernameStatus.available ? 'text-green-600' : 'text-red-600'}`}>
+                    {usernameStatus.message}
+                  </p>
+                )}
+              </div>
             </div>
             <div>
               <Label htmlFor="password">Password *</Label>
