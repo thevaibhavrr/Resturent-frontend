@@ -429,7 +429,7 @@ export function MenuManagement() {
         {filteredItems.filter(item => item && item.name).map((item) => (
           <Card key={item._id || item.name} className="overflow-hidden">
             <div className="h-32 bg-muted relative">
-              <img
+              {/* <img
                 src={item.image || "/placeholder-food.jpg"}
                 alt={item.name}
                 className="w-full h-full object-fill"
@@ -438,7 +438,7 @@ export function MenuManagement() {
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = "/placeholder-food.jpg";
                 }}
-              />
+              /> */}
             </div>
             <div className="p-4">
               <div className="flex items-start justify-between mb-2">

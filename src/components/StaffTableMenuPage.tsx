@@ -33,9 +33,27 @@ interface MenuItem {
   image: string;
   price: number;
   spiceLevel: number;
-  category: string;
+  categoryId: {
+    _id: string;
+    name: string;
+    description?: string;
+    restaurantId: string;
+    status: string;
+    displayOrder: number;
+    createdAt: string;
+    updatedAt: string;
+    __v: number;
+  };
   description?: string;
   isAvailable: boolean;
+  isVeg?: boolean;
+  preparationTime?: number;
+  displayOrder?: number;
+  restaurantId?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
 }
 
 interface CartItem {
@@ -452,7 +470,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       const recentItems = getRecentItems();
       matchesCategory = recentItems.includes(item._id);
     } else if (activeCategory !== "all") {
-      matchesCategory = item.category === activeCategory;
+      matchesCategory = item.categoryId?.name === activeCategory;
     }
     
     return matchesSearch && matchesCategory;
@@ -980,7 +998,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                       )}
                       <div className="absolute bottom-3 left-3">
                         <Badge variant="secondary" className="text-xs shadow-md backdrop-blur-sm bg-white/90">
-                          {item.category.replace("-", " ")}
+                          {item.categoryId?.name.replace("-", " ")}
                         </Badge>
                       </div>
                     </div>
