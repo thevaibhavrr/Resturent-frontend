@@ -448,11 +448,16 @@ export function Settings() {
 
 // Export function to get restaurant settings (with API fallback to localStorage)
 export async function getRestaurantSettings(restaurantId: string): Promise<RestaurantSettings> {
+  console.log("getRestaurantSettings: Called with restaurantId:", restaurantId);
   try {
     const { makeApi } = await import("../../api/makeapi");
+    console.log("getRestaurantSettings: Making API call to:", `/api/settings/${restaurantId}`);
     const response = await makeApi(`/api/settings/${restaurantId}`, "GET");
-    if (response.data) {
-      return {
+    console.log("getRestaurantSettings: API response:", response);
+    console.log("getRestaurantSettings: Response data:", response?.data);
+
+    if (response && response.data) {
+      const settings = {
         name: response.data.name || "",
         address: response.data.address || "",
         phone: response.data.phone || "",
@@ -463,9 +468,13 @@ export async function getRestaurantSettings(restaurantId: string): Promise<Resta
         qrCode: response.data.qrCode || "",
         description: response.data.description || "",
       };
+      console.log("getRestaurantSettings: Returning settings:", settings);
+      return settings;
+    } else {
+      console.log("getRestaurantSettings: No response data, will fallback to localStorage");
     }
   } catch (error) {
-    console.error("Error fetching settings from API, falling back to localStorage:", error);
+    console.error("getRestaurantSettings: Error fetching settings from API, falling back to localStorage:", error);
   }
   
   // Fallback to localStorage

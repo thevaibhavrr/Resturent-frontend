@@ -754,6 +754,7 @@ interface PrintBillProps {
   cgst: number;
   sgst: number;
   grandTotal: number;
+  restaurantId?: string; // Add restaurantId prop
   onBack: () => void;
   autoPrint?: boolean; // New prop for automatic printing
   redirectAfterPrint?: boolean; // New prop for automatic redirect after print
@@ -778,6 +779,7 @@ export function PrintBill({
   cgst,
   sgst,
   grandTotal,
+  restaurantId,
   onBack,
   autoPrint = false, // Default to false
   redirectAfterPrint = false, // Default to false
@@ -795,7 +797,7 @@ export function PrintBill({
   const user = getCurrentUser();
   const [isLoading, setIsLoading] = useState(true);
   const [restaurantSettings, setRestaurantSettings] = useState({
-    name: "Restaurant Name",
+    name: "Loading...",
     address: "",
     phone: "",
     gstin: "",
@@ -817,22 +819,44 @@ export function PrintBill({
 
   useEffect(() => {
     const loadSettings = async () => {
-      if (!user?.restaurantId) {
+      // Use restaurantId from props if available, otherwise from user
+      const restaurantIdToUse = restaurantId || user?.restaurantId;
+
+    console.log("PrintBill: Loading settings for restaurantId:", restaurantIdToUse);
+    console.log("PrintBill: Props restaurantId:", restaurantId);
+    console.log("PrintBill: User restaurantId:", user?.restaurantId);
+    console.log("PrintBill: User object:", user);
+
+      if (!restaurantIdToUse) {
+        console.log("PrintBill: No restaurantId found, using defaults");
         setIsLoading(false);
         return;
       }
 
       try {
         setIsLoading(true);
-        const settings = await getRestaurantSettings(user.restaurantId);
+        console.log("PrintBill: Calling getRestaurantSettings for:", restaurantIdToUse);
+        console.log("PrintBill: Full API URL would be:", `/api/settings/${restaurantIdToUse}`);
+        const settings = await getRestaurantSettings(restaurantIdToUse);
+        console.log("PrintBill: Loaded settings:", settings);
+        console.log("PrintBill: Settings keys:", Object.keys(settings || {}));
+        console.log("PrintBill: Restaurant name from settings:", settings?.name);
         setRestaurantSettings(settings);
+        console.log("PrintBill: Restaurant settings state updated");
+        console.log("PrintBill: New restaurantSettings:", settings);
 
         // Clear any existing settings from localStorage when printing
         if (typeof window !== "undefined") {
           localStorage.removeItem("restaurantSettings");
         }
-      } catch (error) {
-        console.error("Error loading restaurant settings:", error);
+      } catch (error: any) {
+        console.error("PrintBill: Error loading restaurant settings:", error);
+        console.error("PrintBill: Error details:", {
+          message: error?.message,
+          response: error?.response,
+          status: error?.response?.status,
+          data: error?.response?.data
+        });
         // Use existing/default settings if API fails
       } finally {
         setIsLoading(false);
@@ -840,7 +864,7 @@ export function PrintBill({
     };
 
     loadSettings();
-  }, [user]);
+  }, [restaurantId, user?.restaurantId]); // Prioritize restaurantId prop over user
 
   // Auto print effect
   useEffect(() => {

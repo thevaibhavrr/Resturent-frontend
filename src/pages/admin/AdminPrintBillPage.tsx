@@ -7,7 +7,10 @@ export default function AdminPrintBillPage() {
   const navigate = useNavigate();
   
   const printData = location.state;
-  
+
+  console.log("AdminPrintBillPage: printData:", printData);
+  console.log("AdminPrintBillPage: restaurantId:", printData?.restaurantId);
+
   if (!printData) {
     toast.error("No print data found");
     navigate("/admin/order-tables");
@@ -29,6 +32,7 @@ export default function AdminPrintBillPage() {
       cgst={printData.cgst}
       sgst={printData.sgst}
       grandTotal={printData.grandTotal}
+      restaurantId={printData.restaurantId}
       onBack={handleBack}
       autoPrint={printData.autoPrint || false}
       redirectAfterPrint={printData.redirectAfterPrint || false}

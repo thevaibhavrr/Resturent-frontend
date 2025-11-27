@@ -1408,6 +1408,7 @@ export function BillPage({
         cgst: 0,
         sgst: 0,
         grandTotal: total,
+        restaurantId: user?.restaurantId, // Add restaurantId for settings loading
         autoPrint: true, // Add autoPrint flag
         redirectAfterPrint: true // Add redirect flag
       };
@@ -1467,6 +1468,7 @@ export function BillPage({
         cgst: 0,
         sgst: 0,
         grandTotal: total,
+        restaurantId: user?.restaurantId, // Add restaurantId for settings loading
         autoPrint: true, // Add autoPrint flag
         redirectAfterPrint: true // Add redirect flag
       };

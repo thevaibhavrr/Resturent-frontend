@@ -27,6 +27,7 @@ export default function PrintBillPage() {
       cgst={printData.cgst || 0}
       sgst={printData.sgst || 0}
       grandTotal={printData.grandTotal}
+      restaurantId={printData.restaurantId}
       onBack={handleBack}
       autoPrint={printData.autoPrint || false}
       redirectAfterPrint={printData.redirectAfterPrint || false}
