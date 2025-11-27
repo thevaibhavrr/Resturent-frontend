@@ -794,28 +794,16 @@ export function PrintBill({
 
   const user = getCurrentUser();
   const [isLoading, setIsLoading] = useState(true);
-  const [restaurantSettings, setRestaurantSettings] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("restaurantSettings");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          // Fallback to defaults if JSON parse fails
-        }
-      }
-    }
-    return {
-      name: "Restaurant Name",
-      address: "",
-      phone: "",
-      gstin: "",
-      logo: "",
-      qrCode: "",
-      email: "",
-      website: "",
-      description: "",
-    };
+  const [restaurantSettings, setRestaurantSettings] = useState({
+    name: "Restaurant Name",
+    address: "",
+    phone: "",
+    gstin: "",
+    logo: "",
+    qrCode: "",
+    email: "",
+    website: "",
+    description: "",
   });
   const [printAttempted, setPrintAttempted] = useState(false);
   const [showPrintAgain, setShowPrintAgain] = useState(false);
@@ -839,8 +827,9 @@ export function PrintBill({
         const settings = await getRestaurantSettings(user.restaurantId);
         setRestaurantSettings(settings);
 
+        // Clear any existing settings from localStorage when printing
         if (typeof window !== "undefined") {
-          localStorage.setItem("restaurantSettings", JSON.stringify(settings));
+          localStorage.removeItem("restaurantSettings");
         }
       } catch (error) {
         console.error("Error loading restaurant settings:", error);

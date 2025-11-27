@@ -231,8 +231,14 @@ function AppContent() {
   };
 
   const handleSaveAndPrint = (data: any) => {
-    setPrintData(data);
+    // Navigate to home page after save and print
+    if (currentUser?.role === "admin") {
+      navigate("/admin");
+    } else {
+      navigate("/");
+    }
     setBillData(null);
+    setTableUpdates((prev) => prev + 1);
   };
 
   const handleBackFromPrint = () => {

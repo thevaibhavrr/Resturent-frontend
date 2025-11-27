@@ -1130,16 +1130,16 @@ export function BillPage({
 
   // Clear draft function
   const clearDraft = async (): Promise<boolean> => {
-    if (!user?.restaurantId || !user?.username) {
+    if (!user?.restaurantId || !user?.username || !user?.id) {
       console.log("No user info available for draft clearing");
       return true; // Return true to continue even if no user info
     }
 
     try {
       console.log("Starting draft clearing process...");
-      
-      // First attempt: clear the draft
-      await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
+
+      // First attempt: clear the draft (user-specific)
+      await clearTableDraft(tableId.toString(), user.restaurantId, user.username, user.id);
       console.log("clearTableDraft called successfully");
 
       // Wait for server to process

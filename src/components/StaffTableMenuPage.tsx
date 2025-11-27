@@ -112,6 +112,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const [selectedIsJain, setSelectedIsJain] = useState<Record<string, boolean>>({}); // per-menu-item
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const menuEndRef = useRef<HTMLDivElement>(null);
   const cartSectionRef = useRef<HTMLDivElement>(null);
 
@@ -215,6 +216,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     if (!user?.restaurantId) {
       setError("No restaurant ID found");
       setLoading(false);
+      setInitialLoadComplete(true);
       return;
     }
 
@@ -229,9 +231,10 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         // Use cached data immediately for faster loading
         setCategories(cachedData.categories);
         setMenuItems(cachedData.menuItems);
-        
-        // Still load table draft in parallel
-        const draftData = await getTableDraft(tableId.toString(), user.restaurantId);
+
+        // Still load table draft in parallel (user-specific)
+        const draftData = await getTableDraft(tableId.toString(), user.restaurantId, user.username);
+        console.log("Loaded draft data (cached path):", draftData);
         
         // Load existing draft if available
         if (draftData) {
@@ -291,8 +294,9 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           
           toast.success("Table draft loaded successfully");
         }
-        
+
         setLoading(false);
+        setInitialLoadComplete(true);
         
         // Check if cache is close to expiration (within 30 seconds)
         const cacheKey = `menuCache_${user.restaurantId}`;
@@ -322,7 +326,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       const [categoriesData, menuItemsData, draftData] = await Promise.all([
         getCategories(user.restaurantId),
         getMenuItems(user.restaurantId),
-        getTableDraft(tableId.toString(), user.restaurantId)
+        getTableDraft(tableId.toString(), user.restaurantId, user.username)
       ]);
 
       setCategories(categoriesData);
@@ -386,9 +390,11 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         
         setCart(restoredCart);
         setItemQuantities(restoredQuantities);
-        
+
         toast.success("Table draft loaded successfully");
       }
+
+      setInitialLoadComplete(true);
     } catch (err) {
       console.error("Error loading menu data:", err);
       setError("Failed to load menu data");
@@ -455,16 +461,31 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     setSelectedIsJain(prev => ({ ...prev, ...restoredJain }));
   }, [cart.length]); // Only when cart items count changes
 
-  // Auto-save when cart or persons change
+  // Auto-save when cart or persons change (only after initial load is complete)
   useEffect(() => {
-    if (user?.restaurantId && user?.username) {
+    console.log("Auto-save useEffect triggered:", {
+      cartLength: cart.length,
+      persons,
+      initialLoadComplete,
+      restaurantId: user?.restaurantId,
+      username: user?.username
+    });
+
+    if (user?.restaurantId && user?.username && initialLoadComplete) {
+      console.log("Setting up auto-save timeout");
       const timeoutId = setTimeout(() => {
+        console.log("Auto-save timeout triggered, calling autoSaveDraft");
         autoSaveDraft(cart, persons);
       }, 100); // Debounce for 1 second
 
-      return () => clearTimeout(timeoutId);
+      return () => {
+        console.log("Clearing auto-save timeout");
+        clearTimeout(timeoutId);
+      };
+    } else {
+      console.log("Auto-save conditions not met, skipping");
     }
-  }, [cart, persons, user?.restaurantId, user?.username]);
+  }, [cart, persons, user?.restaurantId, user?.username, initialLoadComplete]);
 
   // Filter menu items based on search and category
   const filteredItems = menuItems.filter(item => {
@@ -532,7 +553,18 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
   // Auto-save draft function
   const autoSaveDraft = async (cartItems: CartItem[], personsCount: number) => {
-    if (!user?.restaurantId || !user?.username || !user?.id) return;
+    console.log("autoSaveDraft called with:", {
+      cartItemsCount: cartItems.length,
+      personsCount,
+      restaurantId: user?.restaurantId,
+      username: user?.username,
+      userId: user?.id
+    });
+
+    if (!user?.restaurantId || !user?.username || !user?.id) {
+      console.log("autoSaveDraft: Missing required user data, skipping");
+      return;
+    }
     
     try {
       setSaving(true);
@@ -771,10 +803,10 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
   // Clear draft
   const handleClearDraft = async () => {
-    if (!user?.restaurantId || !user?.username) return;
-    
+    if (!user?.restaurantId || !user?.username || !user?.id) return;
+
     try {
-      await clearTableDraft(tableId.toString(), user.restaurantId, user.username);
+      await clearTableDraft(tableId.toString(), user.restaurantId, user.username, user.id);
       setCart([]);
       setPersons(1);
       setItemQuantities({});

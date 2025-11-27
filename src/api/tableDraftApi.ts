@@ -46,8 +46,15 @@ export const saveTableDraft = async (draftData: Partial<TableDraft> & { userId: 
   return response.data;
 };
 
-export const getTableDraft = async (tableId: string, restaurantId: string) => {
-  const response = await makeApi(`/api/table-draft/get?tableId=${tableId}&restaurantId=${restaurantId}`, 'GET', undefined);
+export const getTableDraft = async (tableId: string, restaurantId: string, userId?: string) => {
+  const params = new URLSearchParams({
+    tableId,
+    restaurantId
+  });
+  if (userId) {
+    params.append('userId', userId);
+  }
+  const response = await makeApi(`/api/table-draft/get?${params.toString()}`, 'GET', undefined);
   return response.data;
 };
 
@@ -61,7 +68,11 @@ export const deleteTableDraft = async (tableId: string, restaurantId: string) =>
   return response.data;
 };
 
-export const clearTableDraft = async (tableId: string, restaurantId: string, updatedBy: string) => {
-  const response = await makeApi('/api/table-draft/clear', 'POST', { tableId, restaurantId, updatedBy });
+export const clearTableDraft = async (tableId: string, restaurantId: string, updatedBy: string, userId?: string) => {
+  const requestData: any = { tableId, restaurantId, updatedBy };
+  if (userId) {
+    requestData.userId = userId;
+  }
+  const response = await makeApi('/api/table-draft/clear', 'POST', requestData);
   return response.data;
 };
