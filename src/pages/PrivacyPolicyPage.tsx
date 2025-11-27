@@ -21,10 +21,28 @@ const PrivacyPolicyPage = () => {
           <section>
             <h2 className="text-xl font-semibold mb-2">Introduction</h2>
             <p className="text-gray-700">
-              VR Billing ("the App") is developed and provided by 
-              <strong> Vaibhav / Belivmart </strong> ("Developer").  
-              This Privacy Policy explains how we collect, use, store, and protect user data 
-              when you use our application.
+              VR Billing (“the App”) is developed and maintained by 
+              <strong> Vaibhav / Belivmart </strong> (“Developer”).  
+              This Privacy Policy explains how your information is collected, used, and protected when using our mobile applications.
+            </p>
+          </section>
+
+          {/* NEW SECTION — Apps Covered */}
+          <section>
+            <h2 className="text-xl font-semibold mb-2">Apps Covered by This Policy</h2>
+            <p className="text-gray-700">
+              This privacy policy applies to all mobile applications developed by 
+              <strong> Belivmart </strong>, including but not limited to:
+            </p>
+
+            <ul className="list-disc pl-6 mt-2 space-y-2 text-gray-700">
+              <li>
+                <strong>VR Billing (Restaurant Billing App)</strong> – <em>com.restaurant.billing</em>
+              </li>
+            </ul>
+
+            <p className="text-gray-700 mt-2">
+              By using any of the applications listed above, you agree to the data practices described in this Privacy Policy.
             </p>
           </section>
 
@@ -52,8 +70,8 @@ const PrivacyPolicyPage = () => {
             <ul className="list-disc pl-6 mt-2 space-y-2 text-gray-700">
               <li>Generate bills and manage restaurant tables</li>
               <li>Provide customer support</li>
-              <li>Improve app performance and features</li>
-              <li>Send important app-related notifications</li>
+              <li>Improve app performance and add new features</li>
+              <li>Send important app notifications</li>
             </ul>
           </section>
 
@@ -61,14 +79,14 @@ const PrivacyPolicyPage = () => {
             <h2 className="text-xl font-semibold mb-2">3. Data Security</h2>
             <p className="text-gray-700">
               We use industry-standard security measures to protect your data from unauthorized
-              access, alteration, or disclosure. All sensitive information is encrypted.
+              access, alteration, or disclosure. Sensitive data is encrypted and stored securely.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold mb-2">4. Third-Party Services</h2>
             <p className="text-gray-700">
-              We may use trusted third-party services for analytics or performance improvement.
+              We may use trusted third-party services for analytics, hosting, or performance improvement.
               These services follow their own privacy policies and comply with applicable laws.
             </p>
           </section>
@@ -76,16 +94,16 @@ const PrivacyPolicyPage = () => {
           <section>
             <h2 className="text-xl font-semibold mb-2">5. Your Rights</h2>
             <p className="text-gray-700">
-              You have the right to access, update, or delete your personal data. You may contact us
-              anytime to request data removal or account deletion.
+              You have the right to access, update, or delete your personal information.
+              You can also request data export or withdrawal of consent.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold mb-2">6. Changes to This Policy</h2>
             <p className="text-gray-700">
-              We may update this Privacy Policy periodically. Any updates will be posted on this
-              page, and the "Last updated" date will be changed accordingly.
+              We may update this Privacy Policy from time to time. All changes will be posted on this page,
+              and the “Last updated” date will be modified accordingly.
             </p>
           </section>
 

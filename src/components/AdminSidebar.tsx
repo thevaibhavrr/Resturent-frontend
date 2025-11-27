@@ -210,7 +210,7 @@ export function AdminSidebar({
               <UtensilsCrossed className="w-5 h-5" />
             </div>
             <div className="flex-1">
-              <h2 className="font-semibold">{user?.restaurantName}</h2>
+              <h2 className="font-semibold">VR Billing</h2>
               <p className="text-xs text-muted-foreground">Admin Panel</p>
             </div>
           </div>
