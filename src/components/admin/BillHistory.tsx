@@ -26,6 +26,7 @@ import {
 import { Loader } from "../ui/loader";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
 import { toast } from "sonner";
+import { getBills, deleteBill } from "../../api/billApi";
 import { useNavigate } from "react-router-dom";
 
 interface BillHistoryItem {
@@ -69,8 +70,7 @@ export function BillHistory() {
     setLoading(true);
     try {
       // Load from API
-      const { getBills } = await import("../../api/billApi");
-      
+
       // For staff, default to today's date filter
       const isStaff = user.role === "staff";
       const currentDateFilter = dateFilter || (isStaff ? "today" : "all");
@@ -151,7 +151,6 @@ export function BillHistory() {
       const bill = history.find(b => b.billNumber === billNumber);
       if (bill && bill._id) {
         // Delete from API
-        const { deleteBill } = await import("../../api/billApi");
         await deleteBill(bill._id);
         
         // Update local state

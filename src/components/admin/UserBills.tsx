@@ -18,6 +18,9 @@ import {
   Users,
   ShoppingCart,
   DollarSign,
+} from "lucide-react";
+import { getBills } from "../../api/billApi";
+import {
   Calendar as CalendarIcon,
 } from "lucide-react";
 import { Loader } from "../ui/loader";
@@ -100,7 +103,6 @@ export function UserBills() {
       try {
         // In a real app, you would fetch bills from your API
         // For now, we'll use a mock implementation
-        const { getBills } = await import("../../api/billApi");
         const response = await getBills({ 
           // @ts-ignore - The API might not have proper types yet
           restaurantId: user.restaurantId,

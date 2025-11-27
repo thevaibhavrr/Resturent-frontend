@@ -20,6 +20,7 @@
 // import { toast } from "sonner";
 // import { getMenuItems, getCategories } from "../api/menuApi";
 // import { clearTableDraft, getTableDraft, deleteTableDraft } from "../api/tableDraftApi";
+import { createBill, updateBill } from "../api/billApi";
 
 // interface MenuItem {
 //   _id: string;
@@ -1246,7 +1247,6 @@ export function BillPage({
           grandTotal: total
         });
 
-        const { updateBill } = await import("../api/billApi");
         const updatedBill = await updateBill(originalBillId, billData);
 
         console.log("✅ Bill updated in database successfully:", updatedBill);
@@ -1280,7 +1280,6 @@ export function BillPage({
           grandTotal: total
         });
 
-        const { createBill } = await import("../api/billApi");
         const savedBill = await createBill({
           ...billData,
           billNumber

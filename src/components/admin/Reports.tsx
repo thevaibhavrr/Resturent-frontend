@@ -19,6 +19,8 @@ import {
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
 import { Button } from "../ui/button";
 import { toast } from "sonner";
+import { getBills } from "../../api/billApi";
+import { getMenuItems } from "../../api/menuApi";
 
 interface BillHistoryItem {
   billNumber: string;
@@ -104,7 +106,6 @@ export function Reports() {
       }
 
       // Load bills from API
-      const { getBills } = await import("../../api/billApi");
       const response = await getBills({ 
         limit: 10000,
         startDate: startDate,
@@ -336,9 +337,6 @@ export function Reports() {
           break;
       }
 
-      const { getBills } = await import("../../api/billApi");
-      const { getMenuItems } = await import("../../api/menuApi");
-      
       const [billsResponse, menuItems] = await Promise.all([
         getBills({ limit: 10000, startDate, endDate }),
         getMenuItems(user.restaurantId)

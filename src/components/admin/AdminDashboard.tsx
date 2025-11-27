@@ -24,6 +24,7 @@ import {
 import { Loader } from "../ui/loader";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
 import { getRestaurantSubscription, Subscription } from "../../api/planApi";
+import { getBillStats } from "../../api/billApi";
 import { toast } from "sonner";
 
 // Utility function for class names
@@ -103,8 +104,7 @@ export function AdminDashboard() {
             break;
         }
       }
-      
-      const { getBillStats } = await import("../../api/billApi");
+
       const billStats = await getBillStats({ startDate, endDate });
 
       setStats({
