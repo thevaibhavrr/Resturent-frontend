@@ -137,8 +137,8 @@ function AppContent() {
     if (user) {
       setIsLoggedIn(true);
       setCurrentUser(user);
-      // Check subscription status only for admin users
-      if (user.restaurantId && user.role === "admin") {
+      // Check subscription status for all users (admin and staff)
+      if (user.restaurantId) {
         checkSubscription(user.restaurantId);
       }
     }
@@ -193,8 +193,8 @@ function AppContent() {
     setCurrentUser(user);
     setIsLoggedIn(true);
     
-    // Check subscription status after login (only for admin)
-    if (user && user.restaurantId && user.role === "admin") {
+    // Check subscription status after login for all users (admin and staff)
+    if (user && user.restaurantId) {
       checkSubscription(user.restaurantId);
     }
   };
@@ -394,7 +394,16 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-background">
       <Toaster />
-      {/* Subscription alert and modal only shown to admin, not staff */}
+      <SubscriptionAlert />
+      {/* Show subscription expired modal */}
+      {subscriptionExpired && subscriptionData && (
+        <SubscriptionExpiredModal
+          restaurantName={subscriptionData.restaurantName}
+          planName={subscriptionData.planName}
+          endDate={subscriptionData.endDate}
+          daysRemaining={subscriptionData.daysRemaining}
+        />
+      )}
       {/* Show header only on /order-tables page for staff */}
       {showHeader && (
         <div className="lg:hidden">

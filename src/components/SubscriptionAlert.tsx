@@ -15,11 +15,6 @@ export function SubscriptionAlert({ onExpired }: SubscriptionAlertProps) {
   const [dismissed, setDismissed] = useState(false);
   const user = getCurrentUser();
 
-  // Don't show subscription alert to staff users
-  if (user?.role === "staff") {
-    return null;
-  }
-
   useEffect(() => {
     loadSubscriptionStatus();
     // Check every 5 minutes
