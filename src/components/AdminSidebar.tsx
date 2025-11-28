@@ -141,21 +141,21 @@ export function AdminSidebar({
       label: "Reports",
       icon: FileText,
     },
-    {
-      id: "add-expense",
-      label: "Add Expense",
-      icon: DollarSign,
-    },
+    // {
+    //   id: "add-expense",
+    //   label: "Add Expense",
+    //   icon: DollarSign,
+    // },
     {
       id: "settings",
       label: "Settings",
       icon: Settings,
     },
-    {
-      id: "bluetooth-printer",
-      label: "Bluetooth Printer",
-      icon: Printer,
-    },
+    // {
+    //   id: "bluetooth-printer",
+    //   label: "Bluetooth Printer",
+    //   icon: Printer,
+    // },
   ];
 
   // Map sidebar item id to route path
