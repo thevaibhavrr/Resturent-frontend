@@ -231,7 +231,6 @@
 //   );
 // }
 
-
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { ArrowLeft, CheckCircle2, Printer } from "lucide-react";
@@ -270,6 +269,7 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
     month: "2-digit",
     year: "numeric",
   });
+
   const currentTime = new Date().toLocaleTimeString("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -277,8 +277,6 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
 
   const [printAttempted, setPrintAttempted] = useState(false);
   const [showPrintAgain, setShowPrintAgain] = useState(false);
-
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const handlePrint = async () => {
     setPrintAttempted(true);
@@ -290,9 +288,9 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
         return;
       }
 
-      // Bigger, cleaner bill capture
+      // High quality and bigger image
       const canvas = await html2canvas(billElement, {
-        scale: 1.9, // High quality print
+        scale: 1.9,
       });
 
       const imgData = canvas.toDataURL("image/png", 1.0);
@@ -305,7 +303,8 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
             imageBase64: imgData.replace("data:image/png;base64,", ""),
           })
         );
-        toast.success("Print request sent to Flutter!");
+
+        toast.success("Print request sent to device!");
       } else {
         const printWindow = window.open();
         if (printWindow) {
@@ -315,7 +314,7 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
                 <title>Draft Bill</title>
                 <style>
                   @page { size: 58mm auto; margin: 0; }
-                  body { margin: 0; padding: 0; }
+                  body { margin: 0; padding: 0; text-align:center; }
                   img { width: 100%; height: auto; display: block; }
                 </style>
               </head>
@@ -330,25 +329,23 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
             printWindow.close();
           }, 250);
         }
-        toast.success("Print dialog opened. Please confirm to print.");
       }
 
       setTimeout(() => setShowPrintAgain(true), 1000);
     } catch (error) {
-      console.error("Error generating image:", error);
-      toast.error("Failed to generate draft bill image");
+      console.error(error);
+      toast.error("Failed to generate bill");
     }
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      handlePrint();
-    }, 300);
+    const timer = setTimeout(() => handlePrint(), 300);
     return () => clearTimeout(timer);
   }, []);
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Header */}
       <div className="print:hidden p-4 border-b bg-card">
         <div className="flex items-center justify-between gap-4">
           <Button variant="outline" onClick={onBack} className="gap-2">
@@ -361,44 +358,33 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CheckCircle2 className="w-4 h-4 text-green-600" />
                 <span>
-                  {window.MOBILE_CHANNEL ? "Print sent to device" : "Draft bill generated"}
+                  {window.MOBILE_CHANNEL ? "Print sent to device" : "Draft generated"}
                 </span>
               </div>
             )}
 
-            <Button
-              variant="default"
-              onClick={handlePrint}
-              className="gap-2 bg-primary hover:bg-primary/90"
-            >
+            <Button variant="default" onClick={handlePrint} className="gap-2 bg-primary">
               <Printer className="w-4 h-4" />
               {showPrintAgain ? "Print Again" : "Print"}
             </Button>
           </div>
         </div>
-
-        {showPrintAgain && (
-          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <strong>Note:</strong> If bill didn't print, click "Print Again".
-            </p>
-          </div>
-        )}
       </div>
 
-      <div className="flex items-center justify-center min-h-screen p-2 print:p-0 print:block">
-
-        {/* ⭐ Updated Bigger Bill Content ⭐ */}
+      {/* Bill Content */}
+      <div className="flex items-center justify-center min-h-screen p-2">
         <div
-          className="w-full max-w-[300px] bg-white text-black p-3 print:p-0"
           id="draft-bill-content"
+          className="bg-white text-black p-3 w-[300px] mx-auto"
         >
-          <div className="text-center border-b border-black pb-1 mb-1">
-            <h1 className="text-base font-bold uppercase">Draft Bill</h1>
-            <p className="text-xs">Table: {tableName} • Persons: {persons}</p>
-            <p className="text-xs">{currentDate} {currentTime}</p>
+          {/* Header Title */}
+          <div className="text-center border-b border-black pb-2 mb-2">
+            <h1 className="text-lg font-bold uppercase">Draft Bill</h1>
+            <p className="text-sm">Table: {tableName} • Persons: {persons}</p>
+            <p className="text-sm">{currentDate} {currentTime}</p>
           </div>
 
+          {/* Item Table */}
           <div className="border-b border-dashed border-black pb-1 mb-1">
             <table className="w-full text-sm">
               <thead>
@@ -416,22 +402,18 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
                     </td>
 
                     <td className="py-1">
-                      <div>
-                        <span className="font-medium">{item.name}</span>
+                      <div className="font-medium">{item.name}</div>
 
-                        {item.spicePercent > 0 && (
-                          <span className="ml-1 text-xs text-red-600 font-medium">
-                            🌶️ {Math.round(item.spicePercent)}%
-                          </span>
-                        )}
+                      {typeof item.spicePercent === "number" && item.spicePercent > 0 && (
+                        <span className="text-xs text-red-600 ml-1">🌶️ {Math.round(item.spicePercent)}%</span>
+                      )}
 
-                        {item.isJain && (
-                          <span className="ml-1 text-xs text-green-700 font-medium">[Jain]</span>
-                        )}
-                      </div>
+                      {item.isJain && (
+                        <span className="text-xs text-green-700 ml-1">[Jain]</span>
+                      )}
 
                       {item.note && (
-                        <div className="text-xs text-gray-600 italic mt-0.5">
+                        <div className="text-xs text-gray-600 italic mt-1">
                           Note: {item.note}
                         </div>
                       )}
@@ -445,6 +427,7 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
         </div>
       </div>
 
+      {/* Print CSS */}
       <style>{`
         @media print {
           @page { size: 58mm auto; margin: 0; }
@@ -452,9 +435,6 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
           body * { visibility: hidden; }
           #draft-bill-content, #draft-bill-content * { visibility: visible; }
           #draft-bill-content { position: absolute; left: 0; top: 0; width: 58mm; padding: 2mm; }
-          .print\\:hidden { display: none !important; }
-          .print\\:p-0 { padding: 0 !important; }
-          .print\\:block { display: block !important; }
         }
       `}</style>
     </div>

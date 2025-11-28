@@ -348,7 +348,7 @@ function AppContent() {
             daysRemaining={subscriptionData.daysRemaining}
           />
         )}
-        {location.pathname !== "/admin/order-tables/print-bill" && (
+        {!["/admin/order-tables/print-bill", "/admin/order-tables/print-draft"].includes(location.pathname) && (
           <div className="lg:hidden">
             <Header onToggleMenu={() => setMenuOpen((s) => !s)} onLogout={handleLogout} />
           </div>
