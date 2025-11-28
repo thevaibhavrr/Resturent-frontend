@@ -447,7 +447,7 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
 
       <style>{`
         @media print {
-          @page { size: 60mm auto; margin: 0; }
+          @page { size: 58mm auto; margin: 0; }
           body { margin: 0; padding: 0; }
           body * { visibility: hidden; }
           #draft-bill-content, #draft-bill-content * { visibility: visible; }
