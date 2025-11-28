@@ -1180,11 +1180,11 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                                       {/* {item.lastUpdatedBy && item.lastUpdatedBy.userId !== item.addedBy.userId && (
                                         <div>Updated by: {item.lastUpdatedBy.userName}</div>
                                       )} */}
-                                      {item.lastUpdatedBy && (
+                                      {/* {item.lastUpdatedBy && (
                                         <div className="text-xxs opacity-70">
                                           {new Date(item.lastUpdatedBy.timestamp).toLocaleString()}
                                         </div>
-                                      )}
+                                      )} */}
                                     </div>
                                   </div>
                                   <p className="text-sm text-muted-foreground">₹{item.price} × {item.quantity} = ₹{(item.price * item.quantity).toFixed(2)}</p>

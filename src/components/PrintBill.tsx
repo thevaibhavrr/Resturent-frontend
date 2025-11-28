@@ -1313,9 +1313,7 @@ export function PrintBill({
                     className="w-full h-full object-contain"
                   />
                 </div>
-                <p className="text-[12px] font-semibold text-gray-700 uppercase tracking-wide">
-                  Scan and view our details
-                </p>
+             
               </div>
             </div>
           )}
