@@ -205,7 +205,9 @@ export function BillHistory() {
       originalBillNumber: bill.billNumber
     };
     
-    navigate("/order-tables/bill", { state: billData });
+    // Use the appropriate route based on user role
+    const routePrefix = user?.role === 'admin' ? '/admin' : '';
+    navigate(`${routePrefix}/order-tables/bill`, { state: billData });
   };
 
   const handlePrintBill = (bill: BillHistoryItem) => {
@@ -307,6 +309,8 @@ export function BillHistory() {
   };
 
   const filteredBills = getFilteredAndSortedBills();
+  // Find the most recent bill (first in the sorted list as it's sorted by date descending)
+  const mostRecentBill = filteredBills.length > 0 ? filteredBills[0] : null;
 
   const totalRevenue = filteredBills.reduce(
     (sum, bill) => sum + bill.grandTotal,
@@ -466,9 +470,14 @@ export function BillHistory() {
                           variant="ghost"
                           onClick={() => handleEditBill(bill)}
                           className="h-8 w-8 sm:h-9 sm:w-9"
-                          title="Edit Bill"
+                          title={user?.role === 'admin' || bill.billNumber === mostRecentBill?.billNumber 
+                            ? 'Edit Bill' 
+                            : 'Only the most recent bill can be edited'}
+                          disabled={user?.role !== 'admin' && bill.billNumber !== mostRecentBill?.billNumber}
                         >
-                          <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          <Edit className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
+                            user?.role !== 'admin' && bill.billNumber !== mostRecentBill?.billNumber ? 'opacity-30' : ''
+                          }`} />
                         </Button>
                         <Button
                           size="icon"
@@ -479,15 +488,17 @@ export function BillHistory() {
                         >
                           <Printer className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleDeleteBill(bill.billNumber)}
-                          className="h-8 w-8 sm:h-9 sm:w-9 text-destructive hover:text-destructive/90"
-                          title="Delete Bill"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        </Button>
+                        {user?.role === 'admin' && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleDeleteBill(bill.billNumber)}
+                            className="h-8 w-8 sm:h-9 sm:w-9 text-destructive hover:text-destructive/90"
+                            title="Delete Bill"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
