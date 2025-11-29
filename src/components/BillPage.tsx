@@ -560,7 +560,7 @@ export function BillPage({
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card shadow-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4" style={{ marginTop: '100px' }}>
+        <div className="container mx-auto px-4 py-4" style={{ marginTop: '30px' }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" onClick={onBack}>
@@ -590,7 +590,7 @@ export function BillPage({
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-2 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Bill Items */}
           <div className="lg:col-span-2">
@@ -620,7 +620,7 @@ export function BillPage({
                       const itemFinalAmount = itemTotal - itemDiscount;
 
                       return (
-                        <div key={item.id} className="p-3 border rounded-lg space-y-2">
+                        <div key={item.id} className="p-2 border rounded-lg space-y-2">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <h3 className="font-medium">{item.name}</h3>
@@ -722,6 +722,14 @@ export function BillPage({
             {showAddItems && (
               <Card className="p-6 mt-6">
                 <h3 className="text-lg font-semibold mb-4">Add More Items</h3>
+                 <Button
+                  variant="outline"
+                  onClick={() => setShowAddItems(!showAddItems)}
+                  className="w-50"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {showAddItems ? "Hide Menu" : "Add Items"}
+                </Button>
 
                 {/* Search and Category Filter */}
                 <div className="flex gap-4 mb-4">
@@ -749,11 +757,11 @@ export function BillPage({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {filteredItems.map((item) => (
                     <div key={item._id} className="flex items-center gap-3 p-3 border rounded-lg">
-                      <img
+                      {/* <img
                         src={item.image}
                         alt={item.name}
                         className="w-12 h-12 rounded-lg object-cover"
-                      />
+                      /> */}
                       <div className="flex-1">
                         <h4 className="font-medium">{item.name}</h4>
                         <p className="text-sm text-muted-foreground">₹{item.price}</p>
