@@ -40,10 +40,12 @@ interface BillHistoryItem {
   discountAmount?: number; // Total discount on bill
   additionalCharges?: Array<{ name: string; amount: number }>; // Additional charges
   date: string;
-  items: Array<{ 
-    id: number | string; 
-    name: string; 
-    price: number; 
+  netProfit?: number; // Net profit for this bill (price - cost)
+  items: Array<{
+    id: number | string;
+    name: string;
+    price: number;
+    cost?: number; // Cost of the item
     quantity: number;
     note?: string;
     spiceLevel?: number;
@@ -110,10 +112,12 @@ export function BillHistory() {
         discountAmount: bill.discountAmount || 0,
         additionalCharges: bill.additionalCharges || [],
         date: bill.createdAt,
+        netProfit: bill.netProfit || 0,
         items: bill.items.map((item: any) => ({
           id: item.itemId || item.id,
           name: item.name,
           price: item.price,
+          cost: item.cost || 0,
           quantity: item.quantity,
           note: item.note || '',
           spiceLevel: item.spiceLevel || 1,
@@ -463,6 +467,13 @@ export function BillHistory() {
                             )}
                           </div>
                         ) : null}
+                        {user?.role === 'admin' && bill.netProfit !== undefined && (
+                          <div className="text-[10px] sm:text-xs mt-0.5">
+                            <p className={`font-medium ${bill.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              Profit: ₹{bill.netProfit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-1 sm:gap-2 ml-2">
                         <Button

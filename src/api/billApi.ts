@@ -36,6 +36,15 @@ export interface BillStats {
   totalDiscount: number;
 }
 
+export interface NetProfitStats {
+  totalNetProfit: number;
+  totalRevenue: number;
+  totalCost: number;
+  totalOrders: number;
+  averageNetProfit: number;
+  totalItems: number;
+}
+
 export interface CreateBillData {
   billNumber: string;
   tableId: string;
@@ -111,6 +120,22 @@ export const getBillStats = async (params?: {
   if (params?.endDate) queryParams.append('endDate', params.endDate);
 
   const url = `/api/bills/stats${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  const response = await makeApi(url, 'GET');
+  return response.data;
+};
+
+/**
+ * Get net profit statistics
+ */
+export const getNetProfitStats = async (params?: {
+  startDate?: string;
+  endDate?: string;
+}): Promise<NetProfitStats> => {
+  const queryParams = new URLSearchParams();
+  if (params?.startDate) queryParams.append('startDate', params.startDate);
+  if (params?.endDate) queryParams.append('endDate', params.endDate);
+
+  const url = `/api/bills/net-profit-stats${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
   const response = await makeApi(url, 'GET');
   return response.data;
 };

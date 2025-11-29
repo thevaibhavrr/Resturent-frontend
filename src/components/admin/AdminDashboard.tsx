@@ -20,11 +20,12 @@ import {
   RefreshCw,
   AlertCircle,
   CalendarIcon,
+  TrendingUp,
 } from "lucide-react";
 import { Loader } from "../ui/loader";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
 import { getRestaurantSubscription, Subscription } from "../../api/planApi";
-import { getBillStats } from "../../api/billApi";
+import { getBillStats, getNetProfitStats, NetProfitStats } from "../../api/billApi";
 import { toast } from "sonner";
 
 // Utility function for class names
@@ -39,6 +40,14 @@ export function AdminDashboard() {
     totalOrders: 0,
     totalRevenue: 0,
     totalDiscount: 0,
+  });
+  const [netProfitStats, setNetProfitStats] = useState<NetProfitStats>({
+    totalNetProfit: 0,
+    totalRevenue: 0,
+    totalCost: 0,
+    totalOrders: 0,
+    averageNetProfit: 0,
+    totalItems: 0,
   });
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loadingSubscription, setLoadingSubscription] = useState(true);
@@ -105,13 +114,21 @@ export function AdminDashboard() {
         }
       }
 
-      const billStats = await getBillStats({ startDate, endDate });
+      const [billStats, netProfitData] = await Promise.all([
+        getBillStats({ startDate, endDate }),
+        getNetProfitStats({ startDate, endDate }).catch(error => {
+          console.warn('Failed to load net profit stats:', error);
+          return netProfitStats; // Return current state as fallback
+        })
+      ]);
 
       setStats({
         totalOrders: billStats.totalOrders,
         totalRevenue: billStats.totalRevenue,
         totalDiscount: billStats.totalDiscount || 0,
       });
+
+      setNetProfitStats(netProfitData);
     } catch (error) {
       console.error("Error loading stats:", error);
       const historyKey = getRestaurantKey("billHistory", user.restaurantId);
@@ -454,7 +471,7 @@ export function AdminDashboard() {
       )}
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -502,6 +519,23 @@ export function AdminDashboard() {
                 <path d="M12 17v5"></path>
                 <path d="M8 22h8"></path>
               </svg>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Total Net Profit</p>
+              <h3 className="text-2xl font-bold">
+                {loadingStats ? (
+                  <Loader className="h-6 w-6" />
+                ) : (
+                  `₹${netProfitStats.totalNetProfit.toLocaleString('en-IN')}`
+                )}
+              </h3>
+            </div>
+            <div className="rounded-full bg-green-100 p-3">
+              <TrendingUp className="h-6 w-6 text-green-600" />
             </div>
           </div>
         </Card>
