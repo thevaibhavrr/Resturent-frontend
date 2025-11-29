@@ -45,6 +45,7 @@ export function MenuManagement() {
     name: "",
     description: "",
     price: "",
+    cost: "",
     categoryId: "",
     category: "",
     isVeg: true,
@@ -104,6 +105,7 @@ export function MenuManagement() {
       name: "",
       description: "",
       price: "",
+      cost: "",
       categoryId: firstCategory?._id || "",
       category: firstCategory?.name || "",
       isVeg: true,
@@ -152,6 +154,7 @@ export function MenuManagement() {
       name: item.name || "",
       description: item.description || "",
       price: item.price?.toString() || "",
+      cost: item.cost?.toString() || "",
       categoryId: categoryId,
       category: category,
       isVeg: item.isVeg ?? true,
@@ -235,7 +238,7 @@ export function MenuManagement() {
   const handleSave = async () => {
     if (!user?.restaurantId) return;
 
-    if (!formData.name.trim() || !formData.price || !formData.category) {
+    if (!formData.name.trim() || !formData.price || !formData.cost || !formData.category) {
       toast.error("Please fill all required fields");
       return;
     }
@@ -243,6 +246,12 @@ export function MenuManagement() {
     const price = parseFloat(formData.price);
     if (isNaN(price) || price <= 0) {
       toast.error("Please enter a valid price");
+      return;
+    }
+
+    const cost = parseFloat(formData.cost);
+    if (isNaN(cost) || cost < 0) {
+      toast.error("Please enter a valid cost");
       return;
     }
 
@@ -297,19 +306,19 @@ export function MenuManagement() {
         // Keep existing image if URL is cleared during edit
         finalImageUrl = editingItem.image || "";
       } else if (editingItem && imageInputType === "upload" && !imageFile) {
-        // Keep existing image if no new file is uploaded during edit
+        // Keep existing image if no new file is selected during edit
         finalImageUrl = editingItem.image || "";
       }
-      // If no image is provided and not editing, finalImageUrl remains empty (which is allowed)
 
-      const itemData = {
+      const itemData: any = {
         name: formData.name.trim(),
         description: formData.description.trim(),
-        price,
+        price: parseFloat(formData.price),
+        cost: parseFloat(formData.cost),
         category: formData.category,
         restaurantId: user.restaurantId,
         isVeg: formData.isVeg,
-        preparationTime: prepTime,
+        preparationTime: parseInt(formData.preparationTime) || 15,
         image: finalImageUrl,
         spiceLevel: parseInt(formData.spiceLevel) || 0,
       };
@@ -535,13 +544,27 @@ export function MenuManagement() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="price">Price (₹) *</Label>
+                  <Label htmlFor="price">Selling Price (₹) *</Label>
                   <Input
                     id="price"
                     type="number"
                     value={formData.price}
                     onChange={(e) =>
                       setFormData({ ...formData, price: e.target.value })
+                    }
+                    placeholder="0"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cost">Cost (₹) *</Label>
+                  <Input
+                    id="cost"
+                    type="number"
+                    value={formData.cost}
+                    onChange={(e) =>
+                      setFormData({ ...formData, cost: e.target.value })
                     }
                     placeholder="0"
                     min="0"

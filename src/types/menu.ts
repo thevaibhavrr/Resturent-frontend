@@ -14,6 +14,7 @@ export interface MenuItem {
   name: string;
   description?: string;
   price: number;
+  cost: number;
   categoryId?: string | MenuCategory;
   category?: string;
   restaurantId: string;
@@ -31,6 +32,7 @@ export interface MenuItemCreateInput {
   name: string;
   description?: string;
   price: number;
+  cost: number;
   category: string;
   restaurantId: string;
   image?: string;
