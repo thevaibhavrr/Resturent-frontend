@@ -1,3 +1,5 @@
+import { BLUETOOTH_PRINTER_CONFIG } from '../config/bluetoothPrinter';
+
 // Bluetooth printer connection status
 type PrinterStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -33,10 +35,10 @@ class BluetoothPrinterService {
     try {
       this.setStatus('connecting');
       
-      // Request Bluetooth device with service UUID for thermal printers (0xFF00)
+      // Request Bluetooth device with service UUID for thermal printers
       this.device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [0xFF00] }],
-        optionalServices: ['0000ff00-0000-1000-8000-00805f9b34fb']
+        filters: [{ services: [BLUETOOTH_PRINTER_CONFIG.STANDARD_SERVICE_UUID] }],
+        optionalServices: [BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID]
       });
 
       if (!this.device.gatt) {
@@ -46,8 +48,8 @@ class BluetoothPrinterService {
       this.device.addEventListener('gattserverdisconnected', this.handleDisconnect);
       
       this.server = await this.device.gatt.connect();
-      this.service = await this.server.getPrimaryService('0000ff00-0000-1000-8000-00805f9b34fb');
-      this.characteristic = await this.service.getCharacteristic('0000ff02-0000-1000-8000-00805f9b34fb');
+      this.service = await this.server.getPrimaryService(BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID);
+      this.characteristic = await this.service.getCharacteristic(BLUETOOTH_PRINTER_CONFIG.CHARACTERISTIC_UUID);
       
       this.setStatus('connected');
       return true;

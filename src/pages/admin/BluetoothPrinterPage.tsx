@@ -337,11 +337,9 @@ import { useState, useEffect, useRef } from 'react';
 import { Bluetooth, Printer, CheckCircle, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 
 // Constants
-const PRINTER_STORAGE_KEY = 'bluetoothPrinterId';
-const PRINTER_NAME = 'MPT-II';
-const PRINTER_ID = 'I06j+tmy9c4QGoFIz9glHQ==';
-const SERVICE_UUID = '000018f0-0000-1000-8000-00805f9b34fb';
-const CHARACTERISTIC_UUID = '00002af1-0000-1000-8000-00805f9b34fb';
+import { BLUETOOTH_PRINTER_CONFIG } from '../../config/bluetoothPrinter';
+
+const { PRINTER_NAME, SERVICE_UUID, CHARACTERISTIC_UUID } = BLUETOOTH_PRINTER_CONFIG;
 
 export default function BluetoothPrinter() {
   const [isScanning, setIsScanning] = useState(false);
