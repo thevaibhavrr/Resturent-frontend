@@ -20,7 +20,9 @@ import {
   DollarSign,
   Printer,
   Bluetooth,
+  RefreshCw,
 } from "lucide-react";
+import { toast } from "sonner";
 import { getCurrentUser, logout } from "../utils/auth";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -346,6 +348,34 @@ export function AdminSidebar({
             })}
           </div>
         </ScrollArea>
+
+        {/* Hard Refresh Button */}
+        <div className="p-4 border-t">
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 text-amber-600 hover:bg-amber-50 hover:text-amber-700 mb-3"
+            onClick={() => {
+              // Save current user data
+              const token = localStorage.getItem("token");
+              const currentUser = localStorage.getItem("currentUser");
+              
+              // Clear all localStorage except token and currentUser
+              localStorage.clear();
+              
+              // Restore token and currentUser if they exist
+              if (token) localStorage.setItem("token", token);
+              if (currentUser) localStorage.setItem("currentUser", currentUser);
+              
+              // Reload the page to apply changes
+              window.location.reload();
+              
+              toast.success("All data has been refreshed successfully");
+            }}
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span className="text-sm">Hard Refresh (Reset All Data)</span>
+          </Button>
+        </div>
 
         {/* User Info & Logout */}
         <div className="p-4 border-t">

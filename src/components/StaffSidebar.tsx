@@ -4,11 +4,13 @@ import {
   LogOut,
   Menu,
   X,
+  RefreshCw,
+  History,
 } from "lucide-react";
 import { getCurrentUser, logout } from "../utils/auth";
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { History } from "lucide-react";
+import { toast } from "sonner";
 
 interface StaffSidebarProps {
   onLogout: () => void;
@@ -91,6 +93,34 @@ export function   StaffSidebar({ onLogout, menuOpen, onCloseMenu }: StaffSidebar
               Bill History
             </Button>
           </div>
+        </div>
+
+        {/* Hard Refresh Button */}
+        <div className="p-4 border-t">
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 text-amber-600 bg-amber-50/50 hover:bg-amber-100 hover:text-amber-700 mb-3"
+            onClick={() => {
+              // Save current user data
+              const token = localStorage.getItem("token");
+              const currentUser = localStorage.getItem("currentUser");
+              
+              // Clear all localStorage except token and currentUser
+              localStorage.clear();
+              
+              // Restore token and currentUser if they exist
+              if (token) localStorage.setItem("token", token);
+              if (currentUser) localStorage.setItem("currentUser", currentUser);
+              
+              // Reload the page to apply changes
+              window.location.reload();
+              
+              toast.success("All data has been refreshed successfully");
+            }}
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span className="text-sm">Hard Refresh (Reset All Data)</span>
+          </Button>
         </div>
 
         {/* Logout */}

@@ -43,7 +43,8 @@ import {
   Palette,
   TrendingUp,
 } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
+import { RefreshCw } from "lucide-react";
 
 interface MenuItem {
   id: number;
@@ -335,6 +336,28 @@ export function MainSidebar({ onUpdate, currentTheme, onThemeChange, currentPage
     toast.success("Settings saved successfully");
   };
 
+  // Hard refresh all data except token and currentUser
+  const handleHardRefresh = () => {
+    // Save current user data
+    const token = localStorage.getItem("token");
+    const currentUser = localStorage.getItem("currentUser");
+    
+    // Clear all localStorage except token and currentUser
+    localStorage.clear();
+    
+    // Restore token and currentUser if they exist
+    if (token) localStorage.setItem("token", token);
+    if (currentUser) localStorage.setItem("currentUser", currentUser);
+    
+    // Reload default data
+    loadHistory();
+    loadMenuItems();
+    loadTables();
+    loadSettings();
+    
+    toast.success("All data refreshed successfully!");
+  };
+
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -448,6 +471,21 @@ export function MainSidebar({ onUpdate, currentTheme, onThemeChange, currentPage
                   <Settings className="w-5 h-5" />
                   Settings
                 </Button>
+                <div className="border-t border-gray-200 my-2"></div>
+                <div className="space-y-1">
+                  <Button variant="ghost" className="w-full justify-start" onClick={onUpdate}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Refresh
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                    onClick={handleHardRefresh}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Hard Refresh (Reset All Data)
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
