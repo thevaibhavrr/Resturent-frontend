@@ -356,6 +356,7 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
         <div
           id="draft-bill-content"
           className="bg-white text-black p-3 w-[300px] mx-auto"
+          style={{ paddingBottom: "20px" }}
         >
           {/* Header Title */}
           <div className="text-center border-b border-black pb-2 mb-2">
