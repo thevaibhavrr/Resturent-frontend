@@ -324,7 +324,7 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       {/* Header */}
       <div className="print:hidden p-4 border-b bg-card">
         <div className="flex items-center justify-between gap-4">
@@ -352,7 +352,7 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
       </div>
 
       {/* Bill Content */}
-      <div className="flex items-center justify-center min-h-screen p-2" style={{ marginBottom: "20px" }}>
+      <div className="flex items-center justify-center p-2" style={{ marginBottom: "20px" }}>
         <div
           id="draft-bill-content"
           className="bg-white text-black p-3 w-[300px] mx-auto"
