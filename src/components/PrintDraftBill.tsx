@@ -382,7 +382,7 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
                     </td>
 
                     <td className="py-1">
-                      <div className="font-medium">{item.name}</div>
+                      <div className="font-medium">{item.name}------</div>
 
                       {typeof item.spicePercent === "number" && item.spicePercent > 0 && (
                         <span className="text-xs text-red-600 ml-1">🌶️ {Math.round(item.spicePercent)}%</span>
