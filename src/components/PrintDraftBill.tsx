@@ -352,7 +352,7 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
       </div>
 
       {/* Bill Content */}
-      <div className="flex items-center justify-center min-h-screen p-2">
+      <div className="flex items-center justify-center min-h-screen p-2" style={{ marginBottom: "20px" }}>
         <div
           id="draft-bill-content"
           className="bg-white text-black p-3 w-[300px] mx-auto"
@@ -374,7 +374,7 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
                 </tr>
               </thead>
 
-              <tbody className="mb-4">
+              <tbody className="mb-4" style={{ marginBottom: "20px" }}>
                 {items.map((item) => (
                   <tr key={item.id}>
                     <td className="text-center align-top py-1 pr-1 font-semibold">
