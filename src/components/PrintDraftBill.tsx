@@ -82,8 +82,8 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
               <head>
                 <title>Draft Bill</title>
                 <style>
-                  @page { size: 58mm auto; margin: 0; }
-                  body { margin: 0; padding: 0; text-align:center; padding-bottom: 10px; }
+                  @page { size: 58mm auto; margin: 5mm; }
+                  body { margin: 5mm; padding: 0; text-align:center; padding-bottom: 10px; }
                   img { width: 100%; height: auto; display: block; }
                 </style>
               </head>
@@ -199,11 +199,11 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
       {/* Print CSS */}
       <style>{`
         @media print {
-          @page { size: 58mm auto; margin: 0; }
-          body { margin: 0; padding: 0; }
+          @page { size: 58mm auto; margin: 5mm; }
+          body { margin: 5mm; padding: 0; }
           body * { visibility: hidden; }
           #draft-bill-content, #draft-bill-content * { visibility: visible; }
-          #draft-bill-content { position: absolute; left: 0; top: 0; width: 58mm; padding: 2mm; }
+          #draft-bill-content { position: absolute; left: 5mm; top: 5mm; width: 48mm; padding: 2mm; }
         }
       `}</style>
     </div>  
