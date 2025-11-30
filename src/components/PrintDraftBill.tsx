@@ -141,14 +141,14 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
       </div>
 
       {/* Bill Content */}
-      <div className="flex items-center justify-center min-h-screen p-2">
+      <div className="flex items-center justify-center min-h-screen p-2 mb-5">
         <div
           id="draft-bill-content"
           className="bg-white text-black p-3 w-[300px] mx-auto"
         >
           {/* Header Title */}
           <div className="text-center border-b border-black pb-2 mb-2">
-            <h1 className="text-lg font-bold uppercase">Draft Bill</h1>
+            {/* <h1 className="text-lg font-bold uppercase">Draft Bill</h1> */}
             <p className="text-sm">Table: {tableName} • Persons: {persons}</p>
             <p className="text-sm">{currentDate} {currentTime}</p>
           </div>
