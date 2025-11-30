@@ -83,7 +83,7 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
                 <title>Draft Bill</title>
                 <style>
                   @page { size: 58mm auto; margin: 5mm; }
-                  body { margin: 5mm; padding: 0; text-align:center; padding-bottom: 10px; }
+                  body { margin: 5mm; padding: 0; text-align:center; padding-bottom: 20px; }
                   img { width: 100%; height: auto; display: block; }
                 </style>
               </head>
@@ -144,7 +144,7 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
       <div className="flex items-center justify-center min-h-screen p-2 mb-5">
         <div
           id="draft-bill-content"
-          className="bg-white text-black p-3 w-[300px] mx-auto"
+          className="bg-white text-black p-3 w-[300px] mx-auto pb-8"
         >
           {/* Header Title */}
           <div className="text-center border-b border-black pb-2 mb-2">
@@ -203,7 +203,7 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
           body { margin: 5mm; padding: 0; }
           body * { visibility: hidden; }
           #draft-bill-content, #draft-bill-content * { visibility: visible; }
-          #draft-bill-content { position: absolute; left: 5mm; top: 5mm; width: 48mm; padding: 2mm; }
+          #draft-bill-content { position: absolute; left: 5mm; top: 5mm; width: 48mm; padding: 2mm; padding-bottom: 8mm; }
         }
       `}</style>
     </div>  
