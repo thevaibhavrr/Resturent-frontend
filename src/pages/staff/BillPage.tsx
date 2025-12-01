@@ -27,7 +27,7 @@ export default function BillPage() {
 
   const handleSaveAndPrint = (printData: any) => {
     // Navigate to print bill page for printing
-    navigate("/order-tables/print-bill", { state: printData, replace: true });
+    navigate("/order-tables/print-bill", { state: { printData: printData }, replace: true });
   };
 
   return (
