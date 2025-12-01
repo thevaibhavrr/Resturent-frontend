@@ -476,7 +476,16 @@ export function BillPage({
         grandTotal: total,
         restaurantId: user?.restaurantId, // Add restaurantId for settings loading
         autoPrint: true, // Add autoPrint flag
-        redirectAfterPrint: true // Add redirect flag
+        redirectAfterPrint: true, // Add redirect flag
+        billDate: new Date().toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }),
+        billTime: new Date().toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
       };
 
       // Call parent callback if provided
@@ -536,7 +545,16 @@ export function BillPage({
         grandTotal: total,
         restaurantId: user?.restaurantId, // Add restaurantId for settings loading
         autoPrint: true, // Add autoPrint flag
-        redirectAfterPrint: true // Add redirect flag
+        redirectAfterPrint: true, // Add redirect flag
+        billDate: new Date().toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }),
+        billTime: new Date().toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
       };
 
       // Call parent callback if provided

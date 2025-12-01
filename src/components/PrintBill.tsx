@@ -40,6 +40,8 @@ interface PrintBillProps {
   onBack: () => void;
   autoPrint?: boolean; // New prop for automatic printing
   redirectAfterPrint?: boolean; // New prop for automatic redirect after print
+  billDate?: string; // Original bill date
+  billTime?: string; // Original bill time
 }
 
 // Type declarations for Flutter webview communication
@@ -65,18 +67,21 @@ export function PrintBill({
   onBack,
   autoPrint = false, // Default to false
   redirectAfterPrint = false, // Default to false
+  billDate,
+  billTime,
 }: PrintBillProps) {
   // Helper function to format amounts without .00 for whole numbers
   const formatAmount = (amount: number): string => {
     const formatted = amount.toFixed(2);
     return formatted.endsWith('.00') ? formatted.slice(0, -3) : formatted;
   };
-  const currentDate = new Date().toLocaleDateString("en-IN", {
+  // Use original bill date/time if available, otherwise use current date/time
+  const displayDate = billDate || new Date().toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
-  const currentTime = new Date().toLocaleTimeString("en-IN", {
+  const displayTime = billTime || new Date().toLocaleTimeString("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -180,8 +185,8 @@ export function PrintBill({
     receipt += `${"=".repeat(32)}\n\n`;
 
     // Add order info
-    receipt += `Bill #: ${billNumber.padEnd(20)}${currentDate}\n`;
-    receipt += `Table: ${tableName.padEnd(20)}${currentTime}\n`;
+    receipt += `Bill #: ${billNumber.padEnd(20)}${displayDate}\n`;
+    receipt += `Table: ${tableName.padEnd(20)}${displayTime}\n`;
     receipt += `Persons: ${persons.toString().padEnd(16)}${" ".repeat(6)}\n`;
     receipt += "-".repeat(32) + "\n";
 
@@ -408,7 +413,7 @@ export function PrintBill({
       {/* Print Bill Content */}
       <div className="flex items-center justify-center min-h-screen p-4 print:p-0 print:block">
         <div
-          className="w-[58mm] bg-white text-black p-2 print:p-2"
+          className="w-[58mm] bg-white text-black p-4 print:p-4"
           id="bill-content"
         >
           {/* Premium Header with Logo */}
@@ -455,11 +460,11 @@ export function PrintBill({
             <div className="grid grid-cols-2 gap-1.5 text-[12px]">
               <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
                 <span className="font-semibold text-gray-700">Date:</span>
-                <span className="font-medium">{currentDate}</span>
+                <span className="font-medium">{displayDate}</span>
               </div>
               <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
                 <span className="font-semibold text-gray-700">Time:</span>
-                <span className="font-medium">{currentTime}</span>
+                <span className="font-medium">{displayTime}</span>
               </div>
               <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
                 <span className="font-semibold text-gray-700">Table:</span>

@@ -239,7 +239,16 @@ export function BillHistory() {
       discountAmount: bill.discountAmount || 0,
       cgst: 0,
       sgst: 0,
-      grandTotal: bill.grandTotal
+      grandTotal: bill.grandTotal,
+      billDate: new Date(bill.date).toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }),
+      billTime: new Date(bill.date).toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
     };
     
     // Use the appropriate route based on user role

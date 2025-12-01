@@ -20,7 +20,7 @@ export default function AdminBillPage() {
 
   const handleSaveAndPrint = (data: any) => {
     // Navigate to print bill page for printing
-    navigate("/admin/order-tables/print-bill", { state: data, replace: true });
+    navigate("/admin/order-tables/print-bill", { state: { printData: data }, replace: true });
   };
 
   return (

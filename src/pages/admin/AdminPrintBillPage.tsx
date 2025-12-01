@@ -36,6 +36,8 @@ export default function AdminPrintBillPage() {
       onBack={handleBack}
       autoPrint={printData.autoPrint || false}
       redirectAfterPrint={printData.redirectAfterPrint || false}
+      billDate={printData.billDate}
+      billTime={printData.billTime}
     />
   );
 }
