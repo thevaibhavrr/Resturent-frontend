@@ -66,6 +66,11 @@ export function PrintBill({
   autoPrint = false, // Default to false
   redirectAfterPrint = false, // Default to false
 }: PrintBillProps) {
+  // Helper function to format amounts without .00 for whole numbers
+  const formatAmount = (amount: number): string => {
+    const formatted = amount.toFixed(2);
+    return formatted.endsWith('.00') ? formatted.slice(0, -3) : formatted;
+  };
   const currentDate = new Date().toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "2-digit",
@@ -184,10 +189,10 @@ export function PrintBill({
     items.forEach((item) => {
       const name =
         item.name.length > 20 ? item.name.substring(0, 17) + "..." : item.name;
-      const price = `₹${(item.price * item.quantity).toFixed(2)}`;
+      const price = `₹${formatAmount(item.price * item.quantity)}`;
       receipt += `${name}\n`;
       receipt +=
-        `  ${item.quantity} x ₹${item.price.toFixed(2)}`.padEnd(20) +
+        `  ${item.quantity} x ₹${formatAmount(item.price)}`.padEnd(20) +
         price.padStart(12) +
         "\n";
       if (item.note) {
@@ -197,29 +202,29 @@ export function PrintBill({
 
     // Add totals
     receipt += "\n";
-    receipt += "Subtotal:".padEnd(20) + `₹${subtotal.toFixed(2)}\n`;
+    receipt += "Subtotal:".padEnd(20) + `₹${formatAmount(subtotal)}\n`;
 
     if (discountAmount > 0) {
-      receipt += "Discount:".padEnd(20) + `-₹${discountAmount.toFixed(2)}\n`;
+      receipt += "Discount:".padEnd(20) + `-₹${formatAmount(discountAmount)}\n`;
     }
 
     if (additionalCharges.length > 0) {
       additionalCharges.forEach((charge) => {
         receipt +=
-          `${charge.name}:`.padEnd(20) + `₹${charge.amount.toFixed(2)}\n`;
+          `${charge.name}:`.padEnd(20) + `₹${formatAmount(charge.amount)}\n`;
       });
     }
 
     if (cgst > 0) {
-      receipt += "CGST:".padEnd(20) + `₹${cgst.toFixed(2)}\n`;
+      receipt += "CGST:".padEnd(20) + `₹${formatAmount(cgst)}\n`;
     }
 
     if (sgst > 0) {
-      receipt += "SGST:".padEnd(20) + `₹${sgst.toFixed(2)}\n`;
+      receipt += "SGST:".padEnd(20) + `₹${formatAmount(sgst)}\n`;
     }
 
     receipt += "\n";
-    receipt += "TOTAL:".padEnd(20) + `₹${grandTotal.toFixed(2)}\n\n`;
+    receipt += "TOTAL:".padEnd(20) + `₹${formatAmount(grandTotal)}\n\n`;
 
     // Add footer
     receipt += "\n";
@@ -507,7 +512,7 @@ export function PrintBill({
                           )}
                           {itemDiscount > 0 && (
                             <div className="text-[12px] text-red-600 mt-0.5 font-medium">
-                              Discount: -₹{itemDiscount.toFixed(2)}
+                              Discount: -₹{formatAmount(itemDiscount)}
                             </div>
                           )}
                         </div>
@@ -516,10 +521,10 @@ export function PrintBill({
                         {item.quantity}
                       </td>
                       <td className="text-right font-medium text-gray-700">
-                        ₹{item.price.toFixed(2)}
+                        ₹{formatAmount(item.price)}
                       </td>
                       <td className="text-right font-bold text-gray-900">
-                        ₹{itemFinalAmount.toFixed(2)}
+                        ₹{formatAmount(itemFinalAmount)}
                       </td>
                     </tr>
                   );
@@ -539,7 +544,7 @@ export function PrintBill({
                     {charge.name}:
                   </span>
                   <span className="font-semibold text-gray-900">
-                    ₹{charge.amount.toFixed(2)}
+                    ₹{formatAmount(charge.amount)}
                   </span>
                 </div>
               ))}
@@ -552,14 +557,14 @@ export function PrintBill({
               <div className="flex justify-between text-[13px]">
                 <span className="text-gray-700">Subtotal:</span>
                 <span className="font-semibold text-gray-900">
-                  ₹{subtotal.toFixed(2)}
+                  ₹{formatAmount(subtotal)}
                 </span>
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between text-[13px] text-red-600">
                   <span>Total Discount:</span>
                   <span className="font-semibold">
-                    -₹{discountAmount.toFixed(2)}
+                    -₹{formatAmount(discountAmount)}
                   </span>
                 </div>
               )}
@@ -567,7 +572,7 @@ export function PrintBill({
                 <div className="flex justify-between text-[13px] text-green-600">
                   <span>Additional Charges:</span>
                   <span className="font-semibold">
-                    +₹{additionalTotal.toFixed(2)}
+                    +₹{formatAmount(additionalTotal)}
                   </span>
                 </div>
               )}
@@ -578,7 +583,7 @@ export function PrintBill({
                   TOTAL
                 </span>
                 <span className="text-2xl font-black text-gray-900">
-                  ₹{grandTotal.toFixed(2)}
+                  ₹{formatAmount(grandTotal)}
                 </span>
               </div>
             </div>
