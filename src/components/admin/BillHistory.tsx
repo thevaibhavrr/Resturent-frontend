@@ -242,7 +242,9 @@ export function BillHistory() {
       grandTotal: bill.grandTotal
     };
     
-    navigate("/order-tables/print-bill", { state: { printData } });
+    // Use the appropriate route based on user role
+    const routePrefix = user?.role === 'admin' ? '/admin' : '';
+    navigate(`${routePrefix}/order-tables/print-bill`, { state: { printData } });
   };
 
   const formatDate = (dateString: string) => {

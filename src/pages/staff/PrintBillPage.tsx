@@ -5,7 +5,7 @@ export default function PrintBillPage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const printData = location.state;
+  const printData = location.state?.printData;
 
   if (!printData) {
     navigate("/order-tables");

@@ -6,7 +6,7 @@ export default function AdminPrintBillPage() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  const printData = location.state;
+  const printData = location.state?.printData;
 
   console.log("AdminPrintBillPage: printData:", printData);
   console.log("AdminPrintBillPage: restaurantId:", printData?.restaurantId);
