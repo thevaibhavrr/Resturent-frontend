@@ -654,7 +654,7 @@ export function PrintBill({
       <style>{`
         @media print {
           @page {
-            size: 58mm auto;
+            size: 60mm auto;
             margin: 0;
           }
           
@@ -677,7 +677,7 @@ export function PrintBill({
             position: absolute;
             left: 0;
             top: 0;
-            width: 58mm;
+            width: 60mm;
             padding: 2mm;
             background: white;
             box-shadow: none;
