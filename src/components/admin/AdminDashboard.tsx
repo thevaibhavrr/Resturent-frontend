@@ -94,6 +94,11 @@ export function AdminDashboard() {
             startDate = today.toISOString();
             endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
             break;
+          case "yesterday":
+            const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+            startDate = yesterday.toISOString();
+            endDate = new Date(yesterday.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+            break;
           case "weekly":
             const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
             startDate = weekAgo.toISOString();
@@ -145,6 +150,9 @@ export function AdminDashboard() {
           
           if (dateFilter === 'today' || dateFilter === 'custom') {
             return billDate.toDateString() === compareDate.toDateString();
+          } else if (dateFilter === 'yesterday') {
+            const yesterday = new Date(compareDate.getTime() - 24 * 60 * 60 * 1000);
+            return billDate.toDateString() === yesterday.toDateString();
           } else if (dateFilter === 'weekly') {
             const weekAgo = new Date(compareDate.getTime() - 7 * 24 * 60 * 60 * 1000);
             return billDate >= weekAgo && billDate <= compareDate;
@@ -212,6 +220,7 @@ export function AdminDashboard() {
       return formatDate(selectedDate);
     }
     return dateFilter === "today" ? "Today" :
+           dateFilter === "yesterday" ? "Yesterday" :
            dateFilter === "weekly" ? "This week" :
            dateFilter === "monthly" ? "This month" :
            dateFilter === "yearly" ? "This year" : "All time";
@@ -259,6 +268,7 @@ export function AdminDashboard() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="yesterday">Yesterday</SelectItem>
               <SelectItem value="weekly">This Week</SelectItem>
               <SelectItem value="monthly">This Month</SelectItem>
               <SelectItem value="yearly">This Year</SelectItem>

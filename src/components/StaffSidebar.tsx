@@ -119,7 +119,7 @@ export function   StaffSidebar({ onLogout, menuOpen, onCloseMenu }: StaffSidebar
             }}
           >
             <RefreshCw className="w-4 h-4" />
-            <span className="text-sm">Hard Refresh (Reset All Data)</span>
+            <span className="text-sm">Hard Refresh</span>
           </Button>
         </div>
 

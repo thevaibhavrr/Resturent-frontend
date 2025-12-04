@@ -15,6 +15,11 @@ export const getCategories = async (restaurantId: string) => {
   return response.data;
 };
 
+export const getSpaces = async (restaurantId: string) => {
+  const response = await makeApi(`/api/spaces?restaurantId=${restaurantId}`, 'GET');
+  return response.data;
+};
+
 export const createMenuItem = async (menuItemData: any) => {
   const response = await makeApi('/api/menu/items', 'POST', menuItemData);
   return response.data;

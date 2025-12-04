@@ -31,12 +31,25 @@ import {
   updateMenuItem,
   deleteMenuItem,
   getCategories,
+  getSpaces,
 } from "../../api/menuApi";
+
+interface Space {
+  _id: string;
+  name: string;
+  status: string;
+}
+
+interface SpacePrice {
+  spaceId: string;
+  price: string;
+}
 
 export function MenuManagement() {
   const user = getCurrentUser();
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
+  const [spaces, setSpaces] = useState<Space[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterCategory, setFilterCategory] = useState("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -44,7 +57,7 @@ export function MenuManagement() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    price: "",
+    basePrice: "",
     cost: "",
     categoryId: "",
     category: "",
@@ -53,14 +66,16 @@ export function MenuManagement() {
     image: "",
     spiceLevel: "0",
   });
+  const [spacePrices, setSpacePrices] = useState<SpacePrice[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [imageInputType, setImageInputType] = useState<"upload" | "url">("upload");
   const [imageUrl, setImageUrl] = useState<string>("");
 
-  // Load categories once on mount, and reload items when filterCategory or user changes
+  // Load categories and spaces once on mount, and reload items when filterCategory or user changes
   useEffect(() => {
     loadCategories();
+    loadSpaces();
   }, []);
 
   useEffect(() => {
@@ -98,13 +113,24 @@ export function MenuManagement() {
     }
   };
 
+  const loadSpaces = async () => {
+    if (!user?.restaurantId) return;
+    try {
+      const data = await getSpaces(user.restaurantId);
+      setSpaces(data || []);
+    } catch (err) {
+      console.error("Error loading spaces:", err);
+      toast.error("Failed to load spaces");
+    }
+  };
+
   const handleAdd = () => {
     setEditingItem(null);
     const firstCategory = categories[0];
     setFormData({
       name: "",
       description: "",
-      price: "",
+      basePrice: "",
       cost: "",
       categoryId: firstCategory?._id || "",
       category: firstCategory?.name || "",
@@ -113,6 +139,11 @@ export function MenuManagement() {
       image: "",
       spiceLevel: "0",
     });
+    // Initialize space prices with empty values for all spaces
+    setSpacePrices(spaces.map(space => ({
+      spaceId: space._id,
+      price: ""
+    })));
     setImageFile(null);
     setImagePreview("");
     setImageUrl("");
@@ -122,23 +153,23 @@ export function MenuManagement() {
 
   const handleEdit = (item: MenuItem) => {
     setEditingItem(item);
-    
+
     // Safely handle spiceLevel with proper fallbacks
     const spiceLevel = (item as any).spiceLevel;
-    const safeSpiceLevel = spiceLevel !== undefined && spiceLevel !== null 
-      ? spiceLevel.toString() 
+    const safeSpiceLevel = spiceLevel !== undefined && spiceLevel !== null
+      ? spiceLevel.toString()
       : "0";
 
     // Extract categoryId and category properly
     let categoryId = "";
     let category = "";
-    
+
     if (typeof item.categoryId === "string") {
       categoryId = item.categoryId;
     } else if (item.categoryId && typeof item.categoryId === "object" && item.categoryId._id) {
       categoryId = item.categoryId._id;
     }
-    
+
     // For category name, check if it's in the item directly or from categoryId object
     if ((item as any).category) {
       category = (item as any).category;
@@ -150,10 +181,25 @@ export function MenuManagement() {
       category = foundCategory?.name || "";
     }
 
+    // Handle base price (use existing price field for backward compatibility, or basePrice)
+    const basePrice = (item as any).basePrice || item.price || "";
+
+    // Initialize space prices - start with empty values for all spaces
+    const initialSpacePrices: SpacePrice[] = spaces.map(space => {
+      // Check if this item has space-specific pricing
+      const existingSpacePrice = (item as any).spacePrices?.find(
+        (sp: any) => sp.spaceId === space._id
+      );
+      return {
+        spaceId: space._id,
+        price: existingSpacePrice ? existingSpacePrice.price.toString() : ""
+      };
+    });
+
     setFormData({
       name: item.name || "",
       description: item.description || "",
-      price: item.price?.toString() || "",
+      basePrice: basePrice.toString(),
       cost: item.cost?.toString() || "",
       categoryId: categoryId,
       category: category,
@@ -162,6 +208,9 @@ export function MenuManagement() {
       image: item.image || "",
       spiceLevel: safeSpiceLevel,
     });
+
+    setSpacePrices(initialSpacePrices);
+
     setImageFile(null);
     const existingImage = item.image || "";
     setImagePreview(existingImage);
@@ -238,14 +287,14 @@ export function MenuManagement() {
   const handleSave = async () => {
     if (!user?.restaurantId) return;
 
-    if (!formData.name.trim() || !formData.price || !formData.cost || !formData.category) {
+    if (!formData.name.trim() || !formData.basePrice || !formData.cost || !formData.category) {
       toast.error("Please fill all required fields");
       return;
     }
 
-    const price = parseFloat(formData.price);
-    if (isNaN(price) || price <= 0) {
-      toast.error("Please enter a valid price");
+    const basePrice = parseFloat(formData.basePrice);
+    if (isNaN(basePrice) || basePrice <= 0) {
+      toast.error("Please enter a valid base price");
       return;
     }
 
@@ -261,9 +310,18 @@ export function MenuManagement() {
       return;
     }
 
+    // Validate space prices (optional but must be valid numbers if provided)
+    const validSpacePrices = spacePrices
+      .filter(sp => sp.price.trim() !== "")
+      .map(sp => ({
+        spaceId: sp.spaceId,
+        price: parseFloat(sp.price)
+      }))
+      .filter(sp => !isNaN(sp.price) && sp.price >= 0);
+
     try {
       let finalImageUrl = "";
-      
+
       // Handle image based on input type - image is optional
       if (imageInputType === "upload" && imageFile && imagePreview) {
         // Upload image file only if file is selected
@@ -275,7 +333,7 @@ export function MenuManagement() {
             },
             body: JSON.stringify({ image: imagePreview }),
           });
-          
+
           if (uploadResponse.ok) {
             const uploadData = await uploadResponse.json();
             finalImageUrl = uploadData.url;
@@ -313,7 +371,7 @@ export function MenuManagement() {
       const itemData: any = {
         name: formData.name.trim(),
         description: formData.description.trim(),
-        price: parseFloat(formData.price),
+        basePrice: basePrice,
         cost: parseFloat(formData.cost),
         category: formData.category,
         restaurantId: user.restaurantId,
@@ -321,6 +379,7 @@ export function MenuManagement() {
         preparationTime: parseInt(formData.preparationTime) || 15,
         image: finalImageUrl,
         spiceLevel: parseInt(formData.spiceLevel) || 0,
+        spacePrices: validSpacePrices, // Include space-specific prices
       };
 
       if (editingItem && editingItem._id) {
@@ -466,7 +525,16 @@ export function MenuManagement() {
                 </div>
               </div>
               <div className="flex items-center justify-between mt-3">
-                <span className="text-lg text-primary">₹{item.price || 0}</span>
+                <div className="flex flex-col">
+                  <span className="text-lg text-primary">
+                    ₹{(item as any).basePrice || item.price || 0}
+                  </span>
+                  {(item as any).spacePrices && (item as any).spacePrices.length > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      +{(item as any).spacePrices.length} space price{(item as any).spacePrices.length > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-1">
                   <Button
                     size="icon"
@@ -531,7 +599,7 @@ export function MenuManagement() {
                   placeholder="e.g., Butter Roti"
                 />
               </div>
-              <div>
+              {/* <div>
                 <Label htmlFor="description">Description</Label>
                 <Input
                   id="description"
@@ -541,21 +609,24 @@ export function MenuManagement() {
                   }
                   placeholder="Item description..."
                 />
-              </div>
+              </div> */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="price">Selling Price (₹) *</Label>
+                  <Label htmlFor="basePrice">Base Price (₹) *</Label>
                   <Input
-                    id="price"
+                    id="basePrice"
                     type="number"
-                    value={formData.price}
+                    value={formData.basePrice}
                     onChange={(e) =>
-                      setFormData({ ...formData, price: e.target.value })
+                      setFormData({ ...formData, basePrice: e.target.value })
                     }
                     placeholder="0"
                     min="0"
                     step="0.01"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Default price when no space-specific price is set
+                  </p>
                 </div>
                 <div>
                   <Label htmlFor="cost">Cost (₹) *</Label>
@@ -585,8 +656,47 @@ export function MenuManagement() {
                   />
                 </div>
               </div>
+
+              {/* Space-specific prices */}
+              {spaces.length > 0 && (
+                <div className="space-y-4">
+                  <div className="border-t pt-4">
+                    <Label className="text-base font-medium">Space-Specific Prices (Optional)</Label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Set different prices for different spaces. Leave empty to use base price.
+                    </p>
+                    <div className="grid grid-cols-1 gap-3 max-h-60 overflow-y-auto">
+                      {spaces.map((space) => {
+                        const spacePrice = spacePrices.find(sp => sp.spaceId === space._id);
+                        return (
+                          <div key={space._id} className="flex items-center gap-3 p-3 border rounded-md">
+                            <Label className="flex-1 font-normal">{space.name}</Label>
+                            <Input
+                              type="number"
+                              placeholder="Use base price"
+                              value={spacePrice?.price || ""}
+                              onChange={(e) => {
+                                const newSpacePrices = spacePrices.map(sp =>
+                                  sp.spaceId === space._id
+                                    ? { ...sp, price: e.target.value }
+                                    : sp
+                                );
+                                setSpacePrices(newSpacePrices);
+                              }}
+                              min="0"
+                              step="0.01"
+                              className="w-32"
+                            />
+                            <span className="text-sm text-muted-foreground">₹</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                {/* <div>
                   <Label htmlFor="preparationTime">Prep Time (mins)</Label>
                   <Input
                     id="preparationTime"
@@ -597,7 +707,7 @@ export function MenuManagement() {
                       setFormData({ ...formData, preparationTime: e.target.value })
                     }
                   />
-                </div>
+                </div> */}
                 <div>
                   <Label htmlFor="isVeg">Food Type</Label>
                   <Select
@@ -641,13 +751,12 @@ export function MenuManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
+              {/* <div>
                 <Label htmlFor="image">Menu Item Image (Optional)</Label>
                 <p className="text-xs text-muted-foreground mb-2">
                   You can add an image later if needed. The item will be saved without an image if none is provided.
                 </p>
                 
-                {/* Image Input Type Toggle */}
                 <div className="flex gap-4 mb-3">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -685,7 +794,6 @@ export function MenuManagement() {
                   </label>
                 </div>
 
-                {/* File Upload Input */}
                 {imageInputType === "upload" && (
                   <>
                     <Input
@@ -701,7 +809,6 @@ export function MenuManagement() {
                   </>
                 )}
 
-                {/* URL Input */}
                 {imageInputType === "url" && (
                   <>
                     <Input
@@ -718,7 +825,6 @@ export function MenuManagement() {
                   </>
                 )}
 
-                {/* Image Preview */}
                 {imagePreview && (
                   <div className="mt-3">
                     <img
@@ -734,7 +840,7 @@ export function MenuManagement() {
                     />
                   </div>
                 )}
-              </div>
+              </div> */}
             </div>
           </ScrollArea>
           <DialogFooter>

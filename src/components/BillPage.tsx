@@ -25,12 +25,19 @@ import { createBill, updateBill } from "../api/billApi";
 interface MenuItem {
   _id: string;
   name: string;
-  image: string;
+  image?: string;
   price: number;
-  description: string;
-  category: string;
+  basePrice?: number;
+  cost?: number;
+  description?: string;
+  category?: string;
   spiceLevel: number;
   isAvailable: boolean;
+  spacePrices?: Array<{
+    spaceId: string;
+    spaceName: string;
+    price: number;
+  }>;
 }
 
 interface CartItem {

@@ -482,8 +482,8 @@ export function MainSidebar({ onUpdate, currentTheme, onThemeChange, currentPage
                     className="w-full justify-start text-amber-600 hover:bg-amber-50 hover:text-amber-700"
                     onClick={handleHardRefresh}
                   >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Hard Refresh (Reset All Data)
+                    <RefreshCw className="mr-2 h-4 w-4 bg-red" />
+                    Hard Refresh
                   </Button>
                 </div>
               </div>

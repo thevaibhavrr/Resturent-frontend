@@ -372,8 +372,8 @@ export function AdminSidebar({
               toast.success("All data has been refreshed successfully");
             }}
           >
-            <RefreshCw className="w-4 h-4" />
-            <span className="text-sm">Hard Refresh (Reset All Data)</span>
+            <RefreshCw className="w-4 h-4 bg-red" />
+            <span className="text-sm">Hard Refresh</span>
           </Button>
         </div>
 

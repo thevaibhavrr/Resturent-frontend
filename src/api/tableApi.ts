@@ -20,6 +20,11 @@ export const deleteTable = async (id: string) => {
     return response.data;
 };
 
+export const getTableById = async (id: string) => {
+    const response = await makeApi(`/api/table/${id}`, 'GET');
+    return response.data;
+};
+
 export const setTableInactive = async (id: string) => {
     const response = await makeApi(`/api/table/${id}/inactive`, 'PATCH');
     return response.data;

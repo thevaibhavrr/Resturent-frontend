@@ -23,6 +23,7 @@ import {
 import { getCurrentUser } from "../utils/auth";
 import { toast } from "sonner";
 import { getMenuItems, getCategories } from "../api/menuApi";
+import { getTableById } from "../api/tableApi";
 import { saveTableDraft, getTableDraft, clearTableDraft, TableDraft } from "../api/tableDraftApi";
 import { useNavigate } from "react-router-dom";
 import { motion, useScroll, useMotionValueEvent, useSpring } from "framer-motion";
@@ -30,8 +31,10 @@ import { motion, useScroll, useMotionValueEvent, useSpring } from "framer-motion
 interface MenuItem {
   _id: string;
   name: string;
-  image: string;
+  image?: string;
   price: number;
+  basePrice?: number;
+  cost?: number;
   spiceLevel: number;
   categoryId: {
     _id: string;
@@ -44,6 +47,7 @@ interface MenuItem {
     updatedAt: string;
     __v: number;
   };
+  category?: string;
   description?: string;
   isAvailable: boolean;
   isVeg?: boolean;
@@ -54,6 +58,11 @@ interface MenuItem {
   createdAt?: string;
   updatedAt?: string;
   __v?: number;
+  spacePrices?: Array<{
+    spaceId: string;
+    spaceName: string;
+    price: number;
+  }>;
 }
 
 interface CartItem {
@@ -97,7 +106,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const user = getCurrentUser();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("recent");
+  const [activeCategory, setActiveCategory] = useState("all");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [persons, setPersons] = useState(1);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -108,6 +117,24 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const [tableDraft, setTableDraft] = useState<TableDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [useCustomPersons, setUseCustomPersons] = useState(persons > 10);
+  const [currentTableSpace, setCurrentTableSpace] = useState<{ _id: string; name: string } | null>(null);
+
+  // Get the correct price for the current space
+  const getItemPrice = (item: MenuItem): number => {
+    if (!currentTableSpace) {
+      // No space information, use basePrice or regular price
+      return item.basePrice || item.price;
+    }
+
+    // Look for space-specific price
+    const spacePrice = item.spacePrices?.find(sp => sp.spaceId === currentTableSpace._id);
+    if (spacePrice) {
+      return spacePrice.price;
+    }
+
+    // Fall back to basePrice or regular price
+    return item.basePrice || item.price;
+  };
   const [selectedSpicePercent, setSelectedSpicePercent] = useState<Record<string, number>>({}); // per-menu-item (1-100)
   const [selectedIsJain, setSelectedIsJain] = useState<Record<string, boolean>>({}); // per-menu-item
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -232,6 +259,15 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         setCategories(cachedData.categories);
         setMenuItems(cachedData.menuItems);
 
+        // Load table information for space pricing
+        const tableData = await getTableById(tableId.toString());
+        if (tableData && tableData.locationId) {
+          setCurrentTableSpace({
+            _id: tableData.locationId._id,
+            name: tableData.locationId.name
+          });
+        }
+
         // Still load table draft in parallel (user-specific)
         const draftData = await getTableDraft(tableId.toString(), user.restaurantId, user.username);
         console.log("Loaded draft data (cached path):", draftData);
@@ -323,14 +359,23 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       }
 
       // If no cached data, fetch fresh data
-      const [categoriesData, menuItemsData, draftData] = await Promise.all([
+      const [categoriesData, menuItemsData, tableData, draftData] = await Promise.all([
         getCategories(user.restaurantId),
         getMenuItems(user.restaurantId),
+        getTableById(tableId.toString()),
         getTableDraft(tableId.toString(), user.restaurantId, user.username)
       ]);
 
       setCategories(categoriesData);
       setMenuItems(menuItemsData);
+
+      // Set current table space for price calculation
+      if (tableData && tableData.locationId) {
+        setCurrentTableSpace({
+          _id: tableData.locationId._id,
+          name: tableData.locationId.name
+        });
+      }
       
       // Cache the fresh data
       cacheMenuData(categoriesData, menuItemsData);
@@ -684,7 +729,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         const newItem: CartItem = {
           id: item._id,
           name: item.name,
-          price: item.price,
+          price: getItemPrice(item),
           quantity: newQuantity,
           spicePercent: percent,
           isJain: isJain,
@@ -1048,7 +1093,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                     <div className="p-3 sm:p-4 flex-1 flex flex-col">
                       <div className="flex items-start justify-between mb-2 sm:mb-3">
                         <h3 className="font-bold text-base sm:text-xl line-clamp-2 flex-1 pr-2">{item.name}</h3>
-                        <span className="font-bold text-base sm:text-xl text-primary shrink-0">₹{item.price}</span>
+                        <span className="font-bold text-base sm:text-xl text-primary shrink-0">₹{getItemPrice(item)}</span>
                       </div>
                       {/* Spice level option */}
                       <div className="mb-3 sm:mb-4">

@@ -14,7 +14,8 @@ export interface MenuItem {
   name: string;
   description?: string;
   price: number;
-  cost: number;
+  basePrice?: number;
+  cost?: number;
   categoryId?: string | MenuCategory;
   category?: string;
   restaurantId: string;
@@ -26,6 +27,11 @@ export interface MenuItem {
   spiceLevel?: number;
   createdAt?: string;
   updatedAt?: string;
+  spacePrices?: Array<{
+    spaceId: string;
+    spaceName: string;
+    price: number;
+  }>;
 }
 
 export interface MenuItemCreateInput {

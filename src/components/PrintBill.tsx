@@ -413,8 +413,9 @@ export function PrintBill({
       {/* Print Bill Content */}
       <div className="flex items-center justify-center min-h-screen p-4 print:p-0 print:block">
         <div
-          className="w-[58mm] bg-white text-black p-4 print:p-4"
+          className="w-[58mm] max-w-[58mm] bg-white text-black p-2 print:p-2 overflow-hidden"
           id="bill-content"
+          style={{ boxSizing: 'border-box' }}
         >
           {/* Premium Header with Logo */}
           <div className="text-center p-3 mb pb-1 border-b-4 border-double border-gray-800">
@@ -479,17 +480,23 @@ export function PrintBill({
 
           {/* Premium Item Table */}
           <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
-            <table className="w-full text-[14px]">
+            <table className="w-full text-[13px]" style={{ tableLayout: 'fixed' }}>
+              <colgroup>
+                <col style={{ width: '40%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '25%' }} />
+              </colgroup>
               <thead>
                 <tr className="bg-gray-800 text-black">
-                  <th className="text-left py-1.5 px-1 font-bold">Item</th>
-                  <th className="text-center py-1.5 px-1 font-bold w-12">
+                  <th className="text-left py-1 px-0.5 font-bold truncate">Item</th>
+                  <th className="text-center py-1 px-0.5 font-bold">
                     Qty
                   </th>
-                  <th className="text-right py-1.5 px-1 font-bold w-16">
+                  <th className="text-right py-1 px-0.5 font-bold">
                     Price
                   </th>
-                  <th className="text-right py-1.5 px-1 font-bold w-20">
+                  <th className="text-right py-1 px-0.5 font-bold">
                     Amount
                   </th>
                 </tr>
@@ -503,32 +510,32 @@ export function PrintBill({
                   return (
                     <tr
                       key={item.id}
-                      className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                      className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} text-xs`}
                     >
-                      <td className="py-1.5 px-1">
-                        <div>
+                      <td className="py-1 px-0.5 align-top">
+                        <div className="break-words">
                           <span className="font-semibold text-gray-900">
                             {item.name}
                           </span>
                           {item.note && (
-                            <div className="text-[12px] text-gray-600 italic mt-0.5 font-light">
+                            <div className="text-[10px] text-gray-600 italic font-light">
                               Note: {item.note}
                             </div>
                           )}
                           {itemDiscount > 0 && (
-                            <div className="text-[12px] text-red-600 mt-0.5 font-medium">
-                              Discount: -₹{formatAmount(itemDiscount)}
+                            <div className="text-[10px] text-red-600 font-medium">
+                              Disc: -₹{formatAmount(itemDiscount)}
                             </div>
                           )}
                         </div>
                       </td>
-                      <td className="text-center font-medium text-gray-800">
+                      <td className="text-center font-medium text-gray-800 align-top py-1">
                         {item.quantity}
                       </td>
-                      <td className="text-right font-medium text-gray-700">
+                      <td className="text-right font-medium text-gray-700 align-top py-1">
                         ₹{formatAmount(item.price)}
                       </td>
-                      <td className="text-right font-bold text-gray-900">
+                      <td className="text-right font-bold text-gray-900 align-top py-1">
                         ₹{formatAmount(itemFinalAmount)}
                       </td>
                     </tr>
@@ -705,6 +712,16 @@ export function PrintBill({
           #bill-content th,
           #bill-content td {
             border-color: #000 !important;
+            border-collapse: collapse;
+          }
+          
+          #bill-content th,
+          #bill-content td {
+            padding: 2px 1px;
+          }
+          
+          #bill-content {
+            font-size: 12px;
           }
           
           /* Better print quality */
