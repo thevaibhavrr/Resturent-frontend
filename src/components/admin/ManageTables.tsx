@@ -79,9 +79,9 @@ export function ManageTables() {
   const fetchLocations = async () => {
     if (!user?.restaurantId) return;
     try {
-      const res = await makeApi(`/api/space?restaurantId=${user.restaurantId}`, 'GET', undefined);
+      const res = await makeApi(`/api/spaces?restaurantId=${user.restaurantId}`, 'GET', undefined);
       const locationsData = Array.isArray(res.data) ? res.data : [];
-      setLocations(locationsData);
+      setLocations(locationsData);   
       
       // Set default space if none selected and spaces exist
       if (locationsData.length > 0 && !formData.locationId) {

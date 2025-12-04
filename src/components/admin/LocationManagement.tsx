@@ -38,7 +38,7 @@ export function LocationManagement() {
   const loadLocations = async () => {
     if (!user?.restaurantId) return;
     try {
-      const res = await makeApi(`/api/space?restaurantId=${user.restaurantId}`, 'GET', undefined);
+      const res = await makeApi(`/api/spaces?restaurantId=${user.restaurantId}`, 'GET', undefined);
       setLocations(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       toast.error("Failed to load spaces");
@@ -69,13 +69,13 @@ export function LocationManagement() {
 
     try {
       if (editingLocation?._id) {
-        await makeApi(`/api/space/${editingLocation._id}`, 'PUT', {
+        await makeApi(`/api/spaces/${editingLocation._id}`, 'PUT', {
           name: formattedName,
           restaurantId: user.restaurantId,
         });
         toast.success("Location updated successfully");
       } else {
-        await makeApi(`/api/space`, 'POST', {
+        await makeApi(`/api/spaces`, 'POST', {
           name: formattedName,
           restaurantId: user.restaurantId,
         });
@@ -94,7 +94,7 @@ export function LocationManagement() {
     // API will return error if location has tables
     if (confirm("Are you sure you want to delete this space?")) {
       try {
-        await makeApi(`/api/space/${location._id}`, 'DELETE', undefined);
+        await makeApi(`/api/spaces/${location._id}`, 'DELETE', undefined);
         toast.success("Space deleted successfully");
         loadLocations();
       } catch (err) {
