@@ -8,7 +8,7 @@ import {
   CheckCircle2,
   Bluetooth,
 } from "lucide-react";
-import { getCurrentUser } from "../utils/auth";
+import { getCurrentUser, getRestaurantKey } from "../utils/auth";
 import { settingsService } from "../utils/settingsService";
 import { toast } from "sonner";
 import { BluetoothPrinterService } from "../utils/bluetoothPrinter";
@@ -162,17 +162,36 @@ export function PrintBill({
     0
   );
 
+  // Get Bluetooth printer settings
+  const getBluetoothPrinterSettings = () => {
+    if (!user?.restaurantId) return null;
+
+    const key = getRestaurantKey("bluetoothPrinter", user.restaurantId);
+    const stored = localStorage.getItem(key);
+
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (error) {
+        console.warn('Error parsing Bluetooth printer settings:', error);
+        return null;
+      }
+    }
+    return null;
+  };
+
   // Initialize Bluetooth printer service
   useEffect(() => {
     if (typeof navigator !== "undefined" && navigator.bluetooth) {
-      printerService.current = new BluetoothPrinterService(setBluetoothStatus);
+      const printerConfig = getBluetoothPrinterSettings();
+      printerService.current = new BluetoothPrinterService(setBluetoothStatus, printerConfig);
       return () => {
         if (printerService.current) {
           printerService.current.disconnect();
         }
       };
     }
-  }, []);
+  }, [user]);
 
   const formatForThermalPrinter = (): string => {
     // Create a simple text-based receipt
@@ -259,18 +278,25 @@ export function PrintBill({
 
       const imgData = canvas.toDataURL("image/png", 1.0); // Maximum quality
 
+      // Get Bluetooth printer settings for MAC address
+      const bluetoothSettings = getBluetoothPrinterSettings();
+      const deviceMacAddress = bluetoothSettings?.address || "66:32:B1:BE:4E:AF"; // Fallback to old address if not found
+
+      console.log('Using Bluetooth printer address:', deviceMacAddress);
+      console.log('Bluetooth settings:', bluetoothSettings);
+
       // Check if running in Flutter webview
       if (window.MOBILE_CHANNEL) {
-        // Send print request to Flutter
+        // Send print request to Flutter with dynamic MAC address
         window.MOBILE_CHANNEL.postMessage(
           JSON.stringify({
             event: "flutterPrint",
-            deviceMacAddress: "66:32:B1:BE:4E:AF", // TODO: Get device MAC address from API
+            deviceMacAddress: deviceMacAddress,
             imageBase64: imgData.replace("data:image/png;base64,", ""), // Remove data URL prefix
           })
         );
 
-        toast.success("Print request sent to Flutter!");
+        toast.success(`Print request sent to Flutter! (Device: ${deviceMacAddress})`);
       } else {
         // Fallback for web browsers - set image URL
         setPdfUrl(imgData);
