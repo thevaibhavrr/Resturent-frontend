@@ -23,11 +23,9 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getCurrentUser, logout, getRestaurantKey } from "../utils/auth";
-import { useState, useEffect, useRef } from "react";
+import { getCurrentUser, logout } from "../utils/auth";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BluetoothPrinterService, PrinterStatus } from "../utils/bluetoothPrinter";
-import { NewtonsCradleLoader } from "./ui/newtons-cradle-loader";
 
 export interface AdminSidebarProps {
   onLogout: () => void;
@@ -45,28 +43,12 @@ export function AdminSidebar({
   const [isOpen, setIsOpen] = useState(false);
   const [menuManagementOpen, setMenuManagementOpen] = useState(false);
   const [tablesManagementOpen, setTablesManagementOpen] = useState(false);
-  const [bluetoothStatus, setBluetoothStatus] = useState<PrinterStatus>('disconnected');
-  const [isReconnecting, setIsReconnecting] = useState(false);
-  const bluetoothService = useRef<BluetoothPrinterService | null>(null);
   const visible = typeof menuOpen === 'boolean' ? menuOpen : isOpen;
 
   useEffect(() => {
     const handler = () => setIsOpen((s) => !s);
     window.addEventListener('toggleSidebar', handler as EventListener);
     return () => window.removeEventListener('toggleSidebar', handler as EventListener);
-  }, []);
-
-  // Initialize Bluetooth printer service
-  useEffect(() => {
-    if (typeof navigator !== "undefined" && navigator.bluetooth) {
-      const printerConfig = getBluetoothPrinterSettings();
-      bluetoothService.current = new BluetoothPrinterService(setBluetoothStatus, printerConfig);
-      return () => {
-        if (bluetoothService.current) {
-          bluetoothService.current.disconnect();
-        }
-      };
-    }
   }, []);
 
   // Close mobile sidebar when the route changes
@@ -92,47 +74,6 @@ export function AdminSidebar({
 
   const toggleTablesManagement = () => {
     setTablesManagementOpen(!tablesManagementOpen);
-  };
-
-  // Get Bluetooth printer settings
-  const getBluetoothPrinterSettings = () => {
-    if (!user?.restaurantId) return null;
-
-    const key = getRestaurantKey("bluetoothPrinter", user.restaurantId);
-    const stored = localStorage.getItem(key);
-
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch (error) {
-        console.warn('Error parsing Bluetooth printer settings:', error);
-        return null;
-      }
-    }
-    return null;
-  };
-
-  // Handle Bluetooth reconnection
-  const handleBluetoothReconnect = async () => {
-    if (!bluetoothService.current) {
-      toast.error('Bluetooth printer service not available');
-      return;
-    }
-
-    setIsReconnecting(true);
-    try {
-      const connected = await bluetoothService.current.reconnect();
-      if (connected) {
-        toast.success('Bluetooth printer reconnected successfully!');
-      } else {
-        toast.error('Failed to reconnect Bluetooth printer');
-      }
-    } catch (error) {
-      console.error('Bluetooth reconnection error:', error);
-      toast.error(`Reconnection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsReconnecting(false);
-    }
   };
 
   const menuItems = [
@@ -434,50 +375,6 @@ export function AdminSidebar({
             <RefreshCw className="w-4 h-4 bg-red" />
             <span className="text-sm">Hard Refresh</span>
           </Button>
-        </div>
-
-        {/* Bluetooth Printer Status */}
-        <div className="p-4 border-t">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Bluetooth className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-medium">Bluetooth Printer</span>
-            </div>
-            <div className={`w-2 h-2 rounded-full ${
-              bluetoothStatus === 'connected' ? 'bg-green-500' :
-              bluetoothStatus === 'connecting' ? 'bg-blue-500' :
-              bluetoothStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'
-            }`}></div>
-          </div>
-
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`text-xs ${
-              bluetoothStatus === 'connected' ? 'text-green-600' :
-              bluetoothStatus === 'connecting' ? 'text-blue-600' :
-              bluetoothStatus === 'error' ? 'text-red-600' : 'text-gray-500'
-            }`}>
-              {bluetoothStatus === 'connected' ? 'Connected' :
-               bluetoothStatus === 'connecting' ? 'Connecting...' :
-               bluetoothStatus === 'error' ? 'Connection Error' : 'Disconnected'}
-            </span>
-          </div>
-
-          {bluetoothStatus !== 'connected' && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full gap-2"
-              onClick={handleBluetoothReconnect}
-              disabled={isReconnecting}
-            >
-              {isReconnecting ? (
-                <NewtonsCradleLoader size={14} speed={1.2} color="#3b82f6" />
-              ) : (
-                <RefreshCw className="w-3 h-3" />
-              )}
-              {isReconnecting ? 'Reconnecting...' : 'Reconnect'}
-            </Button>
-          )}
         </div>
 
         {/* User Info & Logout */}
