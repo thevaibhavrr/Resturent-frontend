@@ -57,29 +57,45 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
   const [bluetoothStatus, setBluetoothStatus] = useState<PrinterStatus>('disconnected');
   const printerService = useRef<BluetoothPrinterService | null>(null);
 
-  // Get Bluetooth printer settings
+  // Get Bluetooth printer settings with fallback
   const getBluetoothPrinterSettings = () => {
-    if (!user?.restaurantId) return null;
+    if (!user?.restaurantId) {
+      console.log('PrintDraftBill: No user or restaurantId, using default config');
+      return null; // Will use static config as fallback
+    }
 
     const key = getRestaurantKey("bluetoothPrinter", user.restaurantId);
+    console.log('PrintDraftBill: Loading Bluetooth config with key:', key);
     const stored = localStorage.getItem(key);
 
     if (stored) {
       try {
-        return JSON.parse(stored);
+        const config = JSON.parse(stored);
+        console.log('PrintDraftBill: Loaded Bluetooth config:', config);
+        return config;
       } catch (error) {
-        console.warn('Error parsing Bluetooth printer settings:', error);
-        return null;
+        console.warn('PrintDraftBill: Error parsing Bluetooth printer settings:', error);
+        return null; // Will use static config as fallback
       }
     }
-    return null;
+
+    console.log('PrintDraftBill: No saved Bluetooth config found, using defaults');
+    return null; // Will use static config as fallback
   };
 
   // Initialize Bluetooth printer service
   useEffect(() => {
     if (typeof navigator !== "undefined" && navigator.bluetooth) {
       const printerConfig = getBluetoothPrinterSettings();
-      printerService.current = new BluetoothPrinterService(setBluetoothStatus, printerConfig);
+      if (printerService.current) {
+        // Update existing service with new config
+        if (printerConfig) {
+          printerService.current.updateSavedPrinterConfig(printerConfig);
+        }
+      } else {
+        // Create new service
+        printerService.current = new BluetoothPrinterService(setBluetoothStatus, printerConfig);
+      }
       return () => {
         if (printerService.current) {
           printerService.current.disconnect();

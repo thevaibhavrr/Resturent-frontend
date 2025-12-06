@@ -20,3 +20,4 @@ export const BLUETOOTH_PRINTER_CONFIG = {
 } as const;
 
 export type BluetoothPrinterConfig = typeof BLUETOOTH_PRINTER_CONFIG;
+

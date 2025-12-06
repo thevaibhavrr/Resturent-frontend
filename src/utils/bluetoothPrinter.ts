@@ -73,8 +73,21 @@ class BluetoothPrinterService {
     if (onStatusChange) {
       this.onStatusChange = onStatusChange;
     }
-    if (savedConfig) {
+
+    // Always ensure we have a valid config - use saved config or fallback to static
+    if (savedConfig && savedConfig.serviceUuid && savedConfig.characteristicUuid) {
       this.savedPrinterConfig = savedConfig;
+      console.log('BluetoothPrinterService: Using saved config:', savedConfig);
+    } else {
+      // Fallback to static config if saved config is not available or incomplete
+      this.savedPrinterConfig = {
+        name: BLUETOOTH_PRINTER_CONFIG.PRINTER_NAME,
+        address: '',
+        enabled: true,
+        serviceUuid: BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID,
+        characteristicUuid: BLUETOOTH_PRINTER_CONFIG.CHARACTERISTIC_UUID
+      };
+      console.log('BluetoothPrinterService: Using fallback static config');
     }
   }
 
@@ -117,8 +130,14 @@ class BluetoothPrinterService {
     try {
       this.setStatus('connecting');
       console.log('Attempting to connect to saved printer:', this.savedPrinterConfig);
+      console.log('Current config state:', {
+        hasConfig: !!this.savedPrinterConfig,
+        serviceUuid: this.savedPrinterConfig.serviceUuid,
+        characteristicUuid: this.savedPrinterConfig.characteristicUuid,
+        name: this.savedPrinterConfig.name
+      });
 
-      const serviceUuid = this.savedPrinterConfig.serviceUuid || BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID;
+      const serviceUuid = this.savedPrinterConfig.serviceUuid;
       console.log('Using service UUID:', serviceUuid);
 
       // PRIORITY 1: Try to connect to the specific previously connected device
@@ -216,10 +235,14 @@ class BluetoothPrinterService {
     }
 
     try {
+      // Use service UUID from current config, fallback to static
+      const serviceUuid = this.savedPrinterConfig?.serviceUuid || BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID;
+      console.log('connectToAnyPrinter: Using service UUID:', serviceUuid);
+
       // Request Bluetooth device with service UUID for thermal printers
       this.device = await navigator.bluetooth.requestDevice({
         filters: [{ services: [BLUETOOTH_PRINTER_CONFIG.STANDARD_SERVICE_UUID] }],
-        optionalServices: [BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID]
+        optionalServices: [serviceUuid]
       });
 
       if (!this.device.gatt) {
@@ -330,7 +353,17 @@ class BluetoothPrinterService {
   }
 
   updateSavedPrinterConfig(config: SavedPrinterConfig): void {
-    this.savedPrinterConfig = config;
+    if (config && config.serviceUuid && config.characteristicUuid) {
+      this.savedPrinterConfig = config;
+      console.log('BluetoothPrinterService: Config updated:', config);
+    } else {
+      console.warn('BluetoothPrinterService: Invalid config provided, keeping current config');
+    }
+  }
+
+  // Get current config (useful for debugging)
+  getCurrentConfig(): SavedPrinterConfig | null {
+    return this.savedPrinterConfig;
   }
 
   private updateConnectedDeviceInfo(): void {
