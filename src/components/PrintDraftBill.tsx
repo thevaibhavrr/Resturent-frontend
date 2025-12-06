@@ -510,7 +510,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
                     {/* Separator between KOTs */}
                     {kotIndex < printData.length - 1 && (
                       <tr>
-                        <td colSpan={2} className="border-b-2 border-dashed border-black py-4"></td>
+                        <td colSpan={2} className="border-b-2 border-dashed border-black pt-3"></td>
                       </tr>
                     )}
                   </React.Fragment>
