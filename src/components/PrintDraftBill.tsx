@@ -495,7 +495,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
                         </td>
 
                          <td className="py-1">
-                         <div className="font-medium text-2lg">
+                         <div className="font-medium text-2xl">
                             {item.name}
                             {item.quantity < 0 && <span className="text-red-600 ml-1">(REMOVED)</span>}
                           </div>
