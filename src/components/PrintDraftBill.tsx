@@ -1,8 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Button } from "./ui/button";
-import { ArrowLeft, CheckCircle2, Printer } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Printer, Bluetooth } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
+import { getCurrentUser, getRestaurantKey } from "../utils/auth";
+import { BluetoothPrinterService, PrinterStatus } from "../utils/bluetoothPrinter";
+import { BluetoothPrinterStatus } from "./BluetoothPrinterStatus";
+import { NewtonsCradleLoader } from "./ui/newtons-cradle-loader";
 
 interface DraftBillItem {
   id: string;
@@ -47,6 +51,104 @@ declare global {
 }
 
 export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKots, onBack }: PrintDraftBillProps) {
+
+  const user = getCurrentUser();
+  const [isBluetoothPrinting, setIsBluetoothPrinting] = useState(false);
+  const [bluetoothStatus, setBluetoothStatus] = useState<PrinterStatus>('disconnected');
+  const printerService = useRef<BluetoothPrinterService | null>(null);
+
+  // Get Bluetooth printer settings
+  const getBluetoothPrinterSettings = () => {
+    if (!user?.restaurantId) return null;
+
+    const key = getRestaurantKey("bluetoothPrinter", user.restaurantId);
+    const stored = localStorage.getItem(key);
+
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (error) {
+        console.warn('Error parsing Bluetooth printer settings:', error);
+        return null;
+      }
+    }
+    return null;
+  };
+
+  // Initialize Bluetooth printer service
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && navigator.bluetooth) {
+      const printerConfig = getBluetoothPrinterSettings();
+      printerService.current = new BluetoothPrinterService(setBluetoothStatus, printerConfig);
+      return () => {
+        if (printerService.current) {
+          printerService.current.disconnect();
+        }
+      };
+    }
+  }, [user]);
+
+  const formatForThermalPrinter = (): string => {
+    // Create a thermal printer receipt for draft bill/KOT
+    let receipt = "\x1B@"; // Initialize printer
+    receipt += "\x1B!\x00"; // Normal text
+
+    // Add header
+    receipt += `${"=".repeat(32)}\n`;
+    receipt += `DRAFT BILL / KOT\n`;
+    receipt += `Table: ${tableName}\n`;
+    receipt += `Persons: ${persons}\n`;
+    receipt += `${"=".repeat(32)}\n\n`;
+
+    // Add KOT data if available
+    if (printData && printData.length > 0) {
+      printData.forEach((kot, kotIndex) => {
+        if (kot.items && kot.items.length > 0) {
+          // Add KOT header if multiple KOTs
+          if (printData.length > 1) {
+            receipt += `KOT #${kotIndex + 1} - ${new Date(kot.timestamp).toLocaleTimeString('en-IN', {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}\n`;
+            receipt += "-".repeat(32) + "\n";
+          }
+
+          // Add items for this KOT
+          kot.items.forEach((item) => {
+            const name = item.name.length > 25 ? item.name.substring(0, 22) + "..." : item.name;
+            const quantity = Math.abs(item.quantity); // Handle negative quantities for removed items
+            const price = `₹${(item.price * quantity).toFixed(2)}`;
+
+            receipt += `${name}\n`;
+            receipt += `  ${quantity} x ₹${item.price.toFixed(2)}`.padEnd(20) + price.padStart(12) + "\n";
+
+            // Show if item was removed (negative quantity)
+            if (item.quantity < 0) {
+              receipt += `  (REMOVED)\n`;
+            }
+
+            receipt += "\n";
+          });
+
+          // Add spacing between KOTs
+          if (kotIndex < printData.length - 1) {
+            receipt += "\n";
+          }
+        }
+      });
+    }
+
+    // Add footer
+    receipt += `${"=".repeat(32)}\n`;
+    receipt += `Generated: ${new Date().toLocaleString()}\n`;
+    receipt += `DRAFT - Not Final Bill\n`;
+    receipt += `${"=".repeat(32)}\n`;
+
+    // Cut paper
+    receipt += "\x1D\x56\x42\x00"; // Full cut
+
+    return receipt;
+  };
 
   // Determine what to print:
   // 1. If unprintedKots exists and has items → print only unprinted KOTs (changes)
@@ -102,6 +204,59 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
   const [printAttempted, setPrintAttempted] = useState(false);
   const [showPrintAgain, setShowPrintAgain] = useState(false);
 
+  const handleBluetoothPrint = async () => {
+    if (!printerService.current) {
+      toast.error('Bluetooth printer service not available');
+      return;
+    }
+
+    setIsBluetoothPrinting(true);
+    try {
+      // Ensure we're connected before printing
+      if (bluetoothStatus !== 'connected') {
+        console.log('Attempting to reconnect to Bluetooth printer...');
+        const reconnected = await printerService.current.reconnect();
+        if (!reconnected) {
+          toast.error('Failed to connect to Bluetooth printer. Please check your printer settings.');
+          return;
+        }
+      }
+
+      // Generate the bill content for Bluetooth printing
+      const billElement = document.getElementById("draft-bill-content");
+      if (!billElement) {
+        toast.error("Bill content not found");
+        return;
+      }
+
+      // Capture the bill content as canvas for thermal printer
+      const canvas = await html2canvas(billElement, {
+        scale: 1.9, // Higher scale for crisp thermal printing
+      });
+
+      const imgData = canvas.toDataURL("image/png", 1.0); // Maximum quality
+
+      // Convert to thermal printer format and print
+      const thermalData = formatForThermalPrinter();
+      const success = await printerService.current.print(thermalData);
+
+      if (success) {
+        toast.success("Draft bill printed via Bluetooth!");
+        setPrintAttempted(true);
+      } else {
+        toast.error("Failed to print via Bluetooth");
+      }
+    } catch (error) {
+      console.error("Bluetooth print error:", error);
+      toast.error(`Bluetooth print failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsBluetoothPrinting(false);
+      setTimeout(() => {
+        setShowPrintAgain(true);
+      }, 1000);
+    }
+  };
+
   const handlePrint = async () => {
     setPrintAttempted(true);
 
@@ -119,16 +274,23 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
 
       const imgData = canvas.toDataURL("image/png", 1.0);
 
+      // Get Bluetooth printer settings for MAC address
+      const bluetoothSettings = getBluetoothPrinterSettings();
+      const deviceMacAddress = bluetoothSettings?.address; // Use saved address or fallback
+
+      console.log('Using Bluetooth printer address for draft:', deviceMacAddress);
+      console.log('Bluetooth settings for draft:', bluetoothSettings);
+
       if (window.MOBILE_CHANNEL) {
         window.MOBILE_CHANNEL.postMessage(
           JSON.stringify({
             event: "flutterPrint",
-            deviceMacAddress: "66:32:B1:BE:4E:AF",
+            deviceMacAddress: deviceMacAddress,
             imageBase64: imgData.replace("data:image/png;base64,", ""),
           })
         );
 
-        toast.success("Print request sent to device!");
+        toast.success(`Print request sent to device! (Draft Bill)`);
       } else {
         const printWindow = window.open();
         if (printWindow) {
@@ -178,7 +340,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
           </Button>
 
           <div className="flex items-center gap-3">
-            {printAttempted && (
+            {printAttempted && !isBluetoothPrinting && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CheckCircle2 className="w-4 h-4 text-green-600" />
                 <span>
@@ -186,11 +348,44 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
                 </span>
               </div>
             )}
+            {isBluetoothPrinting && (
+              <div className="flex items-center gap-2 text-sm text-blue-600">
+                <NewtonsCradleLoader size={16} speed={1.2} color="#3b82f6" />
+                <span>Printing via Bluetooth...</span>
+              </div>
+            )}
 
-            <Button variant="default" onClick={handlePrint} className="gap-2 bg-primary">
-              <Printer className="w-4 h-4" />
-              {showPrintAgain ? "Print Again" : "Print"}
-            </Button>
+            <div className="flex items-center gap-2">
+              {typeof navigator !== "undefined" && navigator.bluetooth && (
+                <Button
+                  variant="outline"
+                  onClick={handleBluetoothPrint}
+                  disabled={
+                    isBluetoothPrinting || bluetoothStatus === "connecting"
+                  }
+                  className="gap-2"
+                >
+                  {bluetoothStatus === "connected" ? (
+                    <>
+                      <Bluetooth className="w-4 h-4" />
+                      Print via Bluetooth
+                    </>
+                  ) : (
+                    <>
+                      <Bluetooth className="w-4 h-4" />
+                      {bluetoothStatus === "connecting"
+                        ? "Connecting..."
+                        : "Print via Bluetooth"}
+                    </>
+                  )}
+                </Button>
+              )}
+
+              <Button variant="default" onClick={handlePrint} className="gap-2 bg-primary">
+                <Printer className="w-4 h-4" />
+                {showPrintAgain ? "Print Again" : "Print"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -205,7 +400,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
           {/* Header Title */}
           <div className="text-center border-b border-black pb-2 mb-2">
             <h1 className="text-lg font-bold uppercase">
-              {isFullDraft ? 'Full Draft Bill' : (unprintedKots ? 'Kitchen Order Tickets' : 'Draft Bill')}
+              {isFullDraft ? 'Full Draft Bill' : (unprintedKots ? 'Kitchen Order' : 'Draft Bill')}
             </h1>
             <p className="text-lg">Table: {tableName} • Persons: {persons}</p>
             <p className="text-sm">{currentDate} {currentTime}</p>
@@ -295,6 +490,17 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
           #draft-bill-content { position: absolute; left: 5mm; top: 5mm; width: 48mm; padding: 2mm; }
         }
       `}</style>
-    </div>  
+
+      {/* Bluetooth Printer Status */}
+      {typeof navigator !== "undefined" && navigator.bluetooth && (
+        <div className="print:hidden fixed bottom-4 right-4 z-50">
+          <BluetoothPrinterStatus
+            onConnect={() => setBluetoothStatus("connected")}
+            onDisconnect={() => setBluetoothStatus("disconnected")}
+            onError={() => setBluetoothStatus("error")}
+          />
+        </div>
+      )}
+    </div>
   );
 }

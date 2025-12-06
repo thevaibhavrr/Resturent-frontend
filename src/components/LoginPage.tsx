@@ -113,24 +113,6 @@ export function LoginPage({ onLogin, redirectPath = '/admin/order-tables' }: Log
           </Button>
         </form>
 
-        {/* Demo Credentials */}
-        <div className="mt-8 p-4 bg-muted rounded-lg">
-          <p className="text-xs text-muted-foreground mb-2">Demo Credentials:</p>
-          <div className="space-y-2 text-xs">
-            <div>
-              <p className="font-medium">Dev Restaurant (Admin):</p>
-              <p className="text-muted-foreground">
-                Divyapalce / 1234
-              </p>
-            </div>
-            <div>
-              <p className="font-medium">Dev Restaurant (Staff):</p>
-              <p className="text-muted-foreground">
-                v / v
-              </p>
-            </div>
-          </div>
-        </div>
       </Card>
     </div>
   );
