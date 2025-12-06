@@ -442,7 +442,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
           style={{ paddingBottom: "30px" }}
         >
           {/* Header Title */}
-          <div className="text-center border-b border-black pb-1 ">
+          <div className="text-center border-b border-black pb-2 mb-1">
             
             <p className="text-lg">Table: {tableName} • Persons: {persons}</p>
             <p className="text-sm">{currentDate} {currentTime}</p>
@@ -490,7 +490,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
                     {kot.items.map((item) => (
                      <>
                      {item.quantity > 0 && ( <tr key={`${kot.kotId}-${item.itemId}`}>
-                        <td className="text-center align-top py-1 pr-1 font-semibold text-2xl">
+                        <td className="text-center align-top pr-1 font-semibold text-2xl">
                           {item.quantity > 0 ? `${item.quantity}` : item.quantity}
                         </td>
 
