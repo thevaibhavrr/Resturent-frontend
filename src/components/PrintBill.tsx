@@ -530,20 +530,20 @@ export function PrintBill({
           <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
             <div className="grid grid-cols-2 gap-1.5 text-[12px]">
               <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
-                <span className="font-semibold text-gray-700">Date:</span>
+                <span className="font-semibold text-black">Date:</span>
                 <span className="font-medium">{displayDate}</span>
               </div>
               <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
-                <span className="font-semibold text-gray-700">Time:</span>
+                <span className="font-semibold text-black">Time:</span>
                 <span className="font-medium">{displayTime}</span>
               </div>
               <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
-                <span className="font-semibold text-gray-700">Table:</span>
-                <span className="font-bold text-gray-900">{tableName}</span>
+                <span className="font-semibold text-black">Table:</span>
+                <span className="font-bold text-black">{tableName}</span>
               </div>
               <div className="col-span-2 flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
-                <span className="font-semibold text-gray-700">Persons:</span>
-                <span className="font-bold text-gray-900">{persons}</span>
+                <span className="font-semibold text-black">Persons:</span>
+                <span className="font-bold text-black">{persons}</span>
               </div>
             </div>
           </div>
@@ -558,15 +558,15 @@ export function PrintBill({
                 <col style={{ width: '25%' }} />
               </colgroup>
               <thead>
-                <tr className="bg-gray-800 text-black">
-                  <th className="text-left py-1 px-0 font-bold truncate" style={{ fontSize: '17px' }}>Item</th>
-                  <th className="text-center py-1 px-0 font-bold" style={{ fontSize: '17px' }}>
+                <tr className="text-black">
+                  <th className="text-left py-1 px-0 font-bold truncate" style={{ fontSize: '18px' }}>Item</th>
+                  <th className="text-center py-1 px-0 font-bold" style={{ fontSize: '18px' }}>
                     Qty
                   </th>
-                  <th className="text-right py-1 px-0 font-bold" style={{ fontSize: '17px' }}>
+                  <th className="text-right py-1 px-0 font-bold" style={{ fontSize: '18px' }}>
                     Price
                   </th>
-                  <th className="text-right py-1 px-0 font-bold" style={{ fontSize: '17px' }}>
+                  <th className="text-right py-1 px-0 font-bold" style={{ fontSize: '18px' }}>
                     Amount
                   </th>
                 </tr>
@@ -580,11 +580,11 @@ export function PrintBill({
                   return (
                     <tr
                       key={item.id}
-                      className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
+                      className={`${index % 2 === 0 ? "bg-white" : "bg-white"}`}
                     >
                       <td className="py-1 px-0 align-top" style={{ fontSize: '16px' }}>
                         <div className="break-words">
-                          <span className="font-semibold text-gray-900" style={{ fontSize: '18px' }}>
+                          <span className="font-semibold text-gray-900" style={{ fontSize: '19px' }}>
                             {item.name}
                           </span>
                           {item.note && (
@@ -599,13 +599,13 @@ export function PrintBill({
                           )}
                         </div>
                       </td>
-                      <td className="text-center font-medium text-gray-800 align-top py-1" style={{ fontSize: '16px' }}>
+                      <td className="text-center font-medium text-gray-800 align-top py-1" style={{ fontSize: '17px' }}>
                         {item.quantity}
                       </td>
-                      <td className="text-right font-medium text-gray-700 align-top py-1" style={{ fontSize: '16px' }}>
+                      <td className="text-right font-medium text-gray-700 align-top py-1" style={{ fontSize: '17px' }}>
                         ₹{formatAmount(item.price)}
                       </td>
-                      <td className="text-right font-bold text-gray-900 align-top py-1" style={{ fontSize: '16px' }}>
+                      <td className="text-right font-bold text-gray-900 align-top py-1" style={{ fontSize: '17px' }}>
                         ₹{formatAmount(itemFinalAmount)}
                       </td>
                     </tr>
@@ -637,8 +637,8 @@ export function PrintBill({
           <div className="mb-0 pb-0 border-t-4 border-double border-gray-800 pt-2">
             <div className="space-y-1 mb-2">
               <div className="flex justify-between text-[13px]">
-                <span className="text-gray-700">Subtotal:</span>
-                <span className="font-semibold text-gray-900">
+                <span className="text-black font-semibold">Subtotal:</span>
+                <span className="font-semibold text-black">
                   ₹{formatAmount(subtotal)}
                 </span>
               </div>
@@ -661,10 +661,10 @@ export function PrintBill({
             </div>
             <div className="bg-gradient-to-r from-gray-100 to-gray-50 -mx-2 px-3 py-1.5 rounded border border-gray-300">
               <div className="flex justify-between items-center">
-                <span className="text-lg font-black uppercase tracking-wider text-gray-900">
+                <span className="text-lg font-black uppercase tracking-wider text-black font-bold">
                   TOTAL
                 </span>
-                <span className="text-2xl font-black text-gray-900">
+                <span className="text-2xl font-black text-black font-bold">
                   ₹{formatAmount(grandTotal)}
                 </span>
               </div>
