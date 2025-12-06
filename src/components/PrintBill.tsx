@@ -587,11 +587,7 @@ export function PrintBill({
                           <span className="font-semibold text-gray-900" style={{ fontSize: '19px' }}>
                             {item.name}
                           </span>
-                          {item.note && (
-                            <div className="text-gray-600 italic font-light" style={{ fontSize: '14px' }}>
-                              Note: {item.note}
-                            </div>
-                          )}
+                          
                           {itemDiscount > 0 && (
                             <div className="text-red-600 font-medium" style={{ fontSize: '14px' }}>
                               Disc: -₹{formatAmount(itemDiscount)}
@@ -603,10 +599,10 @@ export function PrintBill({
                         {item.quantity}
                       </td>
                       <td className="text-right font-medium text-gray-700 align-top py-1" style={{ fontSize: '17px' }}>
-                        ₹{formatAmount(item.price)}
+                        {formatAmount(item.price)}
                       </td>
                       <td className="text-right font-bold text-gray-900 align-top py-1" style={{ fontSize: '17px' }}>
-                        ₹{formatAmount(itemFinalAmount)}
+                        {formatAmount(itemFinalAmount)}
                       </td>
                     </tr>
                   );
@@ -736,7 +732,7 @@ export function PrintBill({
       <style>{`
         @media print {
           @page {
-            size: 60mm auto;
+            size: 58mm auto;
             margin: 0;
           }
           
@@ -759,7 +755,7 @@ export function PrintBill({
             position: absolute;
             left: 0;
             top: 0;
-            width: 60mm;
+            width: 58mm;
             padding: 2mm;
             background: white;
             box-shadow: none;
