@@ -431,4 +431,4 @@ class BluetoothPrinterService {
 }
 
 export { BluetoothPrinterService };
-export type { PrinterStatus, BluetoothPrinter };
+export type { PrinterStatus, BluetoothPrinter, SavedPrinterConfig };
