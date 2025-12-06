@@ -435,11 +435,11 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
       </div>
 
       {/* Bill Content */}
-      <div className="flex items-center justify-center p-2" style={{ marginBottom: "20px" }}>
+      <div className="flex items-center justify-center p-2" style={{ marginBottom: "10px" }}>
         <div
           id="draft-bill-content"
           className="bg-white text-black p-3 w-[300px] mx-auto"
-          style={{ paddingBottom: "30px" }}
+          // style={{ paddingBottom: "30px" }}
         >
           {/* Header Title */}
           <div className="text-center border-b border-black pb-2 mb-1">
