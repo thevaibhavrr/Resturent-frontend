@@ -3,7 +3,6 @@ import { Button } from "./ui/button";
 import { ArrowLeft, CheckCircle2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
-import { getCurrentUser, getRestaurantKey } from "../utils/auth";
 
 interface DraftBillItem {
   id: string;
@@ -48,25 +47,6 @@ declare global {
 }
 
 export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKots, onBack }: PrintDraftBillProps) {
-
-  // Get Bluetooth printer settings
-  const getBluetoothPrinterSettings = () => {
-    const user = getCurrentUser();
-    if (!user?.restaurantId) return null;
-
-    const key = getRestaurantKey("bluetoothPrinter", user.restaurantId);
-    const stored = localStorage.getItem(key);
-
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch (error) {
-        console.warn('Error parsing Bluetooth printer settings:', error);
-        return null;
-      }
-    }
-    return null;
-  };
 
   // Determine what to print:
   // 1. If unprintedKots exists and has items → print only unprinted KOTs (changes)
@@ -139,23 +119,16 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
 
       const imgData = canvas.toDataURL("image/png", 1.0);
 
-q      // Get Bluetooth printer settings for MAC address
-      const bluetoothSettings = getBluetoothPrinterSettings();
-      const deviceMacAddress = bluetoothSettings?.address; // Dynamic MAC address from settings
-
-      console.log('Using Bluetooth printer address for draft:', deviceMacAddress);
-      console.log('Bluetooth settings for draft:', bluetoothSettings);
-
       if (window.MOBILE_CHANNEL) {
         window.MOBILE_CHANNEL.postMessage(
           JSON.stringify({
             event: "flutterPrint",
-            deviceMacAddress: deviceMacAddress,
+            deviceMacAddress: "66:32:B1:BE:4E:AF",
             imageBase64: imgData.replace("data:image/png;base64,", ""),
           })
         );
 
-        toast.success(`Draft print request sent to device! (Address: ${deviceMacAddress || 'Not set'})`);
+        toast.success("Print request sent to device!");
       } else {
         const printWindow = window.open();
         if (printWindow) {
