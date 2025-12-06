@@ -278,9 +278,9 @@ export function PrintBill({
 
       const imgData = canvas.toDataURL("image/png", 1.0); // Maximum quality
 
-      // Get Bluetooth printer settings for MAC address
+      // Get Bluetooth printer settings for MAC address Pan
       const bluetoothSettings = getBluetoothPrinterSettings();
-      const deviceMacAddress = bluetoothSettings?.address || "66:32:B1:BE:4E:AF"; // Fallback to old address if not found
+      const deviceMacAddress = bluetoothSettings?.address; // Fallback to old address if not found
 
       console.log('Using Bluetooth printer address:', deviceMacAddress);
       console.log('Bluetooth settings:', bluetoothSettings);
