@@ -552,21 +552,21 @@ export function PrintBill({
           <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
             <table className="w-full" style={{ tableLayout: 'fixed', fontSize: '16px' }}>
               <colgroup>
-                <col style={{ width: '40%' }} />
-                <col style={{ width: '15%' }} />
-                <col style={{ width: '20%' }} />
+                <col style={{ width: '45%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '18%' }} />
                 <col style={{ width: '25%' }} />
               </colgroup>
               <thead>
                 <tr className="bg-gray-800 text-black">
-                  <th className="text-left py-1 px-0.5 font-bold truncate" style={{ fontSize: '17px' }}>Item</th>
-                  <th className="text-center py-1 px-0.5 font-bold" style={{ fontSize: '17px' }}>
+                  <th className="text-left py-1 px-0 font-bold truncate" style={{ fontSize: '17px' }}>Item</th>
+                  <th className="text-center py-1 px-0 font-bold" style={{ fontSize: '17px' }}>
                     Qty
                   </th>
-                  <th className="text-right py-1 px-0.5 font-bold" style={{ fontSize: '17px' }}>
+                  <th className="text-right py-1 px-0 font-bold" style={{ fontSize: '17px' }}>
                     Price
                   </th>
-                  <th className="text-right py-1 px-0.5 font-bold" style={{ fontSize: '17px' }}>
+                  <th className="text-right py-1 px-0 font-bold" style={{ fontSize: '17px' }}>
                     Amount
                   </th>
                 </tr>
@@ -582,7 +582,7 @@ export function PrintBill({
                       key={item.id}
                       className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
                     >
-                      <td className="py-1 px-0.5 align-top" style={{ fontSize: '16px' }}>
+                      <td className="py-1 px-0 align-top" style={{ fontSize: '16px' }}>
                         <div className="break-words">
                           <span className="font-semibold text-gray-900" style={{ fontSize: '18px' }}>
                             {item.name}
@@ -787,12 +787,16 @@ export function PrintBill({
           
           #bill-content th,
           #bill-content td {
-            padding: 2px 1px;
+            padding: 1px 0px;
           }
           
           #bill-content {
             font-size: 16px;
             font-family: system-ui, -apple-system, sans-serif;
+            width: 58mm;
+            max-width: 58mm;
+            overflow: hidden;
+            box-sizing: border-box;
           }
           
           /* Better print quality */
