@@ -442,7 +442,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
           style={{ paddingBottom: "30px" }}
         >
           {/* Header Title */}
-          <div className="text-center border-b border-black pb-2 mb-2">
+          <div className="text-center border-b border-black pb-1 ">
             
             <p className="text-lg">Table: {tableName} • Persons: {persons}</p>
             <p className="text-sm">{currentDate} {currentTime}</p>
@@ -459,7 +459,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
           </div>
 
           {/* Item Table */}
-          <div className="border-b border-dashed border-black pb-1">
+          <div className="border-b border-dashed border-black pb-3">
             <table className="w-full text-sm">
               <thead>
                 <tr className="">
@@ -468,7 +468,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
                 </tr>
               </thead>
 
-              <tbody className="mb-4" style={{ marginBottom: "20px" }}>
+              <tbody className="mb-4" style={{ marginBottom: "10px" }}>
                 {printData.map((kot, kotIndex) => (
                   <React.Fragment key={kot.kotId}>
                     {/* KOT Header if multiple KOTs */}
@@ -490,7 +490,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
                     {kot.items.map((item) => (
                      <>
                      {item.quantity > 0 && ( <tr key={`${kot.kotId}-${item.itemId}`}>
-                        <td className="text-center align-top py-1 pr-1 font-semibold">
+                        <td className="text-center align-top py-1 pr-1 font-semibold text-2xl">
                           {item.quantity > 0 ? `${item.quantity}` : item.quantity}
                         </td>
 
@@ -510,7 +510,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
                     {/* Separator between KOTs */}
                     {kotIndex < printData.length - 1 && (
                       <tr>
-                        <td colSpan={2} className="border-b-2 border-dashed border-black py-1"></td>
+                        <td colSpan={2} className="border-b-2 border-dashed border-black py-4"></td>
                       </tr>
                     )}
                   </React.Fragment>
