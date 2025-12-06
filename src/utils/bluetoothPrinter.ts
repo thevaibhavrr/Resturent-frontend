@@ -112,40 +112,72 @@ class BluetoothPrinterService {
 
     try {
       this.setStatus('connecting');
+      console.log('Attempting to connect to saved printer:', this.savedPrinterConfig);
 
-      // Request Bluetooth device with specific filters for the saved printer
-      const filters: BluetoothLEScanFilter[] = [];
-
-      // Add name filter if printer name is available
-      if (this.savedPrinterConfig.name) {
-        filters.push({ name: this.savedPrinterConfig.name });
-      }
-
-      // Add service filter
       const serviceUuid = this.savedPrinterConfig.serviceUuid || BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID;
-      filters.push({ services: [serviceUuid] });
+      console.log('Using service UUID:', serviceUuid);
 
-      this.device = await navigator.bluetooth.requestDevice({
-        filters,
-        optionalServices: [serviceUuid]
-      });
+      // First try with service UUID only (more reliable)
+      try {
+        console.log('Trying connection with service UUID filter only...');
+        this.device = await navigator.bluetooth.requestDevice({
+          filters: [{ services: [serviceUuid] }],
+          optionalServices: [serviceUuid]
+        });
+        console.log('Device found with service UUID:', this.device.name);
+      } catch (serviceError) {
+        console.warn('Service UUID filter failed, trying with device name only...', serviceError);
+
+        // Fallback: try with device name only
+        if (this.savedPrinterConfig.name) {
+          try {
+            this.device = await navigator.bluetooth.requestDevice({
+              filters: [{ name: this.savedPrinterConfig.name }],
+              optionalServices: [serviceUuid]
+            });
+            console.log('Device found with name filter:', this.device.name);
+          } catch (nameError) {
+            console.warn('Name filter also failed, trying without filters...', nameError);
+
+            // Last resort: let user pick any device and hope they choose the right one
+            this.device = await navigator.bluetooth.requestDevice({
+              optionalServices: [serviceUuid]
+            });
+            console.log('User selected device:', this.device.name);
+          }
+        } else {
+          throw new Error('No device name available for fallback connection');
+        }
+      }
 
       if (!this.device.gatt) {
-        throw new Error('Bluetooth GATT not available');
+        throw new Error('Bluetooth GATT not available on selected device');
       }
 
+      console.log('Connecting to GATT server...');
       this.device.addEventListener('gattserverdisconnected', this.handleDisconnect);
 
       this.server = await this.device.gatt.connect();
+      console.log('GATT server connected, getting service...');
 
-      const service = await this.server.getPrimaryService(serviceUuid);
+      this.service = await this.server.getPrimaryService(serviceUuid);
+      console.log('Service obtained, getting characteristic...');
+
       const characteristicUuid = this.savedPrinterConfig.characteristicUuid || BLUETOOTH_PRINTER_CONFIG.CHARACTERISTIC_UUID;
-      this.characteristic = await service.getCharacteristic(characteristicUuid);
+      console.log('Using characteristic UUID:', characteristicUuid);
+
+      this.characteristic = await this.service.getCharacteristic(characteristicUuid);
+      console.log('Characteristic obtained, printer ready!');
 
       this.setStatus('connected');
       return true;
     } catch (error) {
       console.error('Saved printer connection error:', error);
+      console.error('Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        savedConfig: this.savedPrinterConfig
+      });
       this.setStatus('error');
       return false;
     }
@@ -183,21 +215,36 @@ class BluetoothPrinterService {
   }
 
   async print(content: string): Promise<boolean> {
+    console.log('Print request received, content length:', content.length);
+    console.log('Current status:', this.status);
+    console.log('Characteristic available:', !!this.characteristic);
+
     if (!this.characteristic || this.status !== 'connected') {
+      console.log('Not connected, attempting to connect...');
       const connected = await this.connect();
-      if (!connected || !this.characteristic) return false;
+      if (!connected || !this.characteristic) {
+        console.error('Failed to connect or no characteristic available');
+        return false;
+      }
     }
 
     try {
       // Convert string to ArrayBuffer
       const encoder = new TextEncoder();
       const data = encoder.encode(content);
+      console.log('Data encoded, length:', data.length);
 
       // Send data to printer
+      console.log('Sending data to printer...');
       await this.characteristic.writeValueWithoutResponse(data);
+      console.log('Print data sent successfully');
       return true;
     } catch (error) {
       console.error('Print error:', error);
+      console.error('Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error)
+      });
       this.setStatus('error');
       return false;
     }

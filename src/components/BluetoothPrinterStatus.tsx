@@ -52,25 +52,33 @@ export function BluetoothPrinterStatus({
   useEffect(() => {
     const loadSavedPrinterConfig = () => {
       const user = getCurrentUser();
-      if (!user?.restaurantId) return;
+      if (!user?.restaurantId) {
+        console.log('No user or restaurantId found for Bluetooth printer config');
+        return;
+      }
 
       const key = getRestaurantKey("bluetoothPrinter", user.restaurantId);
+      console.log('Loading Bluetooth printer config with key:', key);
       const stored = localStorage.getItem(key);
 
       if (stored) {
         try {
           const config: SavedPrinterConfig = JSON.parse(stored);
+          console.log('Loaded Bluetooth printer config:', config);
           setSavedPrinterConfig(config);
           printerService.updateSavedPrinterConfig(config);
           setPrinterName(config.name || '');
 
           // Auto-reconnect if enabled and not already connected
           if (config.enabled && status === 'disconnected' && navigator.bluetooth) {
+            console.log('Auto-reconnecting to saved printer...');
             setTimeout(() => {
               printerService.reconnect().then(connected => {
                 if (connected) {
                   setPrinterName(config.name || '');
                   toast.success(`Reconnected to ${config.name}`);
+                } else {
+                  console.log('Auto-reconnection failed');
                 }
               }).catch(error => {
                 console.log('Auto-reconnection failed:', error);
@@ -80,6 +88,8 @@ export function BluetoothPrinterStatus({
         } catch (error) {
           console.error('Error parsing saved printer config:', error);
         }
+      } else {
+        console.log('No saved Bluetooth printer config found in localStorage');
       }
     };
 

@@ -1,0 +1,63 @@
+
+// Test your Bluetooth printer configuration
+const testBluetooth = async () => {
+  console.log('=== Bluetooth Printer Debug Info ===');
+  
+  // Check Web Bluetooth support
+  if (!navigator.bluetooth) {
+    console.error('❌ Web Bluetooth API not supported');
+    return;
+  }
+  console.log('✅ Web Bluetooth API supported');
+  
+  // Check saved config
+  const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+  if (!user?.restaurantId) {
+    console.error('❌ No user/restaurant ID');
+    return;
+  }
+  
+  const key = `restaurant_${user.restaurantId}_bluetoothPrinter`;
+  const stored = localStorage.getItem(key);
+  
+  if (!stored) {
+    console.error('❌ No saved Bluetooth printer config');
+    return;
+  }
+  
+  const config = JSON.parse(stored);
+  console.log('📋 Config:', config);
+  
+  if (!config.enabled) {
+    console.warn('⚠️ Printer disabled in settings');
+    return;
+  }
+  
+  console.log('🔄 Testing connection...');
+  
+  try {
+    // Test with service UUID
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [config.serviceUuid] }],
+      optionalServices: [config.serviceUuid]
+    });
+    
+    console.log('✅ Device found:', device.name);
+    
+    const server = await device.gatt.connect();
+    console.log('✅ GATT connected');
+    
+    const service = await server.getPrimaryService(config.serviceUuid);
+    console.log('✅ Service obtained');
+    
+    const characteristic = await service.getCharacteristic(config.characteristicUuid);
+    console.log('✅ Characteristic obtained - READY!');
+    
+  } catch (error) {
+    console.error('❌ Test failed:', error.message);
+  }
+};
+
+// Run the test
+testBluetooth();
+
