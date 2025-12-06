@@ -37,14 +37,22 @@ export function BluetoothPrinterStatus({
   const [printerName, setPrinterName] = useState<string>('');
   const [isInitializing, setIsInitializing] = useState(false);
   const [savedPrinterConfig, setSavedPrinterConfig] = useState<SavedPrinterConfig | null>(null);
+  const [connectedDeviceInfo, setConnectedDeviceInfo] = useState<{ name: string; lastConnectedAt?: string; isSavedDevice: boolean } | null>(null);
 
   // Initialize printer service
   const [printerService] = useState(
     () =>
       new BluetoothPrinterService((newStatus) => {
         setStatus(newStatus);
-        if (newStatus === 'connected' && onConnect) onConnect();
-        if (newStatus === 'disconnected' && onDisconnect) onDisconnect();
+        if (newStatus === 'connected') {
+          // Update connected device info when connected
+          setConnectedDeviceInfo(printerService.getConnectedDeviceInfo());
+          if (onConnect) onConnect();
+        }
+        if (newStatus === 'disconnected') {
+          setConnectedDeviceInfo(null);
+          if (onDisconnect) onDisconnect();
+        }
       })
   );
 
@@ -143,12 +151,28 @@ export function BluetoothPrinterStatus({
 
     switch (status) {
       case 'connected':
+        const deviceInfo = connectedDeviceInfo;
+        const isSavedDevice = deviceInfo?.isSavedDevice;
+        const actualDeviceName = deviceInfo?.name || displayName;
+
         return (
-          <div className="flex items-center gap-2 text-green-600">
-            <Bluetooth className="w-4 h-4" />
-            <span className="text-sm font-medium">
-              {displayName} Connected
-            </span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 text-green-600">
+              <Bluetooth className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                {actualDeviceName} Connected
+              </span>
+            </div>
+            {deviceInfo && (
+              <div className="text-xs text-gray-500 ml-6">
+                {isSavedDevice ? '✅ Saved device' : '⚠️ Different device'}
+                {deviceInfo.lastConnectedAt && (
+                  <span className="ml-2">
+                    Last connected: {new Date(deviceInfo.lastConnectedAt).toLocaleString()}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         );
       case 'connecting':
@@ -169,11 +193,23 @@ export function BluetoothPrinterStatus({
         );
       default:
         return (
-          <div className="flex items-center gap-2 text-gray-600">
-            <BluetoothOff className="w-4 h-4" />
-            <span className="text-sm font-medium">
-              {savedPrinterConfig?.enabled ? `${displayName} Disconnected` : 'Printer Disconnected'}
-            </span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 text-gray-600">
+              <BluetoothOff className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                {savedPrinterConfig?.enabled ? `${displayName} Disconnected` : 'Printer Disconnected'}
+              </span>
+            </div>
+            {savedPrinterConfig?.connectedDeviceName && (
+              <div className="text-xs text-gray-500 ml-6">
+                Last connected: {savedPrinterConfig.connectedDeviceName}
+                {savedPrinterConfig.lastConnectedAt && (
+                  <span className="ml-2">
+                    ({new Date(savedPrinterConfig.lastConnectedAt).toLocaleString()})
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         );
     }

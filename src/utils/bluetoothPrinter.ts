@@ -54,6 +54,10 @@ interface SavedPrinterConfig {
   enabled: boolean;
   serviceUuid: string;
   characteristicUuid: string;
+  // Store actual connected device info for precise reconnection
+  connectedDeviceName?: string;
+  deviceId?: string;
+  lastConnectedAt?: string;
 }
 
 class BluetoothPrinterService {
@@ -117,43 +121,63 @@ class BluetoothPrinterService {
       const serviceUuid = this.savedPrinterConfig.serviceUuid || BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID;
       console.log('Using service UUID:', serviceUuid);
 
-      // First try with service UUID only (more reliable)
-      try {
-        console.log('Trying connection with service UUID filter only...');
-        this.device = await navigator.bluetooth.requestDevice({
-          filters: [{ services: [serviceUuid] }],
-          optionalServices: [serviceUuid]
-        });
-        console.log('Device found with service UUID:', this.device.name);
-      } catch (serviceError) {
-        console.warn('Service UUID filter failed, trying with device name only...', serviceError);
-
-        // Fallback: try with device name only
-        if (this.savedPrinterConfig.name) {
-          try {
-            this.device = await navigator.bluetooth.requestDevice({
-              filters: [{ name: this.savedPrinterConfig.name }],
-              optionalServices: [serviceUuid]
-            });
-            console.log('Device found with name filter:', this.device.name);
-          } catch (nameError) {
-            console.warn('Name filter also failed, trying without filters...', nameError);
-
-            // Last resort: let user pick any device and hope they choose the right one
-            this.device = await navigator.bluetooth.requestDevice({
-              optionalServices: [serviceUuid]
-            });
-            console.log('User selected device:', this.device.name);
-          }
-        } else {
-          throw new Error('No device name available for fallback connection');
+      // PRIORITY 1: Try to connect to the specific previously connected device
+      if (this.savedPrinterConfig.connectedDeviceName) {
+        try {
+          console.log('Trying to connect to previously connected device:', this.savedPrinterConfig.connectedDeviceName);
+          this.device = await navigator.bluetooth.requestDevice({
+            filters: [{ name: this.savedPrinterConfig.connectedDeviceName }],
+            optionalServices: [serviceUuid]
+          });
+          console.log('✅ Connected to saved device:', this.device.name);
+        } catch (specificDeviceError) {
+          console.warn('Could not connect to previously connected device, trying alternatives...', specificDeviceError);
         }
+      }
+
+      // PRIORITY 2: Try with saved device name from settings
+      if (!this.device && this.savedPrinterConfig.name && this.savedPrinterConfig.name !== this.savedPrinterConfig.connectedDeviceName) {
+        try {
+          console.log('Trying connection with saved device name:', this.savedPrinterConfig.name);
+          this.device = await navigator.bluetooth.requestDevice({
+            filters: [{ name: this.savedPrinterConfig.name }],
+            optionalServices: [serviceUuid]
+          });
+          console.log('Device found with saved name:', this.device.name);
+        } catch (nameError) {
+          console.warn('Saved device name connection failed...', nameError);
+        }
+      }
+
+      // PRIORITY 3: Try with service UUID only (finds any compatible printer)
+      if (!this.device) {
+        try {
+          console.log('Trying connection with service UUID filter only...');
+          this.device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: [serviceUuid] }],
+            optionalServices: [serviceUuid]
+          });
+          console.log('Device found with service UUID:', this.device.name);
+        } catch (serviceError) {
+          console.warn('Service UUID filter failed, trying manual selection...', serviceError);
+
+          // Last resort: let user pick any device
+          this.device = await navigator.bluetooth.requestDevice({
+            optionalServices: [serviceUuid]
+          });
+          console.log('User selected device:', this.device.name);
+        }
+      }
+
+      if (!this.device) {
+        throw new Error('No Bluetooth device selected');
       }
 
       if (!this.device.gatt) {
         throw new Error('Bluetooth GATT not available on selected device');
       }
 
+      // Validate this is the expected device type by checking service availability
       console.log('Connecting to GATT server...');
       this.device.addEventListener('gattserverdisconnected', this.handleDisconnect);
 
@@ -168,6 +192,9 @@ class BluetoothPrinterService {
 
       this.characteristic = await this.service.getCharacteristic(characteristicUuid);
       console.log('Characteristic obtained, printer ready!');
+
+      // Update saved config with the actual connected device info
+      this.updateConnectedDeviceInfo();
 
       this.setStatus('connected');
       return true;
@@ -281,14 +308,54 @@ class BluetoothPrinterService {
     if (this.device && this.device.name) {
       return this.device.name;
     }
+    if (this.savedPrinterConfig && this.savedPrinterConfig.connectedDeviceName) {
+      return this.savedPrinterConfig.connectedDeviceName;
+    }
     if (this.savedPrinterConfig && this.savedPrinterConfig.name) {
       return this.savedPrinterConfig.name;
     }
     return 'Unknown Printer';
   }
 
+  getConnectedDeviceInfo(): { name: string; lastConnectedAt?: string; isSavedDevice: boolean } {
+    const connectedName = this.getConnectedPrinterName();
+    const savedName = this.savedPrinterConfig?.connectedDeviceName || this.savedPrinterConfig?.name;
+    const isSavedDevice = connectedName === savedName;
+
+    return {
+      name: connectedName,
+      lastConnectedAt: this.savedPrinterConfig?.lastConnectedAt,
+      isSavedDevice
+    };
+  }
+
   updateSavedPrinterConfig(config: SavedPrinterConfig): void {
     this.savedPrinterConfig = config;
+  }
+
+  private updateConnectedDeviceInfo(): void {
+    if (!this.device || !this.savedPrinterConfig) return;
+
+    // Update the saved config with actual connected device info
+    const updatedConfig: SavedPrinterConfig = {
+      ...this.savedPrinterConfig,
+      connectedDeviceName: this.device.name || undefined,
+      lastConnectedAt: new Date().toISOString()
+    };
+
+    this.savedPrinterConfig = updatedConfig;
+
+    // Save to localStorage
+    try {
+      const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+      if (user?.restaurantId) {
+        const key = `restaurant_${user.restaurantId}_bluetoothPrinter`;
+        localStorage.setItem(key, JSON.stringify(updatedConfig));
+        console.log('Updated saved printer config with connected device info:', updatedConfig);
+      }
+    } catch (error) {
+      console.warn('Failed to save updated printer config:', error);
+    }
   }
 
   async reconnect(): Promise<boolean> {
@@ -301,6 +368,32 @@ class BluetoothPrinterService {
     }
 
     return false;
+  }
+
+  clearSavedDeviceInfo(): void {
+    if (!this.savedPrinterConfig) return;
+
+    // Clear the connected device info but keep the settings
+    const updatedConfig: SavedPrinterConfig = {
+      ...this.savedPrinterConfig,
+      connectedDeviceName: undefined,
+      deviceId: undefined,
+      lastConnectedAt: undefined
+    };
+
+    this.savedPrinterConfig = updatedConfig;
+
+    // Save to localStorage
+    try {
+      const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+      if (user?.restaurantId) {
+        const key = `restaurant_${user.restaurantId}_bluetoothPrinter`;
+        localStorage.setItem(key, JSON.stringify(updatedConfig));
+        console.log('Cleared saved device info from printer config');
+      }
+    } catch (error) {
+      console.warn('Failed to clear saved device info:', error);
+    }
   }
 }
 
