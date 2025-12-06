@@ -5,11 +5,14 @@ import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { Card } from "../ui/card";
 import { Separator } from "../ui/separator";
-import { Settings as SettingsIcon, Upload, Save, Loader2, Bluetooth } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
+import { Badge } from "../ui/badge";
+import { Settings as SettingsIcon, Upload, Save, Loader2, Bluetooth, Search, Printer, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
 import { toast } from "sonner";
 import { makeApi } from "../../api/makeapi";
 import { BLUETOOTH_PRINTER_CONFIG } from "../../config/bluetoothPrinter";
+import { BluetoothPrinterService, PrinterStatus, SavedPrinterConfig } from "../../utils/bluetoothPrinter";
 
 interface RestaurantSettings {
   name: string;
@@ -54,6 +57,14 @@ export function Settings() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Bluetooth printer states
+  const [printerStatus, setPrinterStatus] = useState<PrinterStatus>('disconnected');
+  const [printerService] = useState(() => new BluetoothPrinterService(setPrinterStatus));
+  const [isTestingPrint, setIsTestingPrint] = useState(false);
+  const [isScanningDevices, setIsScanningDevices] = useState(false);
+  const [availableDevices, setAvailableDevices] = useState<Array<{name: string, id: string}>>([]);
+  const [showDeviceDialog, setShowDeviceDialog] = useState(false);
+
   useEffect(() => {
     loadSettings();
   }, []);
@@ -63,8 +74,26 @@ export function Settings() {
     if (user && settings.bluetoothPrinter) {
       const key = getRestaurantKey("bluetoothPrinter", user.restaurantId);
       localStorage.setItem(key, JSON.stringify(settings.bluetoothPrinter));
+      // Update printer service with new config
+      printerService.updateSavedPrinterConfig(settings.bluetoothPrinter);
     }
-  }, [settings.bluetoothPrinter, user]);
+  }, [settings.bluetoothPrinter, user, printerService]);
+
+  // Load saved printer config on mount
+  useEffect(() => {
+    if (user?.restaurantId) {
+      const key = getRestaurantKey("bluetoothPrinter", user.restaurantId);
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        try {
+          const config: SavedPrinterConfig = JSON.parse(stored);
+          printerService.updateSavedPrinterConfig(config);
+        } catch (error) {
+          console.warn('Error loading saved printer config:', error);
+        }
+      }
+    }
+  }, [user, printerService]);
 
   const loadSettings = async () => {
     if (!user) return;
@@ -236,6 +265,128 @@ export function Settings() {
     }
   };
 
+  // Bluetooth printer functions
+  const handleTestPrint = async () => {
+    if (!navigator.bluetooth) {
+      toast.error('Web Bluetooth API is not supported in your browser');
+      return;
+    }
+
+    setIsTestingPrint(true);
+    try {
+      const testContent = `
+===============================
+        TEST PRINT
+===============================
+Date: ${new Date().toLocaleString()}
+Printer: ${settings.bluetoothPrinter.name || 'Unknown'}
+Address: ${settings.bluetoothPrinter.address || 'Not set'}
+Service UUID: ${settings.bluetoothPrinter.serviceUuid}
+===============================
+      PRINT TEST SUCCESSFUL!
+===============================
+
+`;
+      const success = await printerService.print(testContent);
+      if (success) {
+        toast.success('Test print sent successfully!');
+      } else {
+        toast.error('Test print failed');
+      }
+    } catch (error) {
+      console.error('Test print error:', error);
+      toast.error(`Test print failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsTestingPrint(false);
+    }
+  };
+
+  const handleScanDevices = async () => {
+    if (!navigator.bluetooth) {
+      toast.error('Web Bluetooth API is not supported in your browser');
+      return;
+    }
+
+    setIsScanningDevices(true);
+    setAvailableDevices([]);
+
+    try {
+      // Request device discovery with acceptAllDevices to see all available devices
+      const device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [settings.bluetoothPrinter.serviceUuid || BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID]
+      });
+
+      if (device) {
+        const deviceInfo = {
+          name: device.name || 'Unknown Device',
+          id: device.id || 'unknown'
+        };
+
+        setAvailableDevices([deviceInfo]);
+        setShowDeviceDialog(true);
+        toast.success(`Found device: ${deviceInfo.name}`);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'NotFoundError') {
+        toast.info('No devices selected');
+      } else {
+        console.error('Device scan error:', error);
+        toast.error('Failed to scan for devices');
+      }
+    } finally {
+      setIsScanningDevices(false);
+    }
+  };
+
+  const handleConnectToDevice = async (deviceName: string) => {
+    try {
+      // Update settings with the selected device name
+      const updatedSettings = {
+        ...settings,
+        bluetoothPrinter: {
+          ...settings.bluetoothPrinter,
+          name: deviceName,
+          enabled: true
+        }
+      };
+
+      setSettings(updatedSettings);
+      setShowDeviceDialog(false);
+
+      toast.success(`Selected device: ${deviceName}`);
+    } catch (error) {
+      console.error('Error selecting device:', error);
+      toast.error('Failed to select device');
+    }
+  };
+
+  const getConnectionStatusText = () => {
+    switch (printerStatus) {
+      case 'connected':
+        return 'Connected';
+      case 'connecting':
+        return 'Connecting...';
+      case 'error':
+        return 'Connection Error';
+      default:
+        return 'Disconnected';
+    }
+  };
+
+  const getConnectionStatusColor = () => {
+    switch (printerStatus) {
+      case 'connected':
+        return 'text-green-600';
+      case 'connecting':
+        return 'text-blue-600';
+      case 'error':
+        return 'text-red-600';
+      default:
+        return 'text-gray-600';
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -374,30 +525,84 @@ export function Settings() {
 
           {/* Bluetooth Printer Settings */}
           <Card className="p-6">
-            <h2 className="text-xl mb-4 flex items-center gap-2">
-              <Bluetooth className="w-5 h-5" />
-              Bluetooth Printer Settings
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl flex items-center gap-2">
+                <Bluetooth className="w-5 h-5" />
+                Bluetooth Printer Settings
+              </h2>
+              {settings.bluetoothPrinter.enabled && (
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${printerStatus === 'connected' ? 'bg-green-500' : printerStatus === 'connecting' ? 'bg-blue-500' : printerStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'}`}></div>
+                    <span className={`text-sm font-medium ${getConnectionStatusColor()}`}>
+                      {getConnectionStatusText()}
+                    </span>
+                  </div>
+                  {settings.bluetoothPrinter.address && (
+                    <Badge variant="outline" className="text-xs">
+                      {settings.bluetoothPrinter.address}
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="bluetoothEnabled"
-                  checked={settings.bluetoothPrinter.enabled}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      bluetoothPrinter: {
-                        ...settings.bluetoothPrinter,
-                        enabled: e.target.checked
-                      }
-                    })
-                  }
-                  className="rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <Label htmlFor="bluetoothEnabled">Enable Bluetooth Printing</Label>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="bluetoothEnabled"
+                    checked={settings.bluetoothPrinter.enabled}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        bluetoothPrinter: {
+                          ...settings.bluetoothPrinter,
+                          enabled: e.target.checked
+                        }
+                      })
+                    }
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <Label htmlFor="bluetoothEnabled">Enable Bluetooth Printing</Label>
+                </div>
+
+                {settings.bluetoothPrinter.enabled && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleScanDevices}
+                      disabled={isScanningDevices}
+                      className="gap-2"
+                    >
+                      {isScanningDevices ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Search className="w-4 h-4" />
+                      )}
+                      Scan Devices
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleTestPrint}
+                      disabled={isTestingPrint || printerStatus === 'connecting'}
+                      className="gap-2"
+                    >
+                      {isTestingPrint ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Printer className="w-4 h-4" />
+                      )}
+                      Test Print
+                    </Button>
+                  </div>
+                )}
               </div>
-              
+
               {settings.bluetoothPrinter.enabled && (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -420,22 +625,30 @@ export function Settings() {
                     </div>
                     <div>
                       <Label htmlFor="printerAddress">Bluetooth Address</Label>
-                      <Input
-                        id="printerAddress"
-                        value={settings.bluetoothPrinter.address}
-                        onChange={(e) =>
-                          setSettings({
-                            ...settings,
-                            bluetoothPrinter: {
-                              ...settings.bluetoothPrinter,
-                              address: e.target.value
-                            }
-                          })
-                        }
-                        placeholder="e.g., 00:11:22:33:44:55"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="printerAddress"
+                          value={settings.bluetoothPrinter.address}
+                          onChange={(e) =>
+                            setSettings({
+                              ...settings,
+                              bluetoothPrinter: {
+                                ...settings.bluetoothPrinter,
+                                address: e.target.value
+                              }
+                            })
+                          }
+                          placeholder="e.g., 00:11:22:33:44:55"
+                        />
+                        {settings.bluetoothPrinter.connectedDeviceName && (
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="serviceUuid">Service UUID</Label>
@@ -472,12 +685,68 @@ export function Settings() {
                       />
                     </div>
                   </div>
+
+                  {settings.bluetoothPrinter.connectedDeviceName && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-green-800">
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="text-sm font-medium">
+                          Connected to: {settings.bluetoothPrinter.connectedDeviceName}
+                        </span>
+                        {settings.bluetoothPrinter.lastConnectedAt && (
+                          <span className="text-xs text-green-600 ml-auto">
+                            Last connected: {new Date(settings.bluetoothPrinter.lastConnectedAt).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <p className="text-xs text-muted-foreground">
-                    Configure your Bluetooth printer for receipt printing. Make sure the printer is paired with your device. UUIDs are specific to your printer model.
+                    Configure your Bluetooth printer for receipt printing. Use "Scan Devices" to find available printers and "Test Print" to verify the connection.
                   </p>
                 </>
               )}
             </div>
+
+            {/* Device Selection Dialog */}
+            <Dialog open={showDeviceDialog} onOpenChange={setShowDeviceDialog}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Select Bluetooth Printer</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  {availableDevices.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Available devices:</p>
+                      {availableDevices.map((device, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Bluetooth className="w-4 h-4 text-blue-500" />
+                            <div>
+                              <p className="font-medium">{device.name}</p>
+                              <p className="text-xs text-muted-foreground">ID: {device.id}</p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => handleConnectToDevice(device.name)}
+                            className="gap-2"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            Select
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-4">
+                      No devices found. Make sure your printer is turned on and in pairing mode.
+                    </p>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
           </Card>
         </div>
 
