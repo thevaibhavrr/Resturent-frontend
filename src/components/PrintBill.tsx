@@ -550,7 +550,7 @@ export function PrintBill({
 
           {/* Premium Item Table */}
           <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
-            <table className="w-full" style={{ tableLayout: 'fixed', fontSize: '14px' }}>
+            <table className="w-full" style={{ tableLayout: 'fixed', fontSize: '16px' }}>
               <colgroup>
                 <col style={{ width: '40%' }} />
                 <col style={{ width: '15%' }} />
@@ -559,14 +559,14 @@ export function PrintBill({
               </colgroup>
               <thead>
                 <tr className="bg-gray-800 text-black">
-                  <th className="text-left py-1 px-0.5 font-bold truncate" style={{ fontSize: '15px' }}>Item</th>
-                  <th className="text-center py-1 px-0.5 font-bold" style={{ fontSize: '15px' }}>
+                  <th className="text-left py-1 px-0.5 font-bold truncate" style={{ fontSize: '17px' }}>Item</th>
+                  <th className="text-center py-1 px-0.5 font-bold" style={{ fontSize: '17px' }}>
                     Qty
                   </th>
-                  <th className="text-right py-1 px-0.5 font-bold" style={{ fontSize: '15px' }}>
+                  <th className="text-right py-1 px-0.5 font-bold" style={{ fontSize: '17px' }}>
                     Price
                   </th>
-                  <th className="text-right py-1 px-0.5 font-bold" style={{ fontSize: '15px' }}>
+                  <th className="text-right py-1 px-0.5 font-bold" style={{ fontSize: '17px' }}>
                     Amount
                   </th>
                 </tr>
@@ -582,30 +582,30 @@ export function PrintBill({
                       key={item.id}
                       className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
                     >
-                      <td className="py-1 px-0.5 align-top" style={{ fontSize: '14px' }}>
+                      <td className="py-1 px-0.5 align-top" style={{ fontSize: '16px' }}>
                         <div className="break-words">
-                          <span className="font-semibold text-gray-900" style={{ fontSize: '15px' }}>
+                          <span className="font-semibold text-gray-900" style={{ fontSize: '18px' }}>
                             {item.name}
                           </span>
                           {item.note && (
-                            <div className="text-gray-600 italic font-light" style={{ fontSize: '12px' }}>
+                            <div className="text-gray-600 italic font-light" style={{ fontSize: '14px' }}>
                               Note: {item.note}
                             </div>
                           )}
                           {itemDiscount > 0 && (
-                            <div className="text-red-600 font-medium" style={{ fontSize: '12px' }}>
+                            <div className="text-red-600 font-medium" style={{ fontSize: '14px' }}>
                               Disc: -₹{formatAmount(itemDiscount)}
                             </div>
                           )}
                         </div>
                       </td>
-                      <td className="text-center font-medium text-gray-800 align-top py-1" style={{ fontSize: '14px' }}>
+                      <td className="text-center font-medium text-gray-800 align-top py-1" style={{ fontSize: '16px' }}>
                         {item.quantity}
                       </td>
-                      <td className="text-right font-medium text-gray-700 align-top py-1" style={{ fontSize: '14px' }}>
+                      <td className="text-right font-medium text-gray-700 align-top py-1" style={{ fontSize: '16px' }}>
                         ₹{formatAmount(item.price)}
                       </td>
-                      <td className="text-right font-bold text-gray-900 align-top py-1" style={{ fontSize: '14px' }}>
+                      <td className="text-right font-bold text-gray-900 align-top py-1" style={{ fontSize: '16px' }}>
                         ₹{formatAmount(itemFinalAmount)}
                       </td>
                     </tr>
@@ -791,7 +791,7 @@ export function PrintBill({
           }
           
           #bill-content {
-            font-size: 14px;
+            font-size: 16px;
             font-family: system-ui, -apple-system, sans-serif;
           }
           
