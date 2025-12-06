@@ -529,7 +529,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
           body { margin: 0mm; padding: 0; }
           body * { visibility: hidden; }
           #draft-bill-content, #draft-bill-content * { visibility: visible; }
-          #draft-bill-content { position: absolute; left: 0mm; top: 0mm; width: 58mm; padding: 2mm; }
+          #draft-bill-content { position: absolute; left: 0mm; top: 0mm; width: 58mm; padding: 0mm; }
         }
       `}</style>
 
