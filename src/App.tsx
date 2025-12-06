@@ -338,7 +338,8 @@ function AppContent() {
     return (
       <div className="min-h-screen bg-background">
         <Toaster />
-        <SubscriptionAlert />
+        {/* Show subscription alert only on dashboard page */}
+        {location.pathname === "/admin" && <SubscriptionAlert />}
         {/* Show subscription expired modal */}
         {subscriptionExpired && subscriptionData && (
           <SubscriptionExpiredModal
@@ -394,7 +395,6 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-background">
       <Toaster />
-      <SubscriptionAlert />
       {/* Show subscription expired modal */}
       {subscriptionExpired && subscriptionData && (
         <SubscriptionExpiredModal
