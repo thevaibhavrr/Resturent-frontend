@@ -13,6 +13,7 @@ import { settingsService } from "../utils/settingsService";
 import { toast } from "sonner";
 import { BluetoothPrinterService } from "../utils/bluetoothPrinter";
 import { BluetoothPrinterStatus } from "./BluetoothPrinterStatus";
+import { getRestaurantPrinterAddress } from "../config/bluetoothPrinter";
 import { NewtonsCradleLoader } from "./ui/newtons-cradle-loader";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -162,7 +163,7 @@ export function PrintBill({
     0
   );
 
-  // Get Bluetooth printer settings with fallback
+  // Get Bluetooth printer settings with fallback and restaurant-specific mapping
   const getBluetoothPrinterSettings = () => {
     if (!user?.restaurantId) {
       console.log('PrintBill: No user or restaurantId, using default config');
@@ -173,19 +174,46 @@ export function PrintBill({
     console.log('PrintBill: Loading Bluetooth config with key:', key);
     const stored = localStorage.getItem(key);
 
+    let config = null;
+
     if (stored) {
       try {
-        const config = JSON.parse(stored);
+        config = JSON.parse(stored);
         console.log('PrintBill: Loaded Bluetooth config:', config);
-        return config;
       } catch (error) {
         console.warn('PrintBill: Error parsing Bluetooth printer settings:', error);
-        return null; // Will use static config as fallback
+        config = null;
       }
     }
 
-    console.log('PrintBill: No saved Bluetooth config found, using defaults');
-    return null; // Will use static config as fallback
+    // If no config or config doesn't have address, check for restaurant-specific mapping
+    const restaurantPrinterAddress = getRestaurantPrinterAddress(user.restaurantId);
+    if (restaurantPrinterAddress) {
+      if (!config) {
+        // Create new config with restaurant-specific address
+        config = {
+          name: "Restaurant Printer",
+          address: restaurantPrinterAddress,
+          enabled: true,
+          serviceUuid: "0000ff00-0000-1000-8000-00805f9b34fb",
+          characteristicUuid: "0000ff02-0000-1000-8000-00805f9b34fb"
+        };
+        console.log(`PrintBill: Created restaurant-specific config for ${user.restaurantId}:`, config);
+      } else if (!config.address || config.address !== restaurantPrinterAddress) {
+        // Update existing config with correct restaurant address
+        config = {
+          ...config,
+          address: restaurantPrinterAddress,
+          enabled: true
+        };
+        console.log(`PrintBill: Updated config with restaurant-specific address for ${user.restaurantId}:`, restaurantPrinterAddress);
+      }
+    } else if (!config) {
+      console.log('PrintBill: No saved Bluetooth config found and no restaurant mapping, using defaults');
+      return null; // Will use static config as fallback
+    }
+
+    return config;
   };
 
   // Initialize Bluetooth printer service

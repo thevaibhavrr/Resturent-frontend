@@ -7,6 +7,7 @@ import { getCurrentUser, getRestaurantKey } from "../utils/auth";
 import { BluetoothPrinterService, PrinterStatus } from "../utils/bluetoothPrinter";
 import { BluetoothPrinterStatus } from "./BluetoothPrinterStatus";
 import { NewtonsCradleLoader } from "./ui/newtons-cradle-loader";
+import { getRestaurantPrinterAddress } from "../config/bluetoothPrinter";
 
 interface DraftBillItem {
   id: string;
@@ -57,7 +58,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
   const [bluetoothStatus, setBluetoothStatus] = useState<PrinterStatus>('disconnected');
   const printerService = useRef<BluetoothPrinterService | null>(null);
 
-  // Get Bluetooth printer settings with fallback
+  // Get Bluetooth printer settings with fallback and restaurant-specific mapping
   const getBluetoothPrinterSettings = () => {
     if (!user?.restaurantId) {
       console.log('PrintDraftBill: No user or restaurantId, using default config');
@@ -68,19 +69,46 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
     console.log('PrintDraftBill: Loading Bluetooth config with key:', key);
     const stored = localStorage.getItem(key);
 
+    let config = null;
+
     if (stored) {
       try {
-        const config = JSON.parse(stored);
+        config = JSON.parse(stored);
         console.log('PrintDraftBill: Loaded Bluetooth config:', config);
-        return config;
       } catch (error) {
         console.warn('PrintDraftBill: Error parsing Bluetooth printer settings:', error);
-        return null; // Will use static config as fallback
+        config = null;
       }
     }
 
-    console.log('PrintDraftBill: No saved Bluetooth config found, using defaults');
-    return null; // Will use static config as fallback
+    // If no config or config doesn't have address, check for restaurant-specific mapping
+    const restaurantPrinterAddress = getRestaurantPrinterAddress(user.restaurantId);
+    if (restaurantPrinterAddress) {
+      if (!config) {
+        // Create new config with restaurant-specific address
+        config = {
+          name: "Restaurant Printer",
+          address: restaurantPrinterAddress,
+          enabled: true,
+          serviceUuid: "0000ff00-0000-1000-8000-00805f9b34fb",
+          characteristicUuid: "0000ff02-0000-1000-8000-00805f9b34fb"
+        };
+        console.log(`PrintDraftBill: Created restaurant-specific config for ${user.restaurantId}:`, config);
+      } else if (!config.address || config.address !== restaurantPrinterAddress) {
+        // Update existing config with correct restaurant address
+        config = {
+          ...config,
+          address: restaurantPrinterAddress,
+          enabled: true
+        };
+        console.log(`PrintDraftBill: Updated config with restaurant-specific address for ${user.restaurantId}:`, restaurantPrinterAddress);
+      }
+    } else if (!config) {
+      console.log('PrintDraftBill: No saved Bluetooth config found and no restaurant mapping, using defaults');
+      return null; // Will use static config as fallback
+    }
+
+    return config;
   };
 
   // Initialize Bluetooth printer service
@@ -300,7 +328,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
       if (window.MOBILE_CHANNEL) {
         window.MOBILE_CHANNEL.postMessage(
           JSON.stringify({
-            event: "flutterPrint",
+            event: "flutterPrint",  
             deviceMacAddress: deviceMacAddress,
             imageBase64: imgData.replace("data:image/png;base64,", ""),
           })

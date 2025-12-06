@@ -11,7 +11,7 @@ import { Settings as SettingsIcon, Upload, Save, Loader2, Bluetooth, Search, Pri
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
 import { toast } from "sonner";
 import { makeApi } from "../../api/makeapi";
-import { BLUETOOTH_PRINTER_CONFIG } from "../../config/bluetoothPrinter";
+import { BLUETOOTH_PRINTER_CONFIG, getRestaurantPrinterAddress } from "../../config/bluetoothPrinter";
 import { BluetoothPrinterService, PrinterStatus, SavedPrinterConfig } from "../../utils/bluetoothPrinter";
 
 interface RestaurantSettings {
@@ -118,10 +118,34 @@ export function Settings() {
         console.error("Error parsing stored Bluetooth printer settings:", error);
       }
     }
+
+    // Apply restaurant-specific Bluetooth printer address
+    const restaurantPrinterAddress = getRestaurantPrinterAddress(user.restaurantId);
+    if (restaurantPrinterAddress) {
+      console.log(`Applying restaurant-specific printer address for ${user.restaurantId}: ${restaurantPrinterAddress}`);
+      bluetoothPrinterDefaults.address = restaurantPrinterAddress;
+      bluetoothPrinterDefaults.enabled = true; // Auto-enable for restaurants with specific printers
+
+      // Save the updated config to localStorage immediately
+      localStorage.setItem(bluetoothKey, JSON.stringify(bluetoothPrinterDefaults));
+    }
     
     try {
       const response = await makeApi(`/api/settings/${user.restaurantId}`, "GET");
       if (response.data) {
+        // Apply restaurant-specific printer settings to API response
+        let finalBluetoothPrinter = response.data.bluetoothPrinter || bluetoothPrinterDefaults;
+        const restaurantPrinterAddress = getRestaurantPrinterAddress(user.restaurantId);
+        if (restaurantPrinterAddress) {
+          finalBluetoothPrinter = {
+            ...finalBluetoothPrinter,
+            address: restaurantPrinterAddress,
+            enabled: true
+          };
+          // Update localStorage with the restaurant-specific settings
+          localStorage.setItem(bluetoothKey, JSON.stringify(finalBluetoothPrinter));
+        }
+
         setSettings({
           name: response.data.name || user.restaurantName || "",
           address: response.data.address || "",
@@ -132,7 +156,7 @@ export function Settings() {
           logo: response.data.logo || "",
           qrCode: response.data.qrCode || "",
           description: response.data.description || "",
-          bluetoothPrinter: response.data.bluetoothPrinter || bluetoothPrinterDefaults
+          bluetoothPrinter: finalBluetoothPrinter
         });
       }
     } catch (error) {
@@ -142,6 +166,19 @@ export function Settings() {
       const stored = localStorage.getItem(key);
       if (stored) {
         const storedSettings = JSON.parse(stored);
+        // Apply restaurant-specific printer settings to stored settings
+        let finalBluetoothPrinter = storedSettings.bluetoothPrinter || bluetoothPrinterDefaults;
+        const restaurantPrinterAddress = getRestaurantPrinterAddress(user.restaurantId);
+        if (restaurantPrinterAddress) {
+          finalBluetoothPrinter = {
+            ...finalBluetoothPrinter,
+            address: restaurantPrinterAddress,
+            enabled: true
+          };
+          // Update localStorage with the restaurant-specific settings
+          localStorage.setItem(bluetoothKey, JSON.stringify(finalBluetoothPrinter));
+        }
+
         setSettings({
           name: storedSettings.name || user.restaurantName || "",
           address: storedSettings.address || "",
@@ -152,9 +189,23 @@ export function Settings() {
           logo: storedSettings.logo || "",
           qrCode: storedSettings.qrCode || "",
           description: storedSettings.description || "",
-          bluetoothPrinter: storedSettings.bluetoothPrinter || bluetoothPrinterDefaults
+          bluetoothPrinter: finalBluetoothPrinter
         });
       } else {
+        // Apply restaurant-specific printer settings to defaults
+        let finalBluetoothPrinter = bluetoothPrinterDefaults;
+        const restaurantPrinterAddress = getRestaurantPrinterAddress(user.restaurantId);
+        if (restaurantPrinterAddress) {
+          finalBluetoothPrinter = {
+            ...bluetoothPrinterDefaults,
+            address: restaurantPrinterAddress,
+            enabled: true
+          };
+          // Save the restaurant-specific settings to localStorage
+          localStorage.setItem(bluetoothKey, JSON.stringify(finalBluetoothPrinter));
+          console.log(`Set restaurant-specific printer for ${user.restaurantId}: ${restaurantPrinterAddress}`);
+        }
+
         // Set default from user data
         setSettings({
           name: user.restaurantName || "",
@@ -166,7 +217,7 @@ export function Settings() {
           logo: "",
           qrCode: "",
           description: "",
-          bluetoothPrinter: bluetoothPrinterDefaults
+          bluetoothPrinter: finalBluetoothPrinter
         });
       }
     } finally {
