@@ -485,10 +485,13 @@ export function PrintBill({
         <div
           className="w-[58mm] max-w-[58mm] bg-white text-black p-2 print:p-2 overflow-hidden"
           id="bill-content"
-          style={{ boxSizing: 'border-box' }}
+          style={{ 
+            boxSizing: 'border-box',
+            fontFamily: '"Courier New", Courier, monospace'
+          }}
         >
           {/* Premium Header with Logo */}
-          <div className="text-center p-3 mb pb-1 border-b-4 border-double border-gray-800">
+          <div className="text-center p-2 mb pb-1 border-b-2 border-double border-gray-800">
             {restaurantSettings.logo ? (
               <div className="mb-1 flex justify-center">
                 <div className="w-21 h-21 border-4 border-gray-800 rounded-full p-1 flex items-center justify-center">
@@ -501,7 +504,7 @@ export function PrintBill({
               </div>
             ) : (
               <div className="mb-1 flex justify-center">
-                <div className="w-18 h-18 bg-gradient-to-br from-gray-800 to-gray-600 text-white rounded-full flex items-center justify-center text-2xl font-black border-4 border-gray-800 shadow-lg">
+                <div className="w-14 h-14 bg-gradient-to-br from-gray-800 to-gray-600 text-white rounded-full flex items-center justify-center text-lg font-black border-2 border-gray-800 shadow-lg">
                   {restaurantSettings.name
                     ? restaurantSettings.name.charAt(0).toUpperCase()
                     : "R"}
@@ -509,9 +512,9 @@ export function PrintBill({
               </div>
             )}
             <h1
-              className="text-2xl font-black uppercase tracking-wider mb-1"
+              className="text-lg font-black uppercase tracking-wider mb-1"
               style={{
-                letterSpacing: "2px",
+                letterSpacing: "1px",
                 textShadow: "1px 1px 2px rgba(0,0,0,0.1)",
               }}
             >
@@ -519,7 +522,7 @@ export function PrintBill({
             </h1>
             <div className="flex items-center justify-center gap-2 mt-1">
               <div className="h-px bg-gray-400 flex-1"></div>
-              <div className="text-[8px] text-gray-500 font-semibold">
+              <div className="text-[7px] text-gray-500 font-semibold">
                 * * *
               </div>
               <div className="h-px bg-gray-400 flex-1"></div>
@@ -527,21 +530,21 @@ export function PrintBill({
           </div>
 
           {/* Bill Information - Premium Style */}
-          <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
-            <div className="grid grid-cols-2 gap-1.5 text-[12px]">
-              <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
+          <div className="mb-1 pb-1 border-b border-dashed border-gray-500">
+            <div className="grid grid-cols-2 gap-1 text-[10px]">
+              <div className="flex justify-between items-center bg-gray-50 px-1 py-0.5 rounded">
                 <span className="font-semibold text-gray-700">Date:</span>
                 <span className="font-medium">{displayDate}</span>
               </div>
-              <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
+              <div className="flex justify-between items-center bg-gray-50 px-1 py-0.5 rounded">
                 <span className="font-semibold text-gray-700">Time:</span>
                 <span className="font-medium">{displayTime}</span>
               </div>
-              <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
+              <div className="flex justify-between items-center bg-gray-50 px-1 py-0.5 rounded">
                 <span className="font-semibold text-gray-700">Table:</span>
                 <span className="font-bold text-gray-900">{tableName}</span>
               </div>
-              <div className="col-span-2 flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
+              <div className="col-span-2 flex justify-between items-center bg-gray-50 px-1 py-0.5 rounded">
                 <span className="font-semibold text-gray-700">Persons:</span>
                 <span className="font-bold text-gray-900">{persons}</span>
               </div>

@@ -450,7 +450,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
             <p className="text-sm">{currentDate} {currentTime}</p>
             {unprintedKots && !isFullDraft && (
               <p className="text-xs text-gray-600 mt-1">
-                Printing {totalKots} KOT{totalKots > 1 ? 's' : ''} (changes only)
+                Printing {totalKots} KOT{totalKots > 1 ? 's' : ''} 
               </p>
             )}
             {isFullDraft && (
@@ -464,7 +464,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
           <div className="border-b border-dashed border-black pb-1">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-black">
+                <tr className="">
                   <th className="text-center py-1 w-10">Qty</th>
                   <th className="text-left py-1">Item</th>
                 </tr>
