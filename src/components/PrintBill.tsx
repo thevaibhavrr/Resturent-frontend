@@ -567,7 +567,7 @@ export function PrintBill({
                     Price
                   </th>
                   <th className="text-right py-1 px-0 font-bold" style={{ fontSize: '18px' }}>
-                    Amount
+Total
                   </th>
                 </tr>
               </thead>
