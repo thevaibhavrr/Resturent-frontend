@@ -11,7 +11,7 @@ import {
 import { getCurrentUser, getRestaurantKey } from "../utils/auth";
 import { settingsService } from "../utils/settingsService";
 import { toast } from "sonner";
-import { BluetoothPrinterService, SavedPrinterConfig } from "../utils/bluetoothPrinter";
+import { BluetoothPrinterService } from "../utils/bluetoothPrinter";
 import { BluetoothPrinterStatus } from "./BluetoothPrinterStatus";
 import { getRestaurantPrinterAddress } from "../config/bluetoothPrinter";
 import { NewtonsCradleLoader } from "./ui/newtons-cradle-loader";
@@ -164,49 +164,53 @@ export function PrintBill({
   );
 
   // Get Bluetooth printer settings with fallback and restaurant-specific mapping
-  const getBluetoothPrinterSettings = (): SavedPrinterConfig => {
+  const getBluetoothPrinterSettings = () => {
     if (!user?.restaurantId) {
       console.log('PrintBill: No user or restaurantId, using default config');
-      return {
-        name: "Default Printer",
-        address: "",
-        enabled: false,
-        serviceUuid: "0000ff00-0000-1000-8000-00805f9b34fb",
-        characteristicUuid: "0000ff02-0000-1000-8000-00805f9b34fb"
-      };
+      return null; // Will use static config as fallback
     }
 
     const key = getRestaurantKey("bluetoothPrinter", user.restaurantId);
     console.log('PrintBill: Loading Bluetooth config with key:', key);
     const stored = localStorage.getItem(key);
 
-    let config: SavedPrinterConfig = {
-      name: "Default Printer",
-      address: "",
-      enabled: false,
-      serviceUuid: "0000ff00-0000-1000-8000-00805f9b34fb",
-      characteristicUuid: "0000ff02-0000-1000-8000-00805f9b34fb"
-    };
+    let config = null;
 
     if (stored) {
       try {
-        const parsedConfig = JSON.parse(stored) as SavedPrinterConfig;
-        console.log('PrintBill: Loaded Bluetooth config:', parsedConfig);
-        config = { ...config, ...parsedConfig };
+        config = JSON.parse(stored);
+        console.log('PrintBill: Loaded Bluetooth config:', config);
       } catch (error) {
         console.warn('PrintBill: Error parsing Bluetooth printer settings:', error);
+        config = null;
       }
     }
 
-    // Apply restaurant-specific mapping
+    // If no config or config doesn't have address, check for restaurant-specific mapping
     const restaurantPrinterAddress = getRestaurantPrinterAddress(user.restaurantId);
     if (restaurantPrinterAddress) {
-      config = {
-        ...config,
-        address: restaurantPrinterAddress,
-        enabled: true
-      };
-      console.log(`PrintBill: Applied restaurant-specific address for ${user.restaurantId}:`, restaurantPrinterAddress);
+      if (!config) {
+        // Create new config with restaurant-specific address
+        config = {
+          name: "Restaurant Printer",
+          address: restaurantPrinterAddress,
+          enabled: true,
+          serviceUuid: "0000ff00-0000-1000-8000-00805f9b34fb",
+          characteristicUuid: "0000ff02-0000-1000-8000-00805f9b34fb"
+        };
+        console.log(`PrintBill: Created restaurant-specific config for ${user.restaurantId}:`, config);
+      } else if (!config.address || config.address !== restaurantPrinterAddress) {
+        // Update existing config with correct restaurant address
+        config = {
+          ...config,
+          address: restaurantPrinterAddress,
+          enabled: true
+        };
+        console.log(`PrintBill: Updated config with restaurant-specific address for ${user.restaurantId}:`, restaurantPrinterAddress);
+      }
+    } else if (!config) {
+      console.log('PrintBill: No saved Bluetooth config found and no restaurant mapping, using defaults');
+      return null; // Will use static config as fallback
     }
 
     return config;
@@ -218,7 +222,9 @@ export function PrintBill({
       const printerConfig = getBluetoothPrinterSettings();
       if (printerService.current) {
         // Update existing service with new config
-        printerService.current.updateSavedPrinterConfig(printerConfig);
+        if (printerConfig) {
+          printerService.current.updateSavedPrinterConfig(printerConfig);
+        }
       } else {
         // Create new service
         printerService.current = new BluetoothPrinterService(setBluetoothStatus, printerConfig);
@@ -316,9 +322,9 @@ export function PrintBill({
 
       const imgData = canvas.toDataURL("image/png", 1.0); // Maximum quality
 
-      // Get Bluetooth printer settings for MAC address
+      // Get Bluetooth printer settings for MAC address Pan
       const bluetoothSettings = getBluetoothPrinterSettings();
-      const deviceMacAddress = bluetoothSettings.address || "";
+      const deviceMacAddress = bluetoothSettings?.address; // Fallback to old address if not found
 
       console.log('Using Bluetooth printer address:', deviceMacAddress);
       console.log('Bluetooth settings:', bluetoothSettings);
@@ -474,245 +480,326 @@ export function PrintBill({
         )}
       </div>
 
-      {/* Print Bill Content - Dynamic Width for Thermal Printers */}
+      {/* Print Bill Content */}
       <div className="flex items-center justify-center min-h-screen p-4 print:p-0 print:block">
         <div
-          className="bg-white text-black overflow-hidden"
+          className="w-[58mm] max-w-[58mm] bg-white text-black p-2 print:p-2 overflow-hidden"
           id="bill-content"
-          style={{
-            boxSizing: 'border-box',
-            width: '58mm',
-            maxWidth: '80mm',
-            minWidth: '48mm',
-            padding: '1mm',
-            fontFamily: "'Courier New', 'Roboto Mono', 'Monaco', monospace",
-            fontSize: '12px',
-            lineHeight: '1.1',
-            letterSpacing: '0.3px'
-          }}
+          style={{ boxSizing: 'border-box' }}
         >
-          {/* HEADER - Restaurant Name */}
-          <div className="text-center border-b-2 border-black pb-1 mb-1">
-            <h1 className="text-lg font-bold uppercase tracking-wide">
-              {restaurantSettings.name || "RESTAURANT"}
+          {/* Premium Header with Logo */}
+          <div className="text-center p-3 mb pb-1 border-b-4 border-double border-gray-800">
+            {restaurantSettings.logo ? (
+              <div className="mb-1 flex justify-center">
+                <div className="w-21 h-21 border-4 border-gray-800 rounded-full p-1 flex items-center justify-center">
+                  <img
+                    src={restaurantSettings.logo}
+                    alt="Logo"
+                    className="w-full h-full object-contain rounded-full"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="mb-1 flex justify-center">
+                <div className="w-18 h-18 bg-gradient-to-br from-gray-800 to-gray-600 text-white rounded-full flex items-center justify-center text-2xl font-black border-4 border-gray-800 shadow-lg">
+                  {restaurantSettings.name
+                    ? restaurantSettings.name.charAt(0).toUpperCase()
+                    : "R"}
+                </div>
+              </div>
+            )}
+            <h1
+              className="text-2xl font-black uppercase tracking-wider mb-1"
+              style={{
+                letterSpacing: "2px",
+                textShadow: "1px 1px 2px rgba(0,0,0,0.1)",
+              }}
+            >
+              {restaurantSettings.name || "Restaurant"}
             </h1>
-          </div>
-
-          {/* RESTAURANT INFO */}
-          <div className="text-center text-xs mb-1">
-            {restaurantSettings.address && (
-              <div className="mb-0.5">{restaurantSettings.address}</div>
-            )}
-            {restaurantSettings.phone && (
-              <div className="mb-0.5">Ph: {restaurantSettings.phone}</div>
-            )}
-            {restaurantSettings.gstin && (
-              <div className="text-[10px]">GSTIN: {restaurantSettings.gstin}</div>
-            )}
-          </div>
-
-          {/* ORDER DETAILS */}
-          <div className="border-b border-dashed border-black pb-1 mb-1">
-            <div className="text-xs">
-              <div>Bill #: {billNumber}</div>
-              <div>Date: {displayDate} {displayTime}</div>
-              <div>Table: {tableName} | Persons: {persons}</div>
+            <div className="flex items-center justify-center gap-2 mt-1">
+              <div className="h-px bg-gray-400 flex-1"></div>
+              <div className="text-[8px] text-gray-500 font-semibold">
+                * * *
+              </div>
+              <div className="h-px bg-gray-400 flex-1"></div>
             </div>
           </div>
 
-          {/* ITEMS LIST - Dynamic Width with Perfect Alignment */}
-          <div className="mb-1">
-            {items.map((item, index) => {
-              const itemTotal = item.price * item.quantity;
-              const itemDiscount = item.discountAmount || 0;
-              const itemFinalAmount = itemTotal - itemDiscount;
-
-              return (
-                <div key={item.id} className="mb-0.5">
-                  <div className="flex justify-between items-start text-xs">
-                    <div className="flex-1 pr-1">
-                      <div className="font-medium break-words leading-tight">
-                        {item.name}
-                      </div>
-                      <div className="text-[10px] text-gray-600">
-                        {item.quantity}x ₹{formatAmount(item.price)}
-                        {itemDiscount > 0 && (
-                          <span className="text-red-600 ml-1">
-                            (Disc: -₹{formatAmount(itemDiscount)})
-                          </span>
-                        )}
-                      </div>
-                      {item.note && (
-                        <div className="text-[10px] text-gray-600 italic">
-                          Note: {item.note}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-right font-bold whitespace-nowrap">
-                      ₹{formatAmount(itemFinalAmount)}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          {/* Bill Information - Premium Style */}
+          <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
+            <div className="grid grid-cols-2 gap-1.5 text-[12px]">
+              <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
+                <span className="font-semibold text-gray-700">Date:</span>
+                <span className="font-medium">{displayDate}</span>
+              </div>
+              <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
+                <span className="font-semibold text-gray-700">Time:</span>
+                <span className="font-medium">{displayTime}</span>
+              </div>
+              <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
+                <span className="font-semibold text-gray-700">Table:</span>
+                <span className="font-bold text-gray-900">{tableName}</span>
+              </div>
+              <div className="col-span-2 flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
+                <span className="font-semibold text-gray-700">Persons:</span>
+                <span className="font-bold text-gray-900">{persons}</span>
+              </div>
+            </div>
           </div>
-          {/* ADDITIONAL CHARGES */}
+
+          {/* Premium Item Table */}
+          <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
+            <table className="w-full text-[13px]" style={{ tableLayout: 'fixed' }}>
+              <colgroup>
+                <col style={{ width: '40%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '25%' }} />
+              </colgroup>
+              <thead>
+                <tr className="bg-gray-800 text-black">
+                  <th className="text-left py-1 px-0.5 font-bold truncate">Item</th>
+                  <th className="text-center py-1 px-0.5 font-bold">
+                    Qty
+                  </th>
+                  <th className="text-right py-1 px-0.5 font-bold">
+                    Price
+                  </th>
+                  <th className="text-right py-1 px-0.5 font-bold">
+                    Amount
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, index) => {
+                  const itemTotal = item.price * item.quantity;
+                  const itemDiscount = item.discountAmount || 0;
+                  const itemFinalAmount = itemTotal - itemDiscount;
+
+                  return (
+                    <tr
+                      key={item.id}
+                      className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} text-xs`}
+                    >
+                      <td className="py-1 px-0.5 align-top">
+                        <div className="break-words">
+                          <span className="font-semibold text-gray-900">
+                            {item.name}
+                          </span>
+                          {item.note && (
+                            <div className="text-[10px] text-gray-600 italic font-light">
+                              Note: {item.note}
+                            </div>
+                          )}
+                          {itemDiscount > 0 && (
+                            <div className="text-[10px] text-red-600 font-medium">
+                              Disc: -₹{formatAmount(itemDiscount)}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="text-center font-medium text-gray-800 align-top py-1">
+                        {item.quantity}
+                      </td>
+                      <td className="text-right font-medium text-gray-700 align-top py-1">
+                        ₹{formatAmount(item.price)}
+                      </td>
+                      <td className="text-right font-bold text-gray-900 align-top py-1">
+                        ₹{formatAmount(itemFinalAmount)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {/* Additional Charges */}
           {additionalCharges.length > 0 && (
-            <div className="mb-1 border-t border-dashed border-black pt-0.5">
+            <div className="mb-2 pb-1.5 border-b border-dashed border-gray-400">
               {additionalCharges.map((charge) => (
-                <div key={charge.id} className="flex justify-between text-xs">
-                  <span>{charge.name}:</span>
-                  <span>+₹{formatAmount(charge.amount)}</span>
+                <div
+                  key={charge.id}
+                  className="flex justify-between text-[13px] py-0.5"
+                >
+                  <span className="font-medium text-gray-700">
+                    {charge.name}:
+                  </span>
+                  <span className="font-semibold text-gray-900">
+                    ₹{formatAmount(charge.amount)}
+                  </span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* TOTAL SECTION */}
-          <div className="border-t-2 border-black pt-1 mt-1">
-            <div className="space-y-0.5 text-xs mb-1">
-              <div className="flex justify-between">
-                <span>Subtotal:</span>
-                <span>₹{formatAmount(subtotal)}</span>
+          {/* Premium Total Section */}
+          <div className="mb-0 pb-0 border-t-4 border-double border-gray-800 pt-2">
+            <div className="space-y-1 mb-2">
+              <div className="flex justify-between text-[13px]">
+                <span className="text-gray-700">Subtotal:</span>
+                <span className="font-semibold text-gray-900">
+                  ₹{formatAmount(subtotal)}
+                </span>
               </div>
               {discountAmount > 0 && (
-                <div className="flex justify-between text-red-600">
-                  <span>Discount:</span>
-                  <span>-₹{formatAmount(discountAmount)}</span>
-                </div>
-              )}
-              {cgst > 0 && (
-                <div className="flex justify-between">
-                  <span>CGST:</span>
-                  <span>₹{formatAmount(cgst)}</span>
-                </div>
-              )}
-              {sgst > 0 && (
-                <div className="flex justify-between">
-                  <span>SGST:</span>
-                  <span>₹{formatAmount(sgst)}</span>
+                <div className="flex justify-between text-[13px] text-red-600">
+                  <span>Total Discount:</span>
+                  <span className="font-semibold">
+                    -₹{formatAmount(discountAmount)}
+                  </span>
                 </div>
               )}
               {additionalTotal > 0 && (
-                <div className="flex justify-between">
-                  <span>Additional:</span>
-                  <span>+₹{formatAmount(additionalTotal)}</span>
+                <div className="flex justify-between text-[13px] text-green-600">
+                  <span>Additional Charges:</span>
+                  <span className="font-semibold">
+                    +₹{formatAmount(additionalTotal)}
+                  </span>
                 </div>
               )}
             </div>
-            <div className="border-t border-black pt-0.5">
-              <div className="flex justify-between items-center text-sm font-bold">
-                <span>TOTAL:</span>
-                <span>₹{formatAmount(grandTotal)}</span>
+            <div className="bg-gradient-to-r from-gray-100 to-gray-50 -mx-2 px-3 py-1.5 rounded border border-gray-300">
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-black uppercase tracking-wider text-gray-900">
+                  TOTAL
+                </span>
+                <span className="text-2xl font-black text-gray-900">
+                  ₹{formatAmount(grandTotal)}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* QR CODE */}
+          {/* QR Code Section */}
           {restaurantSettings.qrCode && (
-            <div className="text-center my-1 border-t border-dashed border-black pt-1">
-              <div className="inline-block border border-black p-0.5">
-                <img
-                  src={restaurantSettings.qrCode}
-                  alt="QR Code"
-                  className="w-12 h-12 object-contain"
-                />
+            <div className="mb-2 pb-2 border-t-2 p-3 border-dashed border-gray-500 pt-2 text-center">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-22 h-22 border-2 border-gray-300 rounded-lg p-2 bg-white">
+                  <img
+                    src={restaurantSettings.qrCode}
+                    alt="QR Code"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+             
               </div>
             </div>
           )}
 
-          {/* THANK YOU */}
-          <div className="text-center text-sm font-bold border-t border-black pt-1 mt-1">
-            THANK YOU
+          {/* Premium Thank You Section */}
+          <div className="text-center mb-0 pb-0 border-t-2 border-dashed border-gray-500 pt-0">
+            <div
+              className="text-xl font-black uppercase"
+              style={{ letterSpacing: "2px" }}
+            >
+              THANK YOU
+            </div>
           </div>
 
-          {/* FOOTER */}
-          <div className="text-center text-[10px] mt-0.5">
-            <div>Visit Again!</div>
+          {/* Premium Footer with Contact */}
+          <div className="text-center border-t-2 border-dashed border-gray-500 pt-2">
+            <div className="space-y-0.5 text-[12px]">
+              {restaurantSettings.name && (
+                <p className="font-bold text-gray-900 uppercase tracking-wide">
+                  {restaurantSettings.name}
+                </p>
+              )}
+              {restaurantSettings.address && (
+                <p className="font-medium text-gray-700 leading-tight">
+                  {restaurantSettings.address}
+                </p>
+              )}
+              {restaurantSettings.phone && (
+                <p className="font-semibold text-gray-800 mt-0.5">
+                  Phone: {restaurantSettings.phone}
+                </p>
+              )}
+              {restaurantSettings.gstin && (
+                <p className="text-[11px] text-gray-600 mt-0.5">
+                  GSTIN: {restaurantSettings.gstin}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center justify-center gap-2 mt-1.5 pt-1.5 border-t border-dashed border-gray-400">
+              <div className="h-px bg-gray-400 flex-1"></div>
+              <div className="text-[8px] text-gray-500 font-semibold">
+                * * *
+              </div>
+              <div className="h-px bg-gray-400 flex-1"></div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Thermal Printer Safe CSS */}
+      {/* Print Styles */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap');
-
         @media print {
           @page {
-            size: auto;
+            size: 60mm auto;
             margin: 0;
           }
-
+          
           body {
             margin: 0;
             padding: 0;
             background: white;
-            font-family: 'Courier New', 'Roboto Mono', 'Monaco', monospace;
           }
-
+          
           body * {
             visibility: hidden;
           }
-
+          
           #bill-content,
           #bill-content * {
             visibility: visible;
-            font-family: 'Courier New', 'Roboto Mono', 'Monaco', monospace !important;
           }
-
+          
           #bill-content {
             position: absolute;
             left: 0;
             top: 0;
-            width: auto;
-            min-width: 48mm;
-            max-width: 80mm;
-            padding: 1mm;
+            width: 60mm;
+            padding: 2mm;
             background: white;
             box-shadow: none;
-            font-size: 12px;
-            line-height: 1.1;
-            letter-spacing: 0.3px;
           }
-
+          
           .print\\:hidden {
             display: none !important;
           }
-
+          
           .print\\:p-0 {
             padding: 0 !important;
           }
-
+          
           .print\\:block {
             display: block !important;
           }
-
-          /* Thermal printer optimizations */
+          
+          /* Ensure borders print correctly */
+          #bill-content table,
+          #bill-content th,
+          #bill-content td {
+            border-color: #000 !important;
+            border-collapse: collapse;
+          }
+          
+          #bill-content th,
+          #bill-content td {
+            padding: 2px 1px;
+          }
+          
+          #bill-content {
+            font-size: 12px;
+          }
+          
+          /* Better print quality */
           #bill-content {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
             color-adjust: exact;
-            font-variant-numeric: tabular-nums;
-            font-feature-settings: "tnum";
           }
-
-          /* Ensure consistent spacing */
-          #bill-content * {
-            box-sizing: border-box;
-          }
-
-          /* Prevent content from breaking across pages */
-          #bill-content {
-            page-break-inside: avoid;
-          }
-        }
-
-        /* Web view styles */
-        #bill-content {
-          font-family: 'Courier New', 'Roboto Mono', 'Monaco', monospace;
-          font-size: 12px;
-          line-height: 1.1;
-          letter-spacing: 0.3px;
         }
       `}</style>
     </div>
