@@ -525,11 +525,11 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
       {/* Print CSS */}
       <style>{`
         @media print {
-          @page { size: 58mm auto; margin: 2mm; }
-          body { margin: 2mm; padding: 0; }
+          @page { size: 58mm auto; margin: 0mm; }
+          body { margin: 0mm; padding: 0; }
           body * { visibility: hidden; }
           #draft-bill-content, #draft-bill-content * { visibility: visible; }
-          #draft-bill-content { position: absolute; left: 5mm; top: 2mm; width: 48mm; padding: 2mm; }
+          #draft-bill-content { position: absolute; left: 0mm; top: 0mm; width: 58mm; padding: 2mm; }
         }
       `}</style>
 
