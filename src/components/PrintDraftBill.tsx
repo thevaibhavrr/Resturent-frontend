@@ -443,9 +443,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
         >
           {/* Header Title */}
           <div className="text-center border-b border-black pb-2 mb-2">
-            <h1 className="text-lg font-bold uppercase">
-              {isFullDraft ? 'Full Draft Bill' : (unprintedKots ? 'Kitchen Order' : 'Draft Bill')}
-            </h1>
+            
             <p className="text-lg">Table: {tableName} • Persons: {persons}</p>
             <p className="text-sm">{currentDate} {currentTime}</p>
             {unprintedKots && !isFullDraft && (
@@ -497,7 +495,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
                         </td>
 
                          <td className="py-1">
-                         <div className="font-medium">
+                         <div className="font-medium text-2lg">
                             {item.name}
                             {item.quantity < 0 && <span className="text-red-600 ml-1">(REMOVED)</span>}
                           </div>

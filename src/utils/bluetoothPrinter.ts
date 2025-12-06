@@ -100,7 +100,7 @@ class BluetoothPrinterService {
 
   async connect(): Promise<boolean> {
     if (this.status === 'connected') return true;
-
+    
     try {
       this.setStatus('connecting');
 
@@ -238,7 +238,7 @@ class BluetoothPrinterService {
       // Use service UUID from current config, fallback to static
       const serviceUuid = this.savedPrinterConfig?.serviceUuid || BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID;
       console.log('connectToAnyPrinter: Using service UUID:', serviceUuid);
-
+      
       // Request Bluetooth device with service UUID for thermal printers
       this.device = await navigator.bluetooth.requestDevice({
         filters: [{ services: [BLUETOOTH_PRINTER_CONFIG.STANDARD_SERVICE_UUID] }],
@@ -250,11 +250,11 @@ class BluetoothPrinterService {
       }
 
       this.device.addEventListener('gattserverdisconnected', this.handleDisconnect);
-
+      
       this.server = await this.device.gatt.connect();
       this.service = await this.server.getPrimaryService(BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID);
       this.characteristic = await this.service.getCharacteristic(BLUETOOTH_PRINTER_CONFIG.CHARACTERISTIC_UUID);
-
+      
       this.setStatus('connected');
       return true;
     } catch (error) {
@@ -283,7 +283,7 @@ class BluetoothPrinterService {
       const encoder = new TextEncoder();
       const data = encoder.encode(content);
       console.log('Data encoded, length:', data.length);
-
+      
       // Send data to printer
       console.log('Sending data to printer...');
       await this.characteristic.writeValueWithoutResponse(data);
@@ -431,4 +431,4 @@ class BluetoothPrinterService {
 }
 
 export { BluetoothPrinterService };
-export type { PrinterStatus, BluetoothPrinter, SavedPrinterConfig };
+export type { PrinterStatus, BluetoothPrinter };
