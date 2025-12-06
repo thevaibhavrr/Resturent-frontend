@@ -485,7 +485,10 @@ export function PrintBill({
         <div
           className="w-[58mm] max-w-[58mm] bg-white text-black p-2 print:p-2 overflow-hidden"
           id="bill-content"
-          style={{ boxSizing: 'border-box' }}
+          style={{ 
+            boxSizing: 'border-box',
+            fontFamily: '"Courier New", monospace'
+          }}
         >
           {/* Premium Header with Logo */}
           <div className="text-center p-3 mb pb-1 border-b-4 border-double border-gray-800">
@@ -550,7 +553,7 @@ export function PrintBill({
 
           {/* Premium Item Table */}
           <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
-            <table className="w-full text-[13px]" style={{ tableLayout: 'fixed' }}>
+            <table className="w-full text-[15px]" style={{ tableLayout: 'fixed' }}>
               <colgroup>
                 <col style={{ width: '40%' }} />
                 <col style={{ width: '15%' }} />
@@ -578,34 +581,31 @@ export function PrintBill({
                   const itemFinalAmount = itemTotal - itemDiscount;
 
                   return (
-                    <tr
-                      key={item.id}
-                      className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} text-xs`}
-                    >
-                      <td className="py-1 px-0.5 align-top">
+                    <tr className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"}`} style={{ fontSize: '14px' }}>
+                      <td className="py-1 px-0.5 align-top" style={{ fontSize: '14px' }}>
                         <div className="break-words">
                           <span className="font-semibold text-gray-900">
                             {item.name}
                           </span>
                           {item.note && (
-                            <div className="text-[10px] text-gray-600 italic font-light">
+                            <div className="text-[12px] text-gray-600 italic font-light">
                               Note: {item.note}
                             </div>
                           )}
                           {itemDiscount > 0 && (
-                            <div className="text-[10px] text-red-600 font-medium">
+                            <div className="text-[12px] text-red-600 font-medium">
                               Disc: -₹{formatAmount(itemDiscount)}
                             </div>
                           )}
                         </div>
                       </td>
-                      <td className="text-center font-medium text-gray-800 align-top py-1">
+                      <td className="text-center font-medium text-gray-800 align-top py-1" style={{ fontSize: '14px' }}>
                         {item.quantity}
                       </td>
-                      <td className="text-right font-medium text-gray-700 align-top py-1">
+                      <td className="text-right font-medium text-gray-700 align-top py-1" style={{ fontSize: '14px' }}>
                         ₹{formatAmount(item.price)}
                       </td>
-                      <td className="text-right font-bold text-gray-900 align-top py-1">
+                      <td className="text-right font-bold text-gray-900 align-top py-1" style={{ fontSize: '14px' }}>
                         ₹{formatAmount(itemFinalAmount)}
                       </td>
                     </tr>
@@ -791,7 +791,8 @@ export function PrintBill({
           }
           
           #bill-content {
-            font-size: 12px;
+            font-size: 14px;
+            font-family: "Courier New", monospace;
           }
           
           /* Better print quality */
