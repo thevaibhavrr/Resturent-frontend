@@ -5,10 +5,11 @@ import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { Card } from "../ui/card";
 import { Separator } from "../ui/separator";
-import { Settings as SettingsIcon, Upload, Save, Loader2 } from "lucide-react";
+import { Settings as SettingsIcon, Upload, Save, Loader2, Bluetooth } from "lucide-react";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { makeApi } from "../../api/makeapi";
+import { BLUETOOTH_PRINTER_CONFIG } from "../../config/bluetoothPrinter";
 
 interface RestaurantSettings {
   name: string;
@@ -20,6 +21,13 @@ interface RestaurantSettings {
   logo: string;
   qrCode: string;
   description: string;
+  bluetoothPrinter: {
+    name: string;
+    address: string;
+    enabled: boolean;
+    serviceUuid: string;
+    characteristicUuid: string;
+  };
 }
 
 export function Settings() {
@@ -34,6 +42,13 @@ export function Settings() {
     logo: "",
     qrCode: "",
     description: "",
+    bluetoothPrinter: {
+      name: "",
+      address: "",
+      enabled: false,
+      serviceUuid: BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID,
+      characteristicUuid: BLUETOOTH_PRINTER_CONFIG.CHARACTERISTIC_UUID
+    }
   });
 
   const [loading, setLoading] = useState(false);
@@ -43,10 +58,38 @@ export function Settings() {
     loadSettings();
   }, []);
 
+  // Auto-save Bluetooth printer settings to localStorage when they change
+  useEffect(() => {
+    if (user && settings.bluetoothPrinter) {
+      const key = getRestaurantKey("bluetoothPrinter", user.restaurantId);
+      localStorage.setItem(key, JSON.stringify(settings.bluetoothPrinter));
+    }
+  }, [settings.bluetoothPrinter, user]);
+
   const loadSettings = async () => {
     if (!user) return;
     
     setLoading(true);
+    
+    // First, load Bluetooth printer settings from localStorage for immediate persistence
+    const bluetoothKey = getRestaurantKey("bluetoothPrinter", user.restaurantId);
+    const storedBluetoothPrinter = localStorage.getItem(bluetoothKey);
+    let bluetoothPrinterDefaults = {
+      name: "",
+      address: "",
+      enabled: false,
+      serviceUuid: BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID,
+      characteristicUuid: BLUETOOTH_PRINTER_CONFIG.CHARACTERISTIC_UUID
+    };
+    
+    if (storedBluetoothPrinter) {
+      try {
+        bluetoothPrinterDefaults = JSON.parse(storedBluetoothPrinter);
+      } catch (error) {
+        console.error("Error parsing stored Bluetooth printer settings:", error);
+      }
+    }
+    
     try {
       const response = await makeApi(`/api/settings/${user.restaurantId}`, "GET");
       if (response.data) {
@@ -60,6 +103,7 @@ export function Settings() {
           logo: response.data.logo || "",
           qrCode: response.data.qrCode || "",
           description: response.data.description || "",
+          bluetoothPrinter: response.data.bluetoothPrinter || bluetoothPrinterDefaults
         });
       }
     } catch (error) {
@@ -68,7 +112,19 @@ export function Settings() {
       const key = getRestaurantKey("settings", user.restaurantId);
       const stored = localStorage.getItem(key);
       if (stored) {
-        setSettings(JSON.parse(stored));
+        const storedSettings = JSON.parse(stored);
+        setSettings({
+          name: storedSettings.name || user.restaurantName || "",
+          address: storedSettings.address || "",
+          phone: storedSettings.phone || "",
+          email: storedSettings.email || "",
+          website: storedSettings.website || "",
+          gstin: storedSettings.gstin || "",
+          logo: storedSettings.logo || "",
+          qrCode: storedSettings.qrCode || "",
+          description: storedSettings.description || "",
+          bluetoothPrinter: storedSettings.bluetoothPrinter || bluetoothPrinterDefaults
+        });
       } else {
         // Set default from user data
         setSettings({
@@ -81,6 +137,7 @@ export function Settings() {
           logo: "",
           qrCode: "",
           description: "",
+          bluetoothPrinter: bluetoothPrinterDefaults
         });
       }
     } finally {
@@ -314,6 +371,114 @@ export function Settings() {
               </div>
             </div>
           </Card>
+
+          {/* Bluetooth Printer Settings */}
+          <Card className="p-6">
+            <h2 className="text-xl mb-4 flex items-center gap-2">
+              <Bluetooth className="w-5 h-5" />
+              Bluetooth Printer Settings
+            </h2>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="bluetoothEnabled"
+                  checked={settings.bluetoothPrinter.enabled}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      bluetoothPrinter: {
+                        ...settings.bluetoothPrinter,
+                        enabled: e.target.checked
+                      }
+                    })
+                  }
+                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <Label htmlFor="bluetoothEnabled">Enable Bluetooth Printing</Label>
+              </div>
+              
+              {settings.bluetoothPrinter.enabled && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="printerName">Printer Name</Label>
+                      <Input
+                        id="printerName"
+                        value={settings.bluetoothPrinter.name}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            bluetoothPrinter: {
+                              ...settings.bluetoothPrinter,
+                              name: e.target.value
+                            }
+                          })
+                        }
+                        placeholder="e.g., EPON TM-T82"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="printerAddress">Bluetooth Address</Label>
+                      <Input
+                        id="printerAddress"
+                        value={settings.bluetoothPrinter.address}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            bluetoothPrinter: {
+                              ...settings.bluetoothPrinter,
+                              address: e.target.value
+                            }
+                          })
+                        }
+                        placeholder="e.g., 00:11:22:33:44:55"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="serviceUuid">Service UUID</Label>
+                      <Input
+                        id="serviceUuid"
+                        value={settings.bluetoothPrinter.serviceUuid}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            bluetoothPrinter: {
+                              ...settings.bluetoothPrinter,
+                              serviceUuid: e.target.value
+                            }
+                          })
+                        }
+                        placeholder="e.g., 0000ff00-0000-1000-8000-00805f9b34fb"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="characteristicUuid">Characteristic UUID</Label>
+                      <Input
+                        id="characteristicUuid"
+                        value={settings.bluetoothPrinter.characteristicUuid}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            bluetoothPrinter: {
+                              ...settings.bluetoothPrinter,
+                              characteristicUuid: e.target.value
+                            }
+                          })
+                        }
+                        placeholder="e.g., 0000ff02-0000-1000-8000-00805f9b34fb"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Configure your Bluetooth printer for receipt printing. Make sure the printer is paired with your device. UUIDs are specific to your printer model.
+                  </p>
+                </>
+              )}
+            </div>
+          </Card>
         </div>
 
         {/* Logo Upload */}
@@ -467,6 +632,13 @@ export async function getRestaurantSettings(restaurantId: string): Promise<Resta
         logo: response.data.logo || "",
         qrCode: response.data.qrCode || "",
         description: response.data.description || "",
+        bluetoothPrinter: response.data.bluetoothPrinter || {
+          name: "",
+          address: "",
+          enabled: false,
+          serviceUuid: BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID,
+          characteristicUuid: BLUETOOTH_PRINTER_CONFIG.CHARACTERISTIC_UUID
+        }
       };
       console.log("getRestaurantSettings: Returning settings:", settings);
       return settings;
@@ -493,5 +665,12 @@ export async function getRestaurantSettings(restaurantId: string): Promise<Resta
     logo: "",
     qrCode: "",
     description: "",
+    bluetoothPrinter: {
+      name: "",
+      address: "",
+      enabled: false,
+      serviceUuid: BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID,
+      characteristicUuid: BLUETOOTH_PRINTER_CONFIG.CHARACTERISTIC_UUID
+    }
   };
 }

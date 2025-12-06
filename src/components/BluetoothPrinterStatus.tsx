@@ -3,7 +3,11 @@ import { Bluetooth, BluetoothOff, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { NewtonsCradleLoader } from './ui/newtons-cradle-loader';
 import { toast } from 'sonner';
-import { BluetoothPrinterService, PrinterStatus } from '../utils/bluetoothPrinter';
+import { BluetoothPrinterService, PrinterStatus, SavedPrinterConfig } from '../utils/bluetoothPrinter';
+import { getCurrentUser, getRestaurantKey } from '../utils/auth';
+
+// Export the service type for use in other components
+export type { SavedPrinterConfig };
 
 // Type declaration for Web Bluetooth API
 declare global {
@@ -32,7 +36,8 @@ export function BluetoothPrinterStatus({
   const [status, setStatus] = useState<PrinterStatus>('disconnected');
   const [printerName, setPrinterName] = useState<string>('');
   const [isInitializing, setIsInitializing] = useState(false);
-  
+  const [savedPrinterConfig, setSavedPrinterConfig] = useState<SavedPrinterConfig | null>(null);
+
   // Initialize printer service
   const [printerService] = useState(
     () =>
@@ -43,6 +48,44 @@ export function BluetoothPrinterStatus({
       })
   );
 
+  // Load saved printer configuration
+  useEffect(() => {
+    const loadSavedPrinterConfig = () => {
+      const user = getCurrentUser();
+      if (!user?.restaurantId) return;
+
+      const key = getRestaurantKey("bluetoothPrinter", user.restaurantId);
+      const stored = localStorage.getItem(key);
+
+      if (stored) {
+        try {
+          const config: SavedPrinterConfig = JSON.parse(stored);
+          setSavedPrinterConfig(config);
+          printerService.updateSavedPrinterConfig(config);
+          setPrinterName(config.name || '');
+
+          // Auto-reconnect if enabled and not already connected
+          if (config.enabled && status === 'disconnected' && navigator.bluetooth) {
+            setTimeout(() => {
+              printerService.reconnect().then(connected => {
+                if (connected) {
+                  setPrinterName(config.name || '');
+                  toast.success(`Reconnected to ${config.name}`);
+                }
+              }).catch(error => {
+                console.log('Auto-reconnection failed:', error);
+              });
+            }, 1000); // Small delay to ensure component is fully mounted
+          }
+        } catch (error) {
+          console.error('Error parsing saved printer config:', error);
+        }
+      }
+    };
+
+    loadSavedPrinterConfig();
+  }, [printerService, status]);
+
   const handleConnect = async () => {
     if (!navigator.bluetooth) {
       toast.error('Web Bluetooth API is not supported in your browser');
@@ -52,14 +95,23 @@ export function BluetoothPrinterStatus({
     try {
       setIsInitializing(true);
       const connected = await printerService.connect();
+
       if (connected) {
-        toast.success('Bluetooth printer connected successfully');
+        const printerName = printerService.getConnectedPrinterName();
+        setPrinterName(printerName);
+        toast.success(`Connected to ${printerName}`);
       } else {
-        toast.error('Failed to connect to printer');
+        const message = savedPrinterConfig?.name
+          ? `Failed to connect to ${savedPrinterConfig.name}`
+          : 'Failed to connect to printer';
+        toast.error(message);
       }
     } catch (error) {
       console.error('Connection error:', error);
-      toast.error(`Connection error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const message = savedPrinterConfig?.name
+        ? `Failed to connect to ${savedPrinterConfig.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        : `Connection error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      toast.error(message);
       if (onError) onError(error instanceof Error ? error : new Error('Unknown error'));
     } finally {
       setIsInitializing(false);
@@ -77,13 +129,15 @@ export function BluetoothPrinterStatus({
   };
 
   const getStatusUI = () => {
+    const displayName = printerName || savedPrinterConfig?.name || 'Printer';
+
     switch (status) {
       case 'connected':
         return (
           <div className="flex items-center gap-2 text-green-600">
             <Bluetooth className="w-4 h-4" />
             <span className="text-sm font-medium">
-              {printerName || 'Printer'} Connected
+              {displayName} Connected
             </span>
           </div>
         );
@@ -91,7 +145,9 @@ export function BluetoothPrinterStatus({
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <NewtonsCradleLoader size={20} speed={1.2} color="#3b82f6" />
-            <span className="text-sm font-medium">Connecting...</span>
+            <span className="text-sm font-medium">
+              Connecting to {displayName}...
+            </span>
           </div>
         );
       case 'error':
@@ -105,7 +161,9 @@ export function BluetoothPrinterStatus({
         return (
           <div className="flex items-center gap-2 text-gray-600">
             <BluetoothOff className="w-4 h-4" />
-            <span className="text-sm font-medium">Printer Disconnected</span>
+            <span className="text-sm font-medium">
+              {savedPrinterConfig?.enabled ? `${displayName} Disconnected` : 'Printer Disconnected'}
+            </span>
           </div>
         );
     }
@@ -131,7 +189,7 @@ export function BluetoothPrinterStatus({
             ) : (
               <Bluetooth className="w-4 h-4" />
             )}
-            Connect Printer
+            {savedPrinterConfig?.name ? `Connect to ${savedPrinterConfig.name}` : 'Connect Printer'}
           </Button>
         ) : (
           <Button

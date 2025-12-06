@@ -8,6 +8,8 @@ export default function PrintDraftPage() {
   const tableData = location.state?.table;
   const cartData = location.state?.cart || [];
   const personsData = location.state?.persons || 1;
+  const unprintedKots = location.state?.unprintedKots;
+  const allKots = location.state?.allKots;
 
   if (!tableData) {
     navigate("/order-tables");
@@ -32,7 +34,9 @@ export default function PrintDraftPage() {
     <PrintDraftBill
       tableName={tableData.tableName}
       persons={personsData}
-      items={normalizedItems}
+      unprintedKots={unprintedKots}
+      allKots={allKots}
+      items={normalizedItems} // Fallback for legacy support
       onBack={() => navigate(-1)}
     />
   );

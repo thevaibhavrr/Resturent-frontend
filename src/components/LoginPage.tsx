@@ -10,9 +10,10 @@ import { toast } from 'sonner';
 
 interface LoginPageProps {
   onLogin: () => void;
+  redirectPath?: string;
 }
 
-export function LoginPage({ onLogin }: LoginPageProps) {
+export function LoginPage({ onLogin, redirectPath = '/admin/order-tables' }: LoginPageProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,7 +44,11 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             restaurantName: user.restaurantName || 'Restaurant'
           } as any);
           toast.success(`Welcome back, ${user.username}!`);
-          onLogin();
+          if (user.role === 'admin' && redirectPath) {
+            window.location.href = redirectPath;
+          } else {
+            onLogin();
+          }
         } else {
           toast.error('Invalid username or password');
         }

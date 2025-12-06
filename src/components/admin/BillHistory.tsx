@@ -22,6 +22,8 @@ import {
   ArrowLeft,
   Edit,
   Printer,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Loader } from "../ui/loader";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
@@ -65,14 +67,16 @@ export function BillHistory() {
   const [sortBy, setSortBy] = useState("date-desc");
 
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalBills, setTotalBills] = useState(0);
 
   const loadHistory = async () => {
     if (!user) return;
     
     setLoading(true);
     try {
-      // Load from API
-
+      // Load from API - get all bills for filtering (we'll paginate on frontend)
       // For staff, default to today's date filter
       const isStaff = user.role === "staff";
       const currentDateFilter = dateFilter || (isStaff ? "today" : "all");
@@ -96,7 +100,7 @@ export function BillHistory() {
       }
       
       const response = await getBills({ 
-        limit: 1000,
+        limit: 1000, // Get more bills for client-side filtering
         startDate: startDate
       });
       
@@ -128,6 +132,7 @@ export function BillHistory() {
       }));
       
       setHistory(bills);
+      setTotalBills(response.total || 0);
     } catch (error) {
       console.error("Error loading bill history:", error);
       // Fallback to localStorage
@@ -145,6 +150,11 @@ export function BillHistory() {
     loadHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFilter]); // Reload when date filter changes
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortBy, dateFilter]);
 
   const handleDeleteBill = async (billNumber: string) => {
     if (!user) return;
@@ -256,6 +266,15 @@ export function BillHistory() {
     navigate(`${routePrefix}/order-tables/print-bill`, { state: { printData } });
   };
 
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-IN", {
@@ -323,15 +342,29 @@ export function BillHistory() {
     });
   };
 
-  const filteredBills = getFilteredAndSortedBills();
+  // For now, we'll use the paginated data from the API
+  // The filtering will be done on the frontend for search and sorting
+  const displayBills = getFilteredAndSortedBills();
+  
+  // Client-side pagination
+  const paginatedBills = displayBills.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  
   // Find the most recent bill (first in the sorted list as it's sorted by date descending)
-  const mostRecentBill = filteredBills.length > 0 ? filteredBills[0] : null;
+  const mostRecentBill = displayBills.length > 0 ? displayBills[0] : null;
 
-  const totalRevenue = filteredBills.reduce(
+  // Pagination calculations
+  const totalPages = Math.ceil(displayBills.length / itemsPerPage);
+  const hasNextPage = currentPage < totalPages;
+  const hasPrevPage = currentPage > 1;
+
+  const totalRevenue = displayBills.reduce(
     (sum, bill) => sum + bill.grandTotal,
     0
   );
-  const totalItems = filteredBills.reduce(
+  const totalItems = displayBills.reduce(
     (sum, bill) =>
       sum + bill.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
     0
@@ -365,7 +398,7 @@ export function BillHistory() {
           <div className="flex items-center gap-2 sm:gap-3">
             <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
             <div>
-              <p className="text-xl sm:text-2xl font-medium">{filteredBills.length}</p>
+              <p className="text-xl sm:text-2xl font-medium">{totalBills}</p>
               <p className="text-xs sm:text-sm text-muted-foreground">Total Bills</p>
             </div>
           </div>
@@ -385,7 +418,6 @@ export function BillHistory() {
       <Card className="p-3 sm:p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search by bill or table..."
               value={searchTerm}
@@ -424,7 +456,7 @@ export function BillHistory() {
       <Card className="p-3 sm:p-4">
         {loading ? (
           <Loader text="Loading bill history..." />
-        ) : filteredBills.length === 0 ? (
+        ) : displayBills.length === 0 ? (
           <div className="text-center py-8 sm:py-12">
             <History className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 opacity-50 text-muted-foreground" />
             <p className="text-muted-foreground">No bills found</p>
@@ -432,7 +464,7 @@ export function BillHistory() {
         ) : (
           <ScrollArea className="h-[calc(100vh-400px)] sm:h-[600px] pr-2 sm:pr-4 -mr-2 sm:mr-0">
             <div className="space-y-2 sm:space-y-3">
-              {filteredBills.map((bill) => (
+              {paginatedBills.map((bill) => (
                 <Card key={bill.billNumber} className="p-3 sm:p-4 border">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-2">
                     <div className="flex-1 min-w-0">
@@ -595,6 +627,85 @@ export function BillHistory() {
           </ScrollArea>
         )}
       </Card>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <Card className="p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, displayBills.length)} of {displayBills.length} bills</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {/* Items per page selector */}
+              <Select
+                value={itemsPerPage.toString()}
+                onValueChange={(value: string) => handleItemsPerPageChange(parseInt(value))}
+              >
+                <SelectTrigger className="w-16 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Previous button */}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={!hasPrevPage}
+                className="h-8 w-8"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+
+              {/* Page numbers */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handlePageChange(pageNum)}
+                      className="h-8 w-8 text-xs"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              {/* Next button */}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={!hasNextPage}
+                className="h-8 w-8"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

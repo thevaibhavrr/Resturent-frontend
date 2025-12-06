@@ -20,6 +20,18 @@ export interface CartItem {
   updatedBy?: string;
 }
 
+export interface KotEntry {
+  kotId: string;
+  items: {
+    itemId: string;
+    name: string;
+    price: number;
+    quantity: number; // Positive for added, negative for removed
+  }[];
+  timestamp: string;
+  printed?: boolean; // Track if this KOT has been printed
+}
+
 export interface TableDraft {
   _id?: string;
   tableId: string;
@@ -34,6 +46,8 @@ export interface TableDraft {
   lastUpdated: string;
   updatedBy: string;
   userId?: string; // Add userId to the interface
+  kotHistory?: KotEntry[]; // History of KOT entries with differences
+  printedKots?: string[]; // Array of KOT IDs that have been printed
 }
 
 export const saveTableDraft = async (draftData: Partial<TableDraft> & { userId: string }) => {
@@ -74,5 +88,14 @@ export const clearTableDraft = async (tableId: string, restaurantId: string, upd
     requestData.userId = userId;
   }
   const response = await makeApi('/api/table-draft/clear', 'POST', requestData);
+  return response.data;
+};
+
+export const markKotsAsPrinted = async (tableId: string, restaurantId: string, kotIds: string[]) => {
+  const response = await makeApi('/api/table-draft/mark-printed', 'POST', {
+    tableId,
+    restaurantId,
+    kotIds
+  });
   return response.data;
 };

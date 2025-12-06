@@ -211,7 +211,7 @@
 // }
 
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { ArrowLeft, CheckCircle2, Printer } from "lucide-react";
 import { toast } from "sonner";
@@ -228,10 +228,26 @@ interface DraftBillItem {
   note?: string;
 }
 
+interface KotItem {
+  itemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+interface KotEntry {
+  kotId: string;
+  items: KotItem[];
+  timestamp: string;
+  printed?: boolean;
+}
+
 interface PrintDraftBillProps {
   tableName: string;
   persons: number;
-  items: DraftBillItem[];
+  items?: DraftBillItem[]; // Legacy support
+  unprintedKots?: KotEntry[]; // New KOT-based printing
+  allKots?: KotEntry[]; // All KOTs for reference
   onBack: () => void;
 }
 
@@ -243,7 +259,48 @@ declare global {
   }
 }
 
-export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraftBillProps) {
+export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKots, onBack }: PrintDraftBillProps) {
+
+  // Determine what to print:
+  // 1. If unprintedKots exists and has items → print only unprinted KOTs (changes)
+  // 2. If unprintedKots exists but is empty → print full cart (all items)
+  // 3. If unprintedKots is undefined → legacy support with items prop
+  const printData = (() => {
+    if (unprintedKots !== undefined) {
+      // KOT system is being used
+      if (unprintedKots.length > 0) {
+        // Print only unprinted KOTs (changes)
+        return unprintedKots;
+      } else {
+        // Print full draft (all items from cart)
+        return [{
+          kotId: 'FULL-DRAFT',
+          items: items?.map(item => ({
+            itemId: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity
+          })) || [],
+          timestamp: new Date().toISOString()
+        }];
+      }
+    } else {
+      // Legacy support
+      return items ? [{
+        kotId: 'LEGACY-KOT',
+        items: items.map(item => ({
+          itemId: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity
+        })),
+        timestamp: new Date().toISOString()
+      }] : [];
+    }
+  })();
+
+  const totalKots = unprintedKots ? (unprintedKots.length > 0 ? unprintedKots.length : 1) : (items ? 1 : 0);
+  const isFullDraft = unprintedKots !== undefined && unprintedKots.length === 0;
   const currentDate = new Date().toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "2-digit",
@@ -360,9 +417,21 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
         >
           {/* Header Title */}
           <div className="text-center border-b border-black pb-2 mb-2">
-            {/* <h1 className="text-lg font-bold uppercase">Draft Bill</h1> */}
-            <p className="text-sm">Table: {tableName} • Persons: {persons}</p>
+            <h1 className="text-lg font-bold uppercase">
+              {isFullDraft ? 'Full Draft Bill' : (unprintedKots ? 'Kitchen Order Tickets' : 'Draft Bill')}
+            </h1>
+            <p className="text-lg">Table: {tableName} • Persons: {persons}</p>
             <p className="text-sm">{currentDate} {currentTime}</p>
+            {unprintedKots && !isFullDraft && (
+              <p className="text-xs text-gray-600 mt-1">
+                Printing {totalKots} KOT{totalKots > 1 ? 's' : ''} (changes only)
+              </p>
+            )}
+            {isFullDraft && (
+              <p className="text-xs text-gray-600 mt-1">
+                Printing full draft (all items)
+              </p>
+            )}
           </div>
 
           {/* Item Table */}
@@ -376,30 +445,51 @@ export function PrintDraftBill({ tableName, persons, items, onBack }: PrintDraft
               </thead>
 
               <tbody className="mb-4" style={{ marginBottom: "20px" }}>
-                {items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="text-center align-top py-1 pr-1 font-semibold">
-                      {item.quantity}
-                    </td>
+                {printData.map((kot, kotIndex) => (
+                  <React.Fragment key={kot.kotId}>
+                    {/* KOT Header if multiple KOTs */}
+                    {totalKots > 1 && (
+                      <tr>
+                        <td colSpan={2} className="text-center py-2 border-t border-black">
+                          <div className="text-sm font-bold">KOT #{kotIndex + 1}</div>
+                          <div className="text-xs text-gray-600">
+                            {new Date(kot.timestamp).toLocaleTimeString('en-IN', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
 
-                    <td className="py-1">
-                      <div className="font-medium">{item.name}</div>
+                    {/* KOT Items */}
+                    {kot.items.map((item) => (
+                     <>
+                     {item.quantity > 0 && ( <tr key={`${kot.kotId}-${item.itemId}`}>
+                        <td className="text-center align-top py-1 pr-1 font-semibold">
+                          {item.quantity > 0 ? `${item.quantity}` : item.quantity}
+                        </td>
 
-                      {typeof item.spicePercent === "number" && item.spicePercent > 0 && (
-                        <span className="text-xs text-red-600 ml-1">🌶️ {Math.round(item.spicePercent)}%</span>
+                         <td className="py-1">
+                         <div className="font-medium">
+                            {item.name}
+                            {item.quantity < 0 && <span className="text-red-600 ml-1">(REMOVED)</span>}
+                          </div>
+
+                          {/* <div className="text-xs text-gray-600">₹{item.price}</div> */}
+                        </td>
+                      </tr>
                       )}
+                      </>
+                    ))}
 
-                      {item.isJain && (
-                        <span className="text-xs text-green-700 ml-1">[Jain]</span>
-                      )}
-
-                      {item.note && (
-                        <div className="text-xs text-gray-600 italic mt-1">
-                          Note: {item.note}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
+                    {/* Separator between KOTs */}
+                    {kotIndex < printData.length - 1 && (
+                      <tr>
+                        <td colSpan={2} className="border-b-2 border-dashed border-black py-1"></td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

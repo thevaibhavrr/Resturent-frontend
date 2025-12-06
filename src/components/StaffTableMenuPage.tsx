@@ -5,11 +5,12 @@ import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { NewtonsCradleLoader } from "./ui/newtons-cradle-loader";
-import { 
-  ArrowLeft, 
-  Search, 
-  Users, 
+import {
+  ArrowLeft,
+  Search,
+  Users,
   ShoppingCart,
   Plus,
   Minus,
@@ -18,13 +19,14 @@ import {
   Loader2,
   Printer,
   ArrowDown,
-  ArrowUp
+  ArrowUp,
+  Save
 } from "lucide-react";
 import { getCurrentUser } from "../utils/auth";
 import { toast } from "sonner";
 import { getMenuItems, getCategories } from "../api/menuApi";
 import { getTableById } from "../api/tableApi";
-import { saveTableDraft, getTableDraft, clearTableDraft, TableDraft } from "../api/tableDraftApi";
+import { saveTableDraft, getTableDraft, clearTableDraft, markKotsAsPrinted, TableDraft } from "../api/tableDraftApi";
 import { useNavigate } from "react-router-dom";
 import { motion, useScroll, useMotionValueEvent, useSpring } from "framer-motion";
 
@@ -86,6 +88,17 @@ interface CartItem {
   };
 }
 
+interface KotEntry {
+  kotId: string;
+  items: {
+    itemId: string;
+    name: string;
+    price: number;
+    quantity: number; // Positive for added, negative for removed
+  }[];
+  timestamp: string;
+}
+
 interface Category {
   _id: string;
   name: string;
@@ -101,6 +114,70 @@ interface StaffTableMenuPageProps {
 }
 
 // Categories will be loaded from API
+
+// Utility function to generate KOT differences
+const generateKotDifferences = (
+  currentCart: CartItem[],
+  lastKotSnapshot: CartItem[] | null
+): { itemId: string; name: string; price: number; quantity: number }[] => {
+  const currentQuantities = new Map<string, { name: string; price: number; quantity: number }>();
+  const lastQuantities = new Map<string, { name: string; price: number; quantity: number }>();
+
+  // Build current cart quantities map
+  currentCart.forEach(item => {
+    currentQuantities.set(item.id, {
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity
+    });
+  });
+
+  // Build last KOT snapshot quantities map
+  if (lastKotSnapshot) {
+    lastKotSnapshot.forEach(item => {
+      lastQuantities.set(item.id, {
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity
+      });
+    });
+  }
+
+  const differences: { itemId: string; name: string; price: number; quantity: number }[] = [];
+
+  // Find all unique item IDs from both current and last
+  const allItemIds = new Set([...currentQuantities.keys(), ...lastQuantities.keys()]);
+
+  allItemIds.forEach(itemId => {
+    const current = currentQuantities.get(itemId);
+    const last = lastQuantities.get(itemId);
+
+    const currentQty = current?.quantity || 0;
+    const lastQty = last?.quantity || 0;
+    const difference = currentQty - lastQty;
+
+    // Only include items that have changed
+    if (difference !== 0) {
+      // Use current item data if available, otherwise last item data
+      const itemData = current || last!;
+      differences.push({
+        itemId,
+        name: itemData.name,
+        price: itemData.price,
+        quantity: difference // Positive = added, Negative = removed
+      });
+    }
+  });
+
+  return differences;
+};
+
+// Generate unique KOT ID
+const generateKotId = (): string => {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8);
+  return `KOT-${timestamp}-${random}`;
+};
 
 export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }: StaffTableMenuPageProps) {
   const user = getCurrentUser();
@@ -140,6 +217,9 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [lastKotSnapshot, setLastKotSnapshot] = useState<CartItem[] | null>(null); // Last saved cart state for KOT comparison
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showKotModal, setShowKotModal] = useState(false);
   const menuEndRef = useRef<HTMLDivElement>(null);
   const cartSectionRef = useRef<HTMLDivElement>(null);
 
@@ -163,17 +243,17 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   // Get cached menu data from localStorage with 5-minute expiration
   const getCachedMenuData = () => {
     if (!user?.restaurantId) return null;
-    
+
     const cacheKey = `menuCache_${user.restaurantId}`;
     const cached = localStorage.getItem(cacheKey);
-    
+
     if (!cached) return null;
-    
+
     try {
       const { data, timestamp } = JSON.parse(cached);
       const now = Date.now();
       const fiveMinutesInMs = 5 * 60 * 1000;
-      
+
       // Check if cache is still valid (less than 5 minutes old)
       if (now - timestamp < fiveMinutesInMs) {
         return data;
@@ -192,7 +272,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   // Save menu data to localStorage with timestamp
   const cacheMenuData = (categoriesData: Category[], menuItemsData: MenuItem[]) => {
     if (!user?.restaurantId) return;
-    
+
     const cacheKey = `menuCache_${user.restaurantId}`;
     const cacheData = {
       data: {
@@ -201,7 +281,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       },
       timestamp: Date.now()
     };
-    
+
     try {
       localStorage.setItem(cacheKey, JSON.stringify(cacheData));
     } catch (error) {
@@ -253,7 +333,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
       // First, try to get cached menu data
       const cachedData = getCachedMenuData();
-      
+
       if (cachedData) {
         // Use cached data immediately for faster loading
         setCategories(cachedData.categories);
@@ -271,41 +351,41 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         // Still load table draft in parallel (user-specific)
         const draftData = await getTableDraft(tableId.toString(), user.restaurantId, user.username);
         console.log("Loaded draft data (cached path):", draftData);
-        
+
         // Load existing draft if available
         if (draftData) {
           setTableDraft(draftData);
           setPersons(draftData.persons);
-          
+
           // Restore cart items and quantities
           const restoredCart: CartItem[] = [];
           const restoredQuantities: Record<string, number> = {};
-          
+
           draftData.cartItems.forEach((item: any) => {
             // For backward compatibility, if addedBy is not present, use the draft's updatedBy
-            const addedBy = (item as any).addedBy 
+            const addedBy = (item as any).addedBy
               ? {
-                  userId: (item as any).addedBy.userId || 'system',
-                  userName: (item as any).addedBy.userName || 'System'
-                }
+                userId: (item as any).addedBy.userId || 'system',
+                userName: (item as any).addedBy.userName || 'System'
+              }
               : {
-                  userId: draftData.updatedBy || 'system',
-                  userName: draftData.updatedBy || 'System'
-                };
-            
+                userId: draftData.updatedBy || 'system',
+                userName: draftData.updatedBy || 'System'
+              };
+
             // For backward compatibility, if lastUpdatedBy is not present, use the draft's updatedBy
             const lastUpdated = (item as any).lastUpdatedBy
               ? {
-                  userId: (item as any).lastUpdatedBy.userId || draftData.updatedBy || 'system',
-                  userName: (item as any).lastUpdatedBy.userName || draftData.updatedBy || 'System',
-                  timestamp: (item as any).lastUpdatedBy.timestamp || new Date().toISOString()
-                }
+                userId: (item as any).lastUpdatedBy.userId || draftData.updatedBy || 'system',
+                userName: (item as any).lastUpdatedBy.userName || draftData.updatedBy || 'System',
+                timestamp: (item as any).lastUpdatedBy.timestamp || new Date().toISOString()
+              }
               : {
-                  userId: draftData.updatedBy || 'system',
-                  userName: draftData.updatedBy || 'System',
-                  timestamp: new Date().toISOString()
-                };
-            
+                userId: draftData.updatedBy || 'system',
+                userName: draftData.updatedBy || 'System',
+                timestamp: new Date().toISOString()
+              };
+
             // Create the cart item with all the information
             const cartItem: CartItem = {
               id: item.itemId,
@@ -320,20 +400,23 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
               addedBy: addedBy,
               lastUpdatedBy: lastUpdated
             };
-            
+
             restoredCart.push(cartItem);
             restoredQuantities[item.itemId] = item.quantity;
           });
-          
+
           setCart(restoredCart);
           setItemQuantities(restoredQuantities);
-          
+
+          // Set last KOT snapshot to the loaded cart for future comparisons
+          setLastKotSnapshot(restoredCart);
+
           toast.success("Table draft loaded successfully");
         }
 
         setLoading(false);
         setInitialLoadComplete(true);
-        
+
         // Check if cache is close to expiration (within 30 seconds)
         const cacheKey = `menuCache_${user.restaurantId}`;
         const cached = localStorage.getItem(cacheKey);
@@ -343,7 +426,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
             const now = Date.now();
             const fiveMinutesInMs = 5 * 60 * 1000;
             const timeUntilExpiration = fiveMinutesInMs - (now - timestamp);
-            
+
             // If cache will expire within 30 seconds, refresh it in background
             if (timeUntilExpiration < 30000) {
               setTimeout(() => {
@@ -354,7 +437,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
             console.error('Error checking cache expiration:', error);
           }
         }
-        
+
         return;
       }
 
@@ -376,44 +459,44 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           name: tableData.locationId.name
         });
       }
-      
+
       // Cache the fresh data
       cacheMenuData(categoriesData, menuItemsData);
-      
+
       // Load existing draft if available
       if (draftData) {
         setTableDraft(draftData);
         setPersons(draftData.persons);
-        
+
         // Restore cart items and quantities
         const restoredCart: CartItem[] = [];
         const restoredQuantities: Record<string, number> = {};
-        
+
         draftData.cartItems.forEach((item: any) => {
           // For backward compatibility, if addedBy is not present, use the draft's updatedBy
-          const addedBy = (item as any).addedBy 
+          const addedBy = (item as any).addedBy
             ? {
-                userId: (item as any).addedBy.userId || 'system',
-                userName: (item as any).addedBy.userName || 'System'
-              }
+              userId: (item as any).addedBy.userId || 'system',
+              userName: (item as any).addedBy.userName || 'System'
+            }
             : {
-                userId: draftData.updatedBy || 'system',
-                userName: draftData.updatedBy || 'System'
-              };
-          
+              userId: draftData.updatedBy || 'system',
+              userName: draftData.updatedBy || 'System'
+            };
+
           // For backward compatibility, if lastUpdatedBy is not present, use the draft's updatedBy
           const lastUpdated = (item as any).lastUpdatedBy
             ? {
-                userId: (item as any).lastUpdatedBy.userId || draftData.updatedBy || 'system',
-                userName: (item as any).lastUpdatedBy.userName || draftData.updatedBy || 'System',
-                timestamp: (item as any).lastUpdatedBy.timestamp || new Date().toISOString()
-              }
+              userId: (item as any).lastUpdatedBy.userId || draftData.updatedBy || 'system',
+              userName: (item as any).lastUpdatedBy.userName || draftData.updatedBy || 'System',
+              timestamp: (item as any).lastUpdatedBy.timestamp || new Date().toISOString()
+            }
             : {
-                userId: draftData.updatedBy || 'system',
-                userName: draftData.updatedBy || 'System',
-                timestamp: new Date().toISOString()
-              };
-          
+              userId: draftData.updatedBy || 'system',
+              userName: draftData.updatedBy || 'System',
+              timestamp: new Date().toISOString()
+            };
+
           // Create the cart item with all the information
           const cartItem: CartItem = {
             id: item.itemId,
@@ -428,13 +511,16 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
             addedBy: addedBy,
             lastUpdatedBy: lastUpdated
           };
-          
+
           restoredCart.push(cartItem);
           restoredQuantities[item.itemId] = item.quantity;
         });
-        
+
         setCart(restoredCart);
         setItemQuantities(restoredQuantities);
+
+        // Set last KOT snapshot to the loaded cart for future comparisons
+        setLastKotSnapshot(restoredCart);
 
         toast.success("Table draft loaded successfully");
       }
@@ -452,7 +538,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   // Function to refresh menu data (called when cache expires or on interval)
   const refreshMenuData = async () => {
     if (!user?.restaurantId) return;
-    
+
     try {
       const [categoriesData, menuItemsData] = await Promise.all([
         getCategories(user.restaurantId),
@@ -461,10 +547,10 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
       setCategories(categoriesData);
       setMenuItems(menuItemsData);
-      
+
       // Cache the fresh data
       cacheMenuData(categoriesData, menuItemsData);
-      
+
       console.log(`Menu data refreshed at ${new Date().toLocaleTimeString()}`);
     } catch (error) {
       console.error("Error refreshing menu data:", error);
@@ -475,13 +561,13 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   useEffect(() => {
     // Initial load
     loadMenuData();
-    
+
     // Set up auto-refresh every 5 minutes (300,000 ms)
     const refreshInterval = setInterval(() => {
       console.log('Auto-refreshing menu data...');
       refreshMenuData();
     }, 5 * 60 * 1000);
-    
+
     // Clean up interval on component unmount
     return () => clearInterval(refreshInterval);
   }, [user?.restaurantId, tableId]);
@@ -492,7 +578,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   useEffect(() => {
     const restoredSpice: Record<string, number> = {};
     const restoredJain: Record<string, boolean> = {};
-    
+
     cart.forEach(item => {
       if (item.spicePercent !== undefined) {
         restoredSpice[item.id] = item.spicePercent;
@@ -501,46 +587,52 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         restoredJain[item.id] = item.isJain;
       }
     });
-    
+
     setSelectedSpicePercent(prev => ({ ...prev, ...restoredSpice }));
     setSelectedIsJain(prev => ({ ...prev, ...restoredJain }));
   }, [cart.length]); // Only when cart items count changes
 
-  // Auto-save when cart or persons change (only after initial load is complete)
+  // Manual save functionality - no auto-save
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
+
+  // Track unsaved changes
   useEffect(() => {
-    console.log("Auto-save useEffect triggered:", {
-      cartLength: cart.length,
-      persons,
-      initialLoadComplete,
-      restaurantId: user?.restaurantId,
-      username: user?.username
-    });
-
-    if (user?.restaurantId && user?.username && initialLoadComplete) {
-      console.log("Setting up auto-save timeout");
-      const timeoutId = setTimeout(() => {
-        console.log("Auto-save timeout triggered, calling autoSaveDraft");
-        autoSaveDraft(cart, persons);
-      }, 100); // Debounce for 1 second
-
-      return () => {
-        console.log("Clearing auto-save timeout");
-        clearTimeout(timeoutId);
-      };
-    } else {
-      console.log("Auto-save conditions not met, skipping");
+    if (initialLoadComplete && cart.length > 0) {
+      setHasUnsavedChanges(true);
     }
-  }, [cart, persons, user?.restaurantId, user?.username, initialLoadComplete]);
+  }, [cart, persons, initialLoadComplete]);
+
+  // Manual save draft function
+  const handleSaveDraft = async () => {
+    if (!user?.restaurantId || !user?.username || !user?.id) {
+      toast.error("User information not available");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      console.log("💾 Manual save draft initiated");
+      await autoSaveDraft(cart, persons);
+      setLastSaved(new Date().toLocaleTimeString());
+      setHasUnsavedChanges(false);
+      toast.success(cart.length === 0 ? "Empty draft saved successfully!" : "Draft saved successfully!");
+    } catch (error) {
+      console.error("Error saving draft:", error);
+      toast.error("Failed to save draft");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Filter menu items based on search and category
   const filteredItems = menuItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     // If searching, ignore category filter and search from all products
     if (searchQuery.trim() !== "") {
       return matchesSearch;
     }
-    
+
     // If not searching, apply category filter
     let matchesCategory = true;
     if (activeCategory === "recent") {
@@ -549,7 +641,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     } else if (activeCategory !== "all") {
       matchesCategory = item.categoryId?.name === activeCategory;
     }
-    
+
     return matchesSearch && matchesCategory;
   });
 
@@ -569,10 +661,10 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
       const windowHeight = window.innerHeight;
       const documentHeight = document.documentElement.scrollHeight;
-      
+
       // Show scroll to top when scrolled down more than 300px
       setShowScrollToTop(scrollTop > 300);
-      
+
       // Show scroll to cart when cart section is not in view and we're not at the bottom
       const cartSection = cartSectionRef.current;
       if (cartSection) {
@@ -587,7 +679,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll(); // Check initial position
-    
+
     return () => window.removeEventListener('scroll', handleScroll);
   }, [cart.length]);
 
@@ -596,7 +688,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     return itemQuantities[itemId] || 0;
   };
 
-  // Auto-save draft function
+  // Auto-save draft function with automatic KOT generation
   const autoSaveDraft = async (cartItems: CartItem[], personsCount: number) => {
     console.log("autoSaveDraft called with:", {
       cartItemsCount: cartItems.length,
@@ -610,9 +702,28 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       console.log("autoSaveDraft: Missing required user data, skipping");
       return;
     }
-    
+
     try {
       setSaving(true);
+
+      // Generate KOT differences if cart has changed
+      const kotDifferences = generateKotDifferences(cartItems, lastKotSnapshot);
+      let newKotEntry: KotEntry | null = null;
+
+      // If there are differences, create a new KOT entry
+      if (kotDifferences.length > 0) {
+        newKotEntry = {
+          kotId: generateKotId(),
+          items: kotDifferences,
+          timestamp: new Date().toISOString()
+        };
+        console.log("Generated new KOT:", newKotEntry);
+      }
+
+      // Get current kotHistory - use existing or empty array
+      const currentKotHistory = tableDraft?.kotHistory || [];
+
+      // Prepare draft data
       const draftData = {
         tableId: tableId.toString(),
         tableName: tableName,
@@ -640,18 +751,30 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           updatedBy: user.name || user.username
         })),
         updatedBy: user.name || user.username,
-        userId: user.id // Add userId to the root of the draft data
+        userId: user.id, // Add userId to the root of the draft data
+        // Include KOT history - append new KOT if generated
+        kotHistory: newKotEntry ? [...currentKotHistory, newKotEntry] : currentKotHistory
       };
-      
+
+
       const savedDraft = await saveTableDraft({
         ...draftData,
         userId: user.id, // Make sure userId is included in the request
         updatedBy: user.name || user.username
       });
+
+      // Update local state
       setTableDraft(savedDraft);
+
+      // Update last KOT snapshot to current cart for next comparison
+      if (newKotEntry) {
+        setLastKotSnapshot([...cartItems]);
+        console.log("Updated last KOT snapshot with current cart");
+      }
+
     } catch (error: any) {
       console.error("Error auto-saving draft:", error);
-      
+
       // Check if error is subscription expired
       if (error?.response?.data?.subscriptionExpired) {
         toast.error("Subscription Expired!", {
@@ -678,12 +801,12 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     setItemQuantities(prev => {
       const currentQuantity = prev[itemId] || 0;
       const newQuantity = Math.max(0, currentQuantity + change);
-      
+
       if (newQuantity === 0) {
         const { [itemId]: removed, ...rest } = prev;
         return rest;
       }
-      
+
       return { ...prev, [itemId]: newQuantity };
     });
 
@@ -709,12 +832,12 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       if (existingItem) {
         return prev.map(cartItem =>
           cartItem.id === itemId
-            ? { 
-                ...cartItem, 
-                quantity: newQuantity,
-                lastUpdatedBy: userInfo,
-                updatedBy: user.name || user.username
-              }
+            ? {
+              ...cartItem,
+              quantity: newQuantity,
+              lastUpdatedBy: userInfo,
+              updatedBy: user.name || user.username
+            }
             : cartItem
         );
       } else {
@@ -722,10 +845,10 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         const percent = selectedSpicePercent[item._id] ?? 50;
         const level = Math.min(5, Math.max(1, Math.round(percent / 20)));
         const isJain = selectedIsJain[item._id] ?? false;
-        
+
         // Save to recent items
         saveToRecentItems(item._id);
-        
+
         const newItem: CartItem = {
           id: item._id,
           name: item.name,
@@ -740,7 +863,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           lastUpdatedBy: userInfo,
           updatedBy: user.name || user.username
         };
-        
+
         return [...prev, newItem];
       }
     });
@@ -822,15 +945,15 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
       return prev.map(cartItem =>
         cartItem.id === itemId
-          ? { 
-              ...cartItem, 
-              quantity: newQuantity,
-              lastUpdatedBy: {
-                userId: user.id,
-                userName: user.name || user.username,
-                timestamp: new Date().toISOString()
-              }
+          ? {
+            ...cartItem,
+            quantity: newQuantity,
+            lastUpdatedBy: {
+              userId: user.id,
+              userName: user.name || user.username,
+              timestamp: new Date().toISOString()
             }
+          }
           : cartItem
       );
     });
@@ -856,6 +979,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       setPersons(1);
       setItemQuantities({});
       setTableDraft(null);
+      setLastKotSnapshot(null); // Reset KOT snapshot when clearing draft
       toast.success("Draft cleared successfully");
     } catch (error) {
       console.error("Error clearing draft:", error);
@@ -883,14 +1007,71 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       cart: cart,
       persons: persons
     };
-    
+
     // Navigate to appropriate route based on user role
     const billRoute = user?.role === "admin" ? "/admin/order-tables/bill" : "/order-tables/bill";
     navigate(billRoute, { state: billData });
   };
 
-  // Print draft (compact) directly from menu
-  const handlePrintDraft = () => {
+  // Print draft (compact) directly from menu - only prints unprinted KOTs
+  const handlePrintDraft = async () => {
+    if (cart.length === 0) {
+      toast.error("Please add items to cart");
+      return;
+    }
+    if (persons < 1) {
+      toast.error("Please enter number of persons");
+      return;
+    }
+
+    try {
+      // Get unprinted KOTs from the current draft
+      const unprintedKots = tableDraft?.kotHistory?.filter(kot => !kot.printed) || [];
+
+      if (unprintedKots.length === 0) {
+        toast.error("No new changes to print. All KOTs have been printed already.");
+        return;
+      }
+
+      const draftData = {
+        table: {
+          id: tableId,
+          tableName: tableName,
+        },
+        unprintedKots: unprintedKots, // Send only unprinted KOTs
+        allKots: tableDraft?.kotHistory || [], // Send all KOTs for reference
+        persons: persons,
+      };
+
+      // Mark these KOTs as printed in the database
+      const kotIds = unprintedKots.map(kot => kot.kotId);
+      if (user?.restaurantId) {
+        await markKotsAsPrinted(tableId.toString(), user.restaurantId, kotIds);
+      }
+
+      // Update local state to reflect printed status
+      setTableDraft(prev => prev ? {
+        ...prev,
+        kotHistory: prev.kotHistory?.map(kot =>
+          kotIds.includes(kot.kotId) ? { ...kot, printed: true } : kot
+        ),
+        printedKots: [...(prev.printedKots || []), ...kotIds]
+      } : null);
+
+      toast.success(`Printed ${unprintedKots.length} KOT${unprintedKots.length > 1 ? 's' : ''}`);
+
+      // Navigate to appropriate route based on user role
+      const printRoute = user?.role === "admin" ? "/admin/order-tables/print-draft" : "/order-tables/print-draft";
+      navigate(printRoute, { state: draftData });
+
+    } catch (error) {
+      console.error("Error marking KOTs as printed:", error);
+      toast.error("Failed to mark KOTs as printed");
+    }
+  };
+
+  // Print full draft (all items, not just unprinted KOTs)
+  const handlePrintFullDraft = () => {
     if (cart.length === 0) {
       toast.error("Please add items to cart");
       return;
@@ -905,11 +1086,38 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         id: tableId,
         tableName: tableName,
       },
-      cart: cart,
+      unprintedKots: [], // Empty array to indicate full draft printing
+      allKots: tableDraft?.kotHistory || [], // Send all KOTs for reference
+      cart: cart, // Send full cart for legacy support
       persons: persons,
     };
 
+    toast.success("Printing full draft...");
+
     // Navigate to appropriate route based on user role
+    const printRoute = user?.role === "admin" ? "/admin/order-tables/print-draft" : "/order-tables/print-draft";
+    navigate(printRoute, { state: draftData });
+  };
+
+  // View all KOTs in modal
+  const handleViewKots = () => {
+    setShowKotModal(true);
+  };
+
+  // Print a specific KOT again
+  const handlePrintKotAgain = async (kot: KotEntry) => {
+    const draftData = {
+      table: {
+        id: tableId,
+        tableName: tableName,
+      },
+      unprintedKots: [kot], // Print only this specific KOT
+      allKots: tableDraft?.kotHistory || [],
+      persons: persons,
+    };
+
+    toast.success(`Re-printing KOT ${kot.kotId}...`);
+
     const printRoute = user?.role === "admin" ? "/admin/order-tables/print-draft" : "/order-tables/print-draft";
     navigate(printRoute, { state: draftData });
   };
@@ -921,9 +1129,9 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={onBack}
                 className="h-10 w-10 hover:bg-primary/10 transition-colors"
                 title="Back to Tables"
@@ -932,7 +1140,14 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
               </Button>
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold">{tableName}</h1>
-                <p className="text-sm text-muted-foreground hidden sm:block">Table Menu</p>
+                <p className="text-sm text-muted-foreground hidden sm:block">
+                  Table Menu
+                  {lastSaved && (
+                    <span className="ml-2 text-green-600 font-medium">
+                      • Saved at {lastSaved}
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
@@ -953,7 +1168,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                     <SelectValue placeholder="Persons" />
                   </SelectTrigger>
                   <SelectContent>
-                    {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
                       <SelectItem key={n} value={String(n)}>{n}</SelectItem>
                     ))}
                     <SelectItem value="custom">Custom…</SelectItem>
@@ -970,6 +1185,30 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                   />
                 )}
               </div>
+
+              {/* Save Draft Button */}
+              <Button
+                onClick={handleSaveDraft}
+                disabled={saving}
+                className={`${hasUnsavedChanges
+                  ? 'bg-orange-600 hover:bg-orange-700 animate-pulse'
+                  : 'bg-green-600 hover:bg-green-700'
+                  } text-white gap-2 font-semibold shadow-lg hover:shadow-xl transition-all bg-black`}
+                size="sm"
+                title={hasUnsavedChanges ? "You have unsaved changes" : "Save draft"}
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">
+                  {saving ? "Saving..." : "Save Draft"}
+                </span>
+                <span className="sm:hidden ">
+                  {saving ? "..." : "Save"}
+                </span>
+              </Button>
             </div>
           </div>
         </div>
@@ -980,8 +1219,8 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       <div className="container mx-auto px-4 py-6">
         {/* Mobile Back Button - Visible only on mobile */}
         <div className="lg:hidden mb-4">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={onBack}
             className="gap-2"
           >
@@ -989,7 +1228,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
             Back to Tables
           </Button>
         </div>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Menu Section */}
           <div className="lg:col-span-2">
@@ -1060,117 +1299,116 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                   const cartItem = cart.find(ci => ci.id === item._id);
                   const currentSpicePercent = selectedSpicePercent[item._id] ?? cartItem?.spicePercent ?? 50;
                   const currentIsJain = selectedIsJain[item._id] ?? cartItem?.isJain ?? false;
-                  
+
                   return (
-                <motion.div
-                  key={item._id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                <Card 
-                  className={`overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col h-full ${
-                    getItemQuantity(item._id) > 0 
-                      ? 'ring-2 ring-primary shadow-lg' 
-                      : 'hover:scale-[1.02]'
-                  }`}
-                >
-                  <div className="relative">
-                    <div className="relative h-32 sm:h-40 max-h-48 w-full overflow-hidden bg-gradient-to-br from-orange-50 to-amber-50">
-                      
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                      {getItemQuantity(item._id) > 0 && (
-                        <div className="absolute top-3 right-3 bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-lg animate-pulse">
-                          {getItemQuantity(item._id)}
-                        </div>
-                      )}
-                      <div className="absolute bottom-3 left-3">
-                        <Badge variant="secondary" className="text-xs shadow-md backdrop-blur-sm bg-white/90">
-                          {item.categoryId?.name.replace("-", " ")}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="p-3 sm:p-4 flex-1 flex flex-col">
-                      <div className="flex items-start justify-between mb-2 sm:mb-3">
-                        <h3 className="font-bold text-base sm:text-xl line-clamp-2 flex-1 pr-2">{item.name}</h3>
-                        <span className="font-bold text-base sm:text-xl text-primary shrink-0">₹{getItemPrice(item)}</span>
-                      </div>
-                      {/* Spice level option */}
-                      <div className="mb-3 sm:mb-4">
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                            🌶️ Spice 
-                          </label>
-                          <Select
-                            value={String(currentSpicePercent)}
-                            onValueChange={(v) => setSpicePercent(item._id, parseInt(v))}
-                          >
-                            <SelectTrigger className="h-8 sm:h-9 border-2 hover:border-primary/50 transition-colors text-xs sm:text-sm w-full">
-                              <SelectValue placeholder="50%" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="10">🟢 10% Mild</SelectItem>
-                              <SelectItem value="25">🟡 25% Low</SelectItem>
-                              <SelectItem value="50">🟠 50% Medium</SelectItem>
-                              <SelectItem value="75">🔴 75% Hot</SelectItem>
-                              <SelectItem value="100">🔥 100% Extra Hot</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      {/* Quantity Controls */}
-                      {getItemQuantity(item._id) > 0 ? (
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between w-full bg-primary/5 rounded-lg p-1.5 sm:p-2">
-                            <div className="flex items-center gap-1.5 sm:gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => updateItemQuantity(item._id, -1)}
-                                className="h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
-                              >
-                                <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
-                              </Button>
-                              <span className="min-w-[1.5rem] sm:min-w-[2rem] text-center font-bold text-base sm:text-lg">
+                    <motion.div
+                      key={item._id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Card
+                        className={`overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col h-full ${getItemQuantity(item._id) > 0
+                            ? 'ring-2 ring-primary shadow-lg'
+                            : 'hover:scale-[1.02]'
+                          }`}
+                      >
+                        <div className="relative">
+                          <div className="relative h-32 sm:h-40 max-h-48 w-full overflow-hidden bg-gradient-to-br from-orange-50 to-amber-50">
+
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                            {getItemQuantity(item._id) > 0 && (
+                              <div className="absolute top-3 right-3 bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-lg animate-pulse">
                                 {getItemQuantity(item._id)}
-                              </span>
+                              </div>
+                            )}
+                            <div className="absolute bottom-3 left-3">
+                              <Badge variant="secondary" className="text-xs shadow-md backdrop-blur-sm bg-white/90">
+                                {item.categoryId?.name.replace("-", " ")}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="p-3 sm:p-4 flex-1 flex flex-col">
+                            <div className="flex items-start justify-between mb-2 sm:mb-3">
+                              <h3 className="font-bold text-base sm:text-xl line-clamp-2 flex-1 pr-2">{item.name}</h3>
+                              <span className="font-bold text-base sm:text-xl text-primary shrink-0">₹{getItemPrice(item)}</span>
+                            </div>
+                            {/* Spice level option */}
+                            <div className="mb-3 sm:mb-4">
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                                  🌶️ Spice
+                                </label>
+                                <Select
+                                  value={String(currentSpicePercent)}
+                                  onValueChange={(v) => setSpicePercent(item._id, parseInt(v))}
+                                >
+                                  <SelectTrigger className="h-8 sm:h-9 border-2 hover:border-primary/50 transition-colors text-xs sm:text-sm w-full">
+                                    <SelectValue placeholder="50%" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="10">🟢 10% Mild</SelectItem>
+                                    <SelectItem value="25">🟡 25% Low</SelectItem>
+                                    <SelectItem value="50">🟠 50% Medium</SelectItem>
+                                    <SelectItem value="75">🔴 75% Hot</SelectItem>
+                                    <SelectItem value="100">🔥 100% Extra Hot</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            {/* Quantity Controls */}
+                            {getItemQuantity(item._id) > 0 ? (
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between w-full bg-primary/5 rounded-lg p-1.5 sm:p-2">
+                                  <div className="flex items-center gap-1.5 sm:gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => updateItemQuantity(item._id, -1)}
+                                      className="h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
+                                    >
+                                      <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
+                                    </Button>
+                                    <span className="min-w-[1.5rem] sm:min-w-[2rem] text-center font-bold text-base sm:text-lg">
+                                      {getItemQuantity(item._id)}
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => updateItemQuantity(item._id, 1)}
+                                      className="h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
+                                      disabled={!item.isAvailable}
+                                    >
+                                      <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                                    </Button>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => updateItemQuantity(item._id, -getItemQuantity(item._id))}
+                                    className="h-8 w-8 sm:h-9 sm:w-9 p-0 sm:px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  >
+                                    <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                                  </Button>
+                                </div>
+
+                              </div>
+                            ) : (
                               <Button
-                                size="sm"
-                                variant="outline"
                                 onClick={() => updateItemQuantity(item._id, 1)}
-                                className="h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
+                                className="w-full h-9 sm:h-10 font-semibold shadow-md hover:shadow-lg transition-all text-xs sm:text-sm"
                                 disabled={!item.isAvailable}
                               >
-                                <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                                <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+                                <span className="hidden sm:inline">{item.isAvailable ? "Add to Cart" : "Not Available"}</span>
+                                <span className="sm:hidden">{item.isAvailable ? "Add" : "N/A"}</span>
                               </Button>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => updateItemQuantity(item._id, -getItemQuantity(item._id))}
-                              className="h-8 w-8 sm:h-9 sm:w-9 p-0 sm:px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                            </Button>
+                            )}
                           </div>
-                         
                         </div>
-                      ) : (
-                        <Button
-                          onClick={() => updateItemQuantity(item._id, 1)}
-                          className="w-full h-9 sm:h-10 font-semibold shadow-md hover:shadow-lg transition-all text-xs sm:text-sm"
-                          disabled={!item.isAvailable}
-                        >
-                          <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
-                          <span className="hidden sm:inline">{item.isAvailable ? "Add to Cart" : "Not Available"}</span>
-                          <span className="sm:hidden">{item.isAvailable ? "Add" : "N/A"}</span>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-                </motion.div>
-                );
+                      </Card>
+                    </motion.div>
+                  );
                 })}
                 <div ref={menuEndRef} />
               </div>
@@ -1191,10 +1429,49 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           <div className="lg:col-span-1" ref={cartSectionRef}>
             <Card className="sticky top-24">
               <div className="p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5" />
-                  Order Summary
-                </h3>
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <ShoppingCart className="h-5 w-5" />
+                      Order Summary
+                    </h3>
+                    {lastSaved && (
+                      <p className="text-xs text-green-600 font-medium mt-1">
+                        Last saved: {lastSaved}
+                      </p>
+                    )}
+                    {hasUnsavedChanges && cart.length > 0 && (
+                      <p className="text-xs text-orange-600 font-medium mt-1 animate-pulse">
+                        ⚠️ Unsaved changes
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Button
+                      onClick={handleSaveDraft}
+                      disabled={saving}
+                      className={`${hasUnsavedChanges
+                        ? 'bg-orange-600 hover:bg-orange-700 animate-pulse'
+                        : 'bg-green-600 hover:bg-green-700'
+                        } text-white gap-2 font-semibold shadow-lg hover:shadow-xl transition-all bg-black`}
+                      size="sm"
+                      title={hasUnsavedChanges ? "You have unsaved changes" : "Save draft"}
+                    >
+                      {saving ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4" />
+                      )}
+                      <span className="hidden sm:inline">
+                        {saving ? "Saving..." : "Save Draft"}
+                      </span>
+                      <span className="sm:hidden ">
+                        {saving ? "..." : "Save"}
+                      </span>
+                    </Button>
+                  </div>
+                </div>
+
 
                 {cart.length === 0 ? (
                   <div className="text-center py-8">
@@ -1243,15 +1520,15 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
-                              
+
                               <Input
                                 placeholder="Add note (optional)"
-                                value={item.note || ""} 
-                                
+                                value={item.note || ""}
+
                                 onChange={(e) => handleNoteChangeAt(index, e.target.value)}
                                 className="h-9 text-sm bg-white/80 border-primary/30 focus:border-primary"
                               />
-                              
+
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                   <div className="flex items-center gap-1.5 px-2 py-1 bg-white/60 rounded-md">
@@ -1264,7 +1541,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                                     </Badge>
                                   )}
                                 </div>
-                                
+
                                 <div className="flex items-center gap-2 bg-white/60 rounded-lg p-1">
                                   <Button
                                     size="icon"
@@ -1334,6 +1611,24 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
                     {/* Action Buttons */}
                     <div className="space-y-3">
+                      {/* Save Draft Button */}
+                      <Button
+                        onClick={handleSaveDraft}
+                        disabled={saving}
+                        className={`w-full h-10 ${hasUnsavedChanges
+                          ? 'bg-orange-600 hover:bg-orange-700 animate-pulse'
+                          : 'bg-green-600 hover:bg-green-700'
+                          } text-white font-semibold shadow-md hover:shadow-lg transition-all`}
+                        size="default"
+                      >
+                        {saving ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Save className="h-4 w-4 mr-2" />
+                        )}
+                        {saving ? "Saving..." : "Save Draft"}
+                      </Button>
+
                       <Button
                         onClick={handleGoToBill}
                         className="w-full h-12 text-base font-bold shadow-lg hover:shadow-xl transition-all"
@@ -1342,15 +1637,39 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                         <Check className="h-5 w-5 mr-2" />
                         Go to Bill
                       </Button>
-                      <Button
-                        onClick={handlePrintDraft}
-                        className="w-full h-10"
-                        variant="outline"
-                        size="default"
-                      >
-                        <Printer className="h-4 w-4 mr-2" />
-                        Print Draft
-                      </Button>
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            onClick={handlePrintDraft}
+                            className="h-10"
+                            variant="outline"
+                            size="default"
+                          >
+                            <Printer className="h-4 w-4 mr-1" />
+                            <span className="text-xs">Print KOT</span>
+                          </Button>
+                          <Button
+                            onClick={handlePrintFullDraft}
+                            className="h-10"
+                            variant="secondary"
+                            size="default"
+                          >
+                            <Printer className="h-4 w-4 mr-1" />
+                            <span className="text-xs">Print Full</span>
+                          </Button>
+                        </div>
+                        {tableDraft?.kotHistory && tableDraft.kotHistory.length > 0 && (
+                          <Button
+                            onClick={handleViewKots}
+                            className="h-10 w-full"
+                            style={{ backgroundColor: "skyblue", color: "black", marginTop: "40px" }}  
+                            variant="ghost"
+                            size="default"
+                          >
+                            <span className="text-xs">View All KOTs ({tableDraft.kotHistory.length})</span>
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </>
                 )}
@@ -1367,7 +1686,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           className="fixed bottom-6 right-6 h-12 w-12 rounded-full shadow-lg z-50 print:hidden bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
           size="icon"
           title="Go to Cart"
-          style={{ zIndex: 1000  , backgroundColor: "white", color: "black", position: "fixed" , bottom: "6px" , right: "6px"}}
+          style={{ zIndex: 1000, backgroundColor: "white", color: "black", position: "fixed", bottom: "6px", right: "6px" }}
 
         >
           <ArrowDown className="h-5 w-5" />
@@ -1379,11 +1698,112 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           className="fixed bottom-20 right-6 h-12 w-12 rounded-full shadow-lg z-50 print:hidden bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
           size="icon"
           title="Go to Top"
-          style={{ zIndex: 1000  , backgroundColor: "white", color: "black", position: "fixed" , bottom: "6px" , right: "6px"}}
+          style={{ zIndex: 1000, backgroundColor: "white", color: "black", position: "fixed", bottom: "6px", right: "6px" }}
 
         >
           <ArrowUp className="h-5 w-5" />
         </Button>
+      )}
+
+      {/* KOT History Modal */}
+      {showKotModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg max-w-4xl max-h-[80vh] w-full mx-4 overflow-hidden">
+            <div className="p-6 border-b">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Printer className="h-5 w-5" />
+                  Kitchen Order Tickets (KOTs) - {tableName}
+                </h2>
+                <button
+                  onClick={() => setShowKotModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              {tableDraft?.kotHistory && tableDraft.kotHistory.length > 0 ? (
+                <Accordion type="single" collapsible className="w-full space-y-2">
+                {(tableDraft?.kotHistory || [])
+                  .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                  .map((kot, index) => (
+                    <AccordionItem key={kot.kotId} value={kot.kotId} className="border rounded-lg">
+                      <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                        <div className="flex items-center justify-between w-full mr-4">
+                          <div className="flex items-center gap-3">
+                            <Badge variant={kot.printed ? "default" : "secondary"} className="text-xs">
+                              {kot.printed ? "✅ Printed" : "⏳ Pending"}
+                            </Badge>
+                            <span className="font-medium">KOT #{(tableDraft?.kotHistory?.length || 0) - index}</span>
+                            <span className="text-sm text-muted-foreground">
+                              {new Date(kot.timestamp).toLocaleString('en-IN', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {kot.items.length} item{kot.items.length > 1 ? 's' : ''}
+                          </div>
+                        </div>
+                      </AccordionTrigger>
+
+                      <AccordionContent className="px-4 pb-4">
+                        <div className="space-y-3">
+                          {/* KOT Items */}
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <h4 className="font-medium mb-2 text-sm">Order Items:</h4>
+                            <div className="space-y-2">
+                              {kot.items.map((item, itemIndex) => (
+                                <div key={itemIndex} className="flex items-center justify-between text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`font-medium px-2 py-1 rounded text-xs ${
+                                      item.quantity > 0 ? 'bg-green-100 text-green-800' :
+                                      item.quantity < 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {item.quantity > 0 ? '+' : ''}{item.quantity}
+                                    </span>
+                                    <span>{item.name}</span>
+                                  </div>
+                                  <span className="text-muted-foreground">₹{item.price}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Print Again Button */}
+                          <div className="flex justify-end">
+                            <Button
+                              onClick={() => handlePrintKotAgain(kot)}
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
+                            >
+                              <Printer className="h-4 w-4" />
+                              Print Again
+                            </Button>
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+              </Accordion>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Printer className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No KOTs found for this table</p>
+                <p className="text-sm">Save your draft to generate KOTs</p>
+              </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
