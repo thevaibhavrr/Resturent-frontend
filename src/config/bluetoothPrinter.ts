@@ -25,6 +25,7 @@ export type BluetoothPrinterConfig = typeof BLUETOOTH_PRINTER_CONFIG;
 export const RESTAURANT_PRINTER_MAPPING: Record<string, string> = {
   '692825b4865129222e968613': '66:32:B1:BE:4E:AF', // Restaurant 1
   '692adbcd8190e7a502218ea9': '66:32:2F:D3:1D:E0', // Restaurant 2
+  '692d62bea5d83309e31fe07f':'66:32:2F:D3:1D:E0'
 };
 
 // Get Bluetooth printer address for a specific restaurant
