@@ -635,8 +635,8 @@ Total
           <div className="mb-0 pb-0 border-t-4 border-double border-gray-800 pt-2">
             <div className="space-y-1 mb-2">
               <div className="flex justify-between text-[13px]">
-                <span className="text-black font-semibold">Subtotal:</span>
-                <span className="font-semibold text-black">
+                <span className="text-black font-medium">Subtotal:</span>
+                <span className="font-medium text-black">
                   ₹{formatAmount(subtotal)}
                 </span>
               </div>
@@ -673,7 +673,9 @@ Total
           {restaurantSettings.qrCode && (
             <div className="mb-2 pb-2 border-t-2 p-3 border-dashed border-gray-500 pt-2 text-center">
               <div className="flex flex-col items-center gap-2">
-                <div className="w-22 h-22 border-2 border-gray-300 rounded-lg p-2 bg-white">
+                <div className="w-22 h-22 border-2 border-gray-300 rounded-lg p-2 bg-white"
+                style={{padding:"10px"}}
+                >
                   <img
                     src={restaurantSettings.qrCode}
                     alt="QR Code"
