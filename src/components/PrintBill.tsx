@@ -367,7 +367,7 @@ export function PrintBill({
       if (redirectAfterPrint) {
         setTimeout(() => {
           console.log("Auto redirecting after print...");
-          onBack();
+          // onBack();
         }, 3000); // Wait 3 seconds before redirecting
       }
     } catch (error) {
@@ -486,7 +486,7 @@ export function PrintBill({
         <div
           className="w-[58mm] max-w-[58mm] bg-white text-black p-2 print:p-2 overflow-hidden"
           id="bill-content"
-          style={{ boxSizing: 'border-box', fontFamily: 'system-ui, -apple-system, sans-serif' }}
+          style={{ boxSizing: 'border-box', fontFamily: 'system-ui, -apple-system, sans-serif', padding:"20px" }}
         >
           {/* Premium Header with Logo */}
           <div className="text-center p-3 mb pb-1 border-b-4 border-double border-gray-800">
@@ -529,20 +529,20 @@ export function PrintBill({
 
           {/* Bill Information - Premium Style */}
           <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
-            <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-              <div className="flex justify-between items-center bg-gray-50 px-1.5 py-0.5 rounded overflow-hidden">
+            <div className="grid grid-cols-2 gap-1.5 text-[12px]">
+              <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
                 <span className="font-semibold text-black">Date:</span>
-                <span className="font-medium truncate">{displayDate}</span>
+                <span className="font-medium">{displayDate}</span>
               </div>
-              <div className="flex justify-between items-center bg-gray-50 px-1.5 py-0.5 rounded overflow-hidden">
+              <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
                 <span className="font-semibold text-black">Time:</span>
-                <span className="font-medium truncate">{displayTime}</span>
+                <span className="font-medium">{displayTime}</span>
               </div>
-              <div className="flex justify-between items-center bg-gray-50 px-1.5 py-0.5 rounded overflow-hidden">
+              <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
                 <span className="font-semibold text-black">Table:</span>
-                <span className="font-bold text-black truncate">{tableName}</span>
+                <span className="font-bold text-black">{tableName}</span>
               </div>
-              <div className="col-span-2 flex justify-between items-center bg-gray-50 px-1.5 py-0.5 rounded overflow-hidden">
+              <div className="col-span-2 flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
                 <span className="font-semibold text-black">Persons:</span>
                 <span className="font-bold text-black">{persons}</span>
               </div>
@@ -551,24 +551,24 @@ export function PrintBill({
 
           {/* Premium Item Table */}
           <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
-            <table className="w-full" style={{ tableLayout: 'fixed', fontSize: '14px', width: '100%', overflow: 'hidden' }}>
+            <table className="w-full" style={{ tableLayout: 'fixed', fontSize: '16px' }}>
               <colgroup>
-                <col style={{ width: '50%' }} />
-                <col style={{ width: '8%' }} />
-                <col style={{ width: '21%' }} /> 
-                <col style={{ width: '21%' }} />
+                <col style={{ width: '45%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '15%' }} /> 
+                <col style={{ width: '30%' }} />
 
               </colgroup>
               <thead>
                 <tr className="text-black">
-                  <th className="text-left py-1 px-0 font-bold truncate overflow-hidden" style={{ fontSize: '13px', paddingRight: '2px' }}>Item</th>
-                  <th className="text-center py-1 px-0 font-bold overflow-hidden" style={{ fontSize: '13px' }}>
+                  <th className="text-left py-1 px-0 font-bold truncate" style={{ fontSize: '18px' }}>Item</th>
+                  <th className="text-center py-1 px-0 font-bold" style={{ fontSize: '18px' }}>
                     Qty
                   </th>
-                  <th className="text-right py-1 px-0 font-bold overflow-hidden" style={{ fontSize: '13px', paddingRight: '2px' }}>
+                  <th className="text-right py-1 px-0 font-bold" style={{ fontSize: '18px' }}>
                     Price
                   </th>
-                  <th className="text-right py-1 px-0 font-bold overflow-hidden" style={{ fontSize: '13px', paddingRight: '2px' }}>
+                  <th className="text-right py-1 px-0 font-bold" style={{ fontSize: '18px' }}>
 Total
                   </th>
                 </tr>
@@ -584,27 +584,27 @@ Total
                       key={item.id}
                       className={`${index % 2 === 0 ? "bg-white" : "bg-white"}`}
                     >
-                      <td className="py-1 px-0 align-top overflow-hidden" style={{ fontSize: '14px', paddingRight: '2px' }}>
+                      <td className="py-1 px-0 align-top" style={{ fontSize: '16px' }}>
                         <div className="break-words">
-                          <span className="font-semibold text-gray-900 truncate inline-block w-full" style={{ fontSize: '14px' }}>
+                          <span className="font-semibold text-gray-900" style={{ fontSize: '19px' }}>
                             {item.name}
                           </span>
                           
                           {itemDiscount > 0 && (
-                            <div className="text-red-600 font-medium truncate" style={{ fontSize: '11px' }}>
+                            <div className="text-red-600 font-medium" style={{ fontSize: '14px' }}>
                               Disc: -₹{formatAmount(itemDiscount)}
                             </div>
                           )}
                         </div>
                       </td>
-                      <td className="text-center font-medium text-gray-800 align-top py-1 overflow-hidden" style={{ fontSize: '14px' }}>
+                      <td className="text-center font-medium text-gray-800 align-top py-1" style={{ fontSize: '17px' }}>
                         {item.quantity}
                       </td>
-                      <td className="text-right font-medium text-gray-700 align-top py-1 overflow-hidden" style={{ fontSize: '14px', paddingRight: '2px' }}>
-                        ₹{formatAmount(item.price)}
+                      <td className="text-right font-medium text-gray-700 align-top py-1" style={{ fontSize: '17px' }}>
+                        {formatAmount(item.price)}
                       </td>
-                      <td className="text-right font-bold text-gray-900 align-top py-1 overflow-hidden" style={{ fontSize: '14px', paddingRight: '2px' }}>
-                        ₹{formatAmount(itemFinalAmount)}
+                      <td className="text-right font-bold text-gray-900 align-top py-1" style={{ fontSize: '17px' }}>
+                        {formatAmount(itemFinalAmount)}
                       </td>
                     </tr>
                   );
@@ -634,35 +634,35 @@ Total
           {/* Premium Total Section */}
           <div className="mb-0 pb-0 border-t-4 border-double border-gray-800 pt-2">
             <div className="space-y-1 mb-2">
-              <div className="flex justify-between text-[12px] overflow-hidden">
+              <div className="flex justify-between text-[13px]">
                 <span className="text-black font-semibold">Subtotal:</span>
-                <span className="font-semibold text-black truncate">
+                <span className="font-semibold text-black">
                   ₹{formatAmount(subtotal)}
                 </span>
               </div>
               {discountAmount > 0 && (
-                <div className="flex justify-between text-[12px] text-red-600 overflow-hidden">
-                  <span>Discount:</span>
-                  <span className="font-semibold truncate">
+                <div className="flex justify-between text-[13px] text-red-600">
+                  <span>Total Discount:</span>
+                  <span className="font-semibold">
                     -₹{formatAmount(discountAmount)}
                   </span>
                 </div>
               )}
               {additionalTotal > 0 && (
-                <div className="flex justify-between text-[12px] text-green-600 overflow-hidden">
-                  <span>Add.Charges:</span>
-                  <span className="font-semibold truncate">
+                <div className="flex justify-between text-[13px] text-green-600">
+                  <span>Additional Charges:</span>
+                  <span className="font-semibold">
                     +₹{formatAmount(additionalTotal)}
                   </span>
                 </div>
               )}
             </div>
             <div className="bg-gradient-to-r from-gray-100 to-gray-50 -mx-2 px-3 py-1.5 rounded border border-gray-300">
-              <div className="flex justify-between items-center overflow-hidden">
-                <span className="text-base font-black uppercase tracking-wider text-black font-bold">
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-black uppercase tracking-wider text-black font-bold">
                   TOTAL
                 </span>
-                <span className="text-xl font-black text-black font-bold truncate ml-2">
+                <span className="text-2xl font-black text-black font-bold">
                   ₹{formatAmount(grandTotal)}
                 </span>
               </div>
