@@ -483,7 +483,7 @@ export function PrintBill({
       {/* Print Bill Content */}
       <div className="flex items-center justify-center min-h-screen p-4 print:p-0 print:block">
         <div
-          className="w-[58mm] max-w-[58mm] bg-white text-black p-2 print:p-2 overflow-hidden"
+          className="w-[56mm] max-w-[56mm] bg-white text-black p-2 print:p-2 overflow-hidden"
           id="bill-content"
           style={{ boxSizing: 'border-box', fontFamily: 'system-ui, -apple-system, sans-serif' }}
         >
@@ -733,7 +733,7 @@ Total
       <style>{`
         @media print {
           @page {
-            size: 58mm auto;
+            size: 56mm auto;
             margin: 0;
           }
           
@@ -756,7 +756,7 @@ Total
             position: absolute;
             left: 0;
             top: 0;
-            width: 58mm;
+            width: 56mm;
             padding: 2mm;
             background: white;
             box-shadow: none;
@@ -790,8 +790,8 @@ Total
           #bill-content {
             font-size: 16px;
             font-family: system-ui, -apple-system, sans-serif;
-            width: 58mm;
-            max-width: 58mm;
+            width: 56mm;
+            max-width: 56mm;
             overflow: hidden;
             box-sizing: border-box;
           }
