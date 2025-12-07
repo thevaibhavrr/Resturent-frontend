@@ -7,7 +7,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { NewtonsCradleLoader } from "./ui/newtons-cradle-loader";
-import { PrintKotAutoModal } from "./PrintKotAutoModal";
+import { PrintKotPopup } from "./PrintKotPopup";
 import {
   ArrowLeft,
   Search,
@@ -1688,15 +1688,11 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
       {/* Print KOT Modal - Direct Print Without Navigation */}
       {showPrintModal && printData && (
-        <PrintKotAutoModal
+          <PrintKotPopup
           tableName={tableName}
           persons={persons}
           printData={printData}
           onClose={() => {
-            setShowPrintModal(false);
-            setPrintData(null);
-          }}
-          onPrintComplete={() => {
             setShowPrintModal(false);
             setPrintData(null);
           }}
