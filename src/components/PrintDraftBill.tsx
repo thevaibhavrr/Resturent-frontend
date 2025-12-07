@@ -438,15 +438,18 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
       <div className="flex items-center justify-center p-2" style={{ marginBottom: "0px" }}>
         <div
           id="draft-bill-content"
-          className="bg-white text-black p-3  mx-auto"
-          style={{ paddingBottom: "30px" }}
+          className="bg-white text-black p-3 mx-auto"
+          style={{ 
+            paddingBottom: "30px",
+            width: "58mm",
+            maxWidth: "58mm",
+            boxSizing: "border-box"
+          }}
         >
           {/* Header Title */}
-          <div className="text-center border-b border-black pb-2 mb-1"
-          style={{display:"flex" , justifyContent:"flex-start"}}
-          >
+          <div className="text-center border-b border-black pb-2 mb-1">
             
-            <p className="text-lg">Table: {tableName} • Persons: {persons}</p>
+            <p className="text-sm">Table: {tableName} • Persons: {persons}</p>
             <p className="text-sm">{currentDate} {currentTime}</p>
             {unprintedKots && !isFullDraft && (
               <p className="text-xs text-gray-600 mt-1">
@@ -497,7 +500,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
                         </td>
 
                          <td className="py-1">
-                         <div className="font-medium text-2xl">
+                         <div className="font-medium text-2xl break-words" style={{ wordWrap: "break-word", wordBreak: "break-word" }}>
                             {item.name}
                             {item.quantity < 0 && <span className="text-red-600 ml-1">(REMOVED)</span>}
                           </div>
