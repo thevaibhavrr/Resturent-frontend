@@ -486,7 +486,7 @@ export function PrintBill({
         <div
           className="w-[58mm] max-w-[58mm] bg-white text-black p-2 print:p-2 overflow-hidden"
           id="bill-content"
-          style={{ boxSizing: 'border-box', fontFamily: 'system-ui, -apple-system, sans-serif', padding:"20px" }}
+          style={{ boxSizing: 'border-box', fontFamily: 'system-ui, -apple-system, sans-serif', padding:"20px", paddingTop:"0px" }}
         >
           {/* Premium Header with Logo */}
           <div className="text-center p-3 mb pb-1 border-b-4 border-double border-gray-800">

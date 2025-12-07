@@ -7,6 +7,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { NewtonsCradleLoader } from "./ui/newtons-cradle-loader";
+import { PrintKotAutoModal } from "./PrintKotAutoModal";
 import {
   ArrowLeft,
   Search,
@@ -220,6 +221,8 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const [lastKotSnapshot, setLastKotSnapshot] = useState<CartItem[] | null>(null); // Last saved cart state for KOT comparison
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showKotModal, setShowKotModal] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printData, setPrintData] = useState<{ unprintedKots: any[]; kotIds: string[] } | null>(null);
   const menuEndRef = useRef<HTMLDivElement>(null);
   const cartSectionRef = useRef<HTMLDivElement>(null);
 
@@ -1014,6 +1017,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   };
 
   // Print draft (compact) directly from menu - only prints unprinted KOTs
+  // Now shows a modal instead of redirecting
   const handlePrintDraft = async () => {
     if (cart.length === 0) {
       toast.error("Please add items to cart");
@@ -1033,42 +1037,19 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         return;
       }
 
-      const draftData = {
-        table: {
-          id: tableId,
-          tableName: tableName,
-        },
-        unprintedKots: unprintedKots, // Send only unprinted KOTs
-        allKots: tableDraft?.kotHistory || [], // Send all KOTs for reference
-        persons: persons,
-      };
-
-      // Mark these KOTs as printed in the database
+      // Get KOT IDs
       const kotIds = unprintedKots.map(kot => kot.kotId);
-      if (user?.restaurantId) {
-        await markKotsAsPrinted(tableId.toString(), user.restaurantId, kotIds);
-      }
 
-      // Update local state to reflect printed status
-      setTableDraft(prev => prev ? {
-        ...prev,
-        kotHistory: prev.kotHistory?.map(kot =>
-          kotIds.includes(kot.kotId) ? { ...kot, printed: true } : kot
-        ),
-        printedKots: [...(prev.printedKots || []), ...kotIds]
-      } : null);
-
-      toast.success(`Printed ${unprintedKots.length} KOT${unprintedKots.length > 1 ? 's' : ''}`);
-
-      // Navigate to appropriate route based on user role
-      const printRoute = user?.role === "admin" ? "/admin/order-tables/print-draft" : "/order-tables/print-draft";
-      navigate(printRoute, { state: draftData });
+      // Store print data in state and show modal
+      setPrintData({ unprintedKots, kotIds });
+      setShowPrintModal(true);
 
     } catch (error) {
-      console.error("Error marking KOTs as printed:", error);
-      toast.error("Failed to mark KOTs as printed");
+      console.error("Error preparing KOTs for print:", error);
+      toast.error("Failed to prepare KOTs for printing");
     }
   };
+
 
   // Print full draft (all items, not just unprinted KOTs)
   const handlePrintFullDraft = () => {
@@ -1703,6 +1684,25 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         >
           <ArrowUp className="h-5 w-5" />
         </Button>
+      )}
+
+      {/* Print KOT Modal - Direct Print Without Navigation */}
+      {showPrintModal && printData && (
+        <PrintKotAutoModal
+          tableName={tableName}
+          persons={persons}
+          printData={printData}
+          onClose={() => {
+            setShowPrintModal(false);
+            setPrintData(null);
+          }}
+          onPrintComplete={() => {
+            setShowPrintModal(false);
+            setPrintData(null);
+          }}
+          tableId={tableId}
+          user={user}
+        />
       )}
 
       {/* KOT History Modal */}
