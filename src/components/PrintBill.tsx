@@ -384,6 +384,7 @@ export function PrintBill({
   };
 
   return (
+    <>
     <div className="min-h-screen bg-background">
       {/* Action Buttons - Hidden on print */}
       <div className="print:hidden p-4 border-b bg-card">
@@ -757,7 +758,7 @@ Total
             left: 0;
             top: 0;
             width: 58mm;
-            padding: 2mm;
+            padding: 0mm;
             background: white;
             box-shadow: none;
           }
@@ -805,5 +806,6 @@ Total
         }
       `}</style>
     </div>
+    </>
   );
 }
