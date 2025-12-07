@@ -553,10 +553,10 @@ export function PrintBill({
             <table className="w-full" style={{ tableLayout: 'fixed', fontSize: '16px' }}>
               <colgroup>
                 <col style={{ width: '45%' }} />
-                <col style={{ width: '12%' }} />
-                <col style={{ width: '18%' }} /> 
-                <col style={{ width: '25%' }} />
-                
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '15%' }} /> 
+                <col style={{ width: '30%' }} />
+
               </colgroup>
               <thead>
                 <tr className="text-black">
