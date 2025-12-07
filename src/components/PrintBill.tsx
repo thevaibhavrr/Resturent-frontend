@@ -496,6 +496,8 @@ export function PrintBill({
                     src={restaurantSettings.logo}
                     alt="Logo"
                     className="w-full h-full object-contain rounded-full"
+
+                    
                   />
                 </div>
               </div>
