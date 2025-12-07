@@ -481,7 +481,7 @@ export function PrintBill({
       </div>
 
       {/* Print Bill Content */}
-      <div className="flex items-center justify-center min-h-screen py-4 print:p-0 print:block">
+      <div className="flex items-center justify-center min-h-screen p-4 print:p-0 print:block">
         <div
           className="w-[58mm] max-w-[58mm] bg-white text-black p-2 print:p-2 overflow-hidden"
           id="bill-content"
