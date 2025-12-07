@@ -497,7 +497,7 @@ export function PrintBill({
                     alt="Logo"
                     className="w-full h-full object-contain rounded-full"
 
-                    
+
                   />
                 </div>
               </div>
@@ -556,8 +556,9 @@ export function PrintBill({
               <colgroup>
                 <col style={{ width: '45%' }} />
                 <col style={{ width: '10%' }} />
-                <col style={{ width: '15%' }} /> 
+                <col style={{ width: '12%' }} /> 
                 <col style={{ width: '30%' }} />
+                <col style={{ width: '3%' }} />
 
               </colgroup>
               <thead>
@@ -607,6 +608,7 @@ Total
                       <td className="text-right font-bold text-gray-900 align-top py-1" style={{ fontSize: '17px' }}>
                         {formatAmount(itemFinalAmount)}
                       </td>
+                      <td></td>
                     </tr>
                   );
                 })}
