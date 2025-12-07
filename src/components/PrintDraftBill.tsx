@@ -449,7 +449,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
           {/* Header Title */}
           <div className="text-center border-b border-black pb-2 mb-1">
             
-            <p className="text-sm">Table: {tableName} • Persons: {persons}</p>
+            <p className="text-sm">Table: <span className="text-lg"> {tableName} </span> • Persons: {persons}</p>
             <p className="text-sm">{currentDate} {currentTime}</p>
             {unprintedKots && !isFullDraft && (
               <p className="text-xs text-gray-600 mt-1">
