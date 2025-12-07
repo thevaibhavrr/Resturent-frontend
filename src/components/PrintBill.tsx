@@ -554,8 +554,9 @@ export function PrintBill({
               <colgroup>
                 <col style={{ width: '45%' }} />
                 <col style={{ width: '12%' }} />
-                <col style={{ width: '18%' }} />
+                <col style={{ width: '18%' }} /> 
                 <col style={{ width: '25%' }} />
+                
               </colgroup>
               <thead>
                 <tr className="text-black">
