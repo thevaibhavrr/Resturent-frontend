@@ -481,9 +481,9 @@ export function PrintBill({
       </div>
 
       {/* Print Bill Content */}
-      <div className="flex items-center justify-center min-h-screen p-4 print:p-0 print:block">
+      <div className="flex items-center justify-center min-h-screen py-4 print:p-0 print:block">
         <div
-          className="w-[56mm] max-w-[56mm] bg-white text-black p-2 print:p-2 overflow-hidden"
+          className="w-[58mm] max-w-[58mm] bg-white text-black p-2 print:p-2 overflow-hidden"
           id="bill-content"
           style={{ boxSizing: 'border-box', fontFamily: 'system-ui, -apple-system, sans-serif' }}
         >
@@ -496,8 +496,6 @@ export function PrintBill({
                     src={restaurantSettings.logo}
                     alt="Logo"
                     className="w-full h-full object-contain rounded-full"
-
-
                   />
                 </div>
               </div>
@@ -556,9 +554,8 @@ export function PrintBill({
               <colgroup>
                 <col style={{ width: '45%' }} />
                 <col style={{ width: '10%' }} />
-                <col style={{ width: '12%' }} /> 
+                <col style={{ width: '15%' }} /> 
                 <col style={{ width: '30%' }} />
-                <col style={{ width: '3%' }} />
 
               </colgroup>
               <thead>
@@ -608,7 +605,6 @@ Total
                       <td className="text-right font-bold text-gray-900 align-top py-1" style={{ fontSize: '17px' }}>
                         {formatAmount(itemFinalAmount)}
                       </td>
-                      <td></td>
                     </tr>
                   );
                 })}
@@ -737,7 +733,7 @@ Total
       <style>{`
         @media print {
           @page {
-            size: 56mm auto;
+            size: 58mm auto;
             margin: 0;
           }
           
@@ -760,7 +756,7 @@ Total
             position: absolute;
             left: 0;
             top: 0;
-            width: 56mm;
+            width: 58mm;
             padding: 2mm;
             background: white;
             box-shadow: none;
@@ -794,8 +790,8 @@ Total
           #bill-content {
             font-size: 16px;
             font-family: system-ui, -apple-system, sans-serif;
-            width: 56mm;
-            max-width: 56mm;
+            width: 58mm;
+            max-width: 58mm;
             overflow: hidden;
             box-sizing: border-box;
           }
