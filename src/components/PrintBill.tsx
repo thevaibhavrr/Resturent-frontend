@@ -21,7 +21,7 @@ import html2canvas from "html2canvas";
 interface BillItem {
   id: number;
   name: string;
-  price: number;
+  price: number; 
   quantity: number;
   note?: string;
   discountAmount?: number; // Discount in ₹ for this item
@@ -529,7 +529,7 @@ export function PrintBill({
 
           {/* Bill Information - Premium Style */}
           <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
-            <div className="grid grid-cols-2 gap-1.5 text-[12px]">
+            <div className="grid grid-cols-2 gap-1.5 text-[14px]">
               <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
                 <span className="font-semibold text-black">Date:</span>
                 <span className="font-medium">{displayDate}</span>
@@ -539,8 +539,8 @@ export function PrintBill({
                 <span className="font-medium">{displayTime}</span>
               </div>
               <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
-                <span className="font-semibold text-black">Table:</span>
-                <span className="font-bold text-black">{tableName}</span>
+                <span className="font-semibold text-black" style={{ fontSize: '16px' }}>Table:</span>
+                <span className="font-bold text-black" style={{ fontSize: '22px' }}>{tableName}</span>
               </div>
               <div className="col-span-2 flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
                 <span className="font-semibold text-black">Persons:</span>
@@ -561,14 +561,14 @@ export function PrintBill({
               </colgroup>
               <thead>
                 <tr className="text-black">
-                  <th className="text-left py-1 px-0 font-bold truncate" style={{ fontSize: '18px' }}>Item</th>
-                  <th className="text-center py-1 px-0 font-bold" style={{ fontSize: '18px' }}>
+                  <th className="text-left py-1 px-0 font-bold truncate" style={{ fontSize: '20px' }}>Item</th>
+                  <th className="text-center py-1 px-0 font-bold" style={{ fontSize: '20px' }}>
                     Qty
                   </th>
-                  <th className="text-right py-1 px-0 font-bold" style={{ fontSize: '18px' }}>
+                  <th className="text-right py-1 px-0 font-bold" style={{ fontSize: '20px' }}>
                     Price
                   </th>
-                  <th className="text-right py-1 px-0 font-bold" style={{ fontSize: '18px' }}>
+                  <th className="text-right py-1 px-0 font-bold" style={{ fontSize: '20px' }}>
 Total
                   </th>
                 </tr>
@@ -584,26 +584,26 @@ Total
                       key={item.id}
                       className={`${index % 2 === 0 ? "bg-white" : "bg-white"}`}
                     >
-                      <td className="py-1 px-0 align-top" style={{ fontSize: '16px' }}>
+                      <td className="py-1 px-0 align-top" style={{ fontSize: '18px' }}>
                         <div className="break-words">
-                          <span className="font-semibold text-gray-900" style={{ fontSize: '19px' }}>
+                          <span className="font-semibold text-gray-900" style={{ fontSize: '21px' }}>
                             {item.name}
                           </span>
-                          
+
                           {itemDiscount > 0 && (
-                            <div className="text-red-600 font-medium" style={{ fontSize: '14px' }}>
+                            <div className="text-red-600 font-medium" style={{ fontSize: '18px' }}>
                               Disc: -₹{formatAmount(itemDiscount)}
                             </div>
                           )}
                         </div>
                       </td>
-                      <td className="text-center font-medium text-gray-800 align-top py-1" style={{ fontSize: '17px' }}>
+                      <td className="text-center font-medium text-gray-800 align-top py-1" style={{ fontSize: '21px' }}>
                         {item.quantity}
                       </td>
-                      <td className="text-right font-medium text-gray-700 align-top py-1" style={{ fontSize: '17px' }}>
+                      <td className="text-right font-medium text-gray-700 align-top py-1" style={{ fontSize: '21px' }}>
                         {formatAmount(item.price)}
                       </td>
-                      <td className="text-right font-bold text-gray-900 align-top py-1" style={{ fontSize: '17px' }}>
+                      <td className="text-right font-bold text-gray-900 align-top py-1" style={{ fontSize: '21px' }}>
                         {formatAmount(itemFinalAmount)}
                       </td>
                     </tr>
@@ -618,7 +618,7 @@ Total
               {additionalCharges.map((charge) => (
                 <div
                   key={charge.id}
-                  className="flex justify-between text-[13px] py-0.5"
+                  className="flex justify-between text-[15px] py-0.5"
                 >
                   <span className="font-medium text-gray-700">
                     {charge.name}:
@@ -634,14 +634,14 @@ Total
           {/* Premium Total Section */}
           <div className="mb-0 pb-0 border-t-4 border-double border-gray-800 pt-2">
             <div className="space-y-1 mb-2">
-              <div className="flex justify-between text-[13px]">
+              <div className="flex justify-between text-[15px]">
                 <span className="text-black font-medium">Subtotal:</span>
                 <span className="font-medium text-black">
                   ₹{formatAmount(subtotal)}
                 </span>
               </div>
               {discountAmount > 0 && (
-                <div className="flex justify-between text-[13px] text-red-600">
+                <div className="flex justify-between text-[15px] text-red-600">
                   <span>Total Discount:</span>
                   <span className="font-semibold">
                     -₹{formatAmount(discountAmount)}
@@ -649,7 +649,7 @@ Total
                 </div>
               )}
               {additionalTotal > 0 && (
-                <div className="flex justify-between text-[13px] text-green-600">
+                <div className="flex justify-between text-[15px] text-green-600">
                   <span>Additional Charges:</span>
                   <span className="font-semibold">
                     +₹{formatAmount(additionalTotal)}
@@ -659,10 +659,10 @@ Total
             </div>
             <div className="bg-gradient-to-r from-gray-100 to-gray-50 -mx-2 px-3 py-1.5 rounded border border-gray-300">
               <div className="flex justify-between items-center">
-                <span className="text-lg font-black uppercase tracking-wider text-black font-bold">
+                <span className="text-xl font-black uppercase tracking-wider text-black font-bold">
                   TOTAL
                 </span>
-                <span className="text-2xl font-black text-black font-bold">
+                <span className="text-3xl font-black text-black font-bold">
                   ₹{formatAmount(grandTotal)}
                 </span>
               </div>
@@ -690,7 +690,7 @@ Total
           {/* Premium Thank You Section */}
           <div className="text-center mb-0 pb-0 border-t-2 border-dashed border-gray-500 pt-0">
             <div
-              className="text-xl font-black uppercase"
+              className="text-2xl font-black uppercase"
               style={{ letterSpacing: "2px" }}
             >
               THANK YOU
