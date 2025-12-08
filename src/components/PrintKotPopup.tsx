@@ -312,11 +312,11 @@ export function PrintKotPopup({
                         {/* Items (only positive quantities) */}
                         {visibleItems.map((item: any, itemIndex: number) => (
                           <tr key={itemIndex} style={{ borderBottom: "1px solid #eee" }}>
-                            <td style={{ textAlign: "center", padding: "4px", fontWeight: "bold", fontSize: "20" }}>
+                            <td style={{ textAlign: "center", padding: "4px", fontWeight: "bold", fontSize: "24px" }}>
                               {item.quantity}
                             </td>
                             <td style={{ textAlign: "left", padding: "4px" }}>
-                              <div style={{ fontSize: "22px" }}>{item.name}</div>
+                              <div style={{ fontSize: "24px",fontWeight: "bold" }}>{item.name}</div>
                             </td>
                           </tr>
                         ))}
