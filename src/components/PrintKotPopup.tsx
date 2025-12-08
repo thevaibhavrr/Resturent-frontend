@@ -258,7 +258,7 @@ export function PrintKotPopup({
               width: "58mm",
               maxWidth: "58mm",
               boxSizing: "border-box",
-              padding: "12px",
+              padding: "10px",
               borderRadius: "4px",
               boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
             }}
@@ -273,23 +273,20 @@ export function PrintKotPopup({
                 marginBottom: "8px",
               }}
             >
-              <h3 style={{ fontSize: "14px", fontWeight: "bold", margin: "0 0 4px 0" }}>
-                KITCHEN ORDER TICKET
-              </h3>
-              <p style={{ fontSize: "11px", margin: "2px 0", fontWeight: "bold" }}>
+              <p style={{ fontSize: "15px", margin: "2px 0", fontWeight: "bold" }}>
                 Table: {tableName} • Persons: {persons}
               </p>
-              <p style={{ fontSize: "10px", margin: "2px 0", color: "#666" }}>
+              <p style={{ fontSize: "13px", margin: "2px 0", color: "#666", fontWeight:"bold" }}>
                 {currentDate} {currentTime}
               </p>
             </div>
 
             {/* KOTs Table */}
-            <div style={{ borderBottom: "2px dashed black", paddingBottom: "8px", marginBottom: "8px" }}>
+            <div style={{ borderBottom: "1px dashed black", paddingBottom: "8px", marginBottom: "2px" }}>
               <table style={{ width: "100%", fontSize: "11px", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid #ccc" }}>
-                    <th style={{ textAlign: "center", padding: "4px", width: "40px" }}>Qty</th>
+                    <th style={{ textAlign: "center", padding: "4px", width: "30px" }}>Qty</th>
                     <th style={{ textAlign: "left", padding: "4px" }}>Item</th>
                   </tr>
                 </thead>
@@ -308,11 +305,11 @@ export function PrintKotPopup({
                       {/* Items */}
                       {kot.items?.map((item: any, itemIndex: number) => (
                         <tr key={itemIndex} style={{ borderBottom: "1px solid #eee" }}>
-                          <td style={{ textAlign: "center", padding: "4px", fontWeight: "bold", fontSize: "12px" }}>
+                          <td style={{ textAlign: "center", padding: "4px", fontWeight: "bold", fontSize: "15px" }}>
                             {Math.abs(item.quantity)}
                           </td>
                           <td style={{ textAlign: "left", padding: "4px" }}>
-                            <div style={{ fontSize: "11px" }}>{item.name}</div>
+                            <div style={{ fontSize: "17px" }}>{item.name}</div>
                             {item.quantity < 0 && (
                               <div style={{ fontSize: "9px", color: "#dc2626", fontWeight: "bold" }}>
                                 REMOVED
@@ -327,11 +324,7 @@ export function PrintKotPopup({
               </table>
             </div>
 
-            {/* Footer */}
-            <div style={{ textAlign: "center", fontSize: "9px", color: "#666", borderTop: "2px solid black", paddingTop: "4px" }}>
-              <p style={{ margin: "0" }}>{new Date().toLocaleString("en-IN")}</p>
-              <p style={{ margin: "2px 0 0 0" }}>DRAFT - For Kitchen Use</p>
-            </div>
+            
           </div>
         </div>
 
