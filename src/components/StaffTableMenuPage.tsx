@@ -7,6 +7,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { NewtonsCradleLoader } from "./ui/newtons-cradle-loader";
+import { BouncingCirclesLoader } from "./ui/bouncing-circles-loader";
 import { PrintKotPopup } from "./PrintKotPopup";
 import {
   ArrowLeft,
@@ -70,7 +71,7 @@ interface MenuItem {
 }
 
 interface CartItem {
-  id: string;
+  itemId: string;
   name: string;
   price: number;
   quantity: number;
@@ -121,31 +122,42 @@ interface StaffTableMenuPageProps {
 const generateKotDifferences = (
   currentCart: CartItem[],
   lastKotSnapshot: CartItem[] | null
-): { itemId: string; name: string; price: number; quantity: number }[] => {
-  const currentQuantities = new Map<string, { name: string; price: number; quantity: number }>();
-  const lastQuantities = new Map<string, { name: string; price: number; quantity: number }>();
+): { itemId: string; name: string; price: number; quantity: number; spiceLevel?: number; spicePercent?: number; note?: string }[] => {
+  console.log("🔍 generateKotDifferences called with:");
+  console.log("Current cart:", currentCart);
+  console.log("Last snapshot:", lastKotSnapshot);
+
+  const currentQuantities = new Map<string, { name: string; price: number; quantity: number; spiceLevel?: number; spicePercent?: number; note?: string }>();
+  const lastQuantities = new Map<string, { name: string; price: number; quantity: number; spiceLevel?: number; spicePercent?: number; note?: string }>();
 
   // Build current cart quantities map
   currentCart.forEach(item => {
-    currentQuantities.set(item.id, {
+    console.log("Processing current item:", item);
+    currentQuantities.set(item.itemId, {
       name: item.name,
       price: item.price,
-      quantity: item.quantity
+      quantity: item.quantity,
+      spiceLevel: item.spiceLevel,
+      spicePercent: item.spicePercent,
+      note: item.note
     });
   });
 
   // Build last KOT snapshot quantities map
   if (lastKotSnapshot) {
     lastKotSnapshot.forEach(item => {
-      lastQuantities.set(item.id, {
+      lastQuantities.set(item.itemId, {
         name: item.name,
         price: item.price,
-        quantity: item.quantity
+        quantity: item.quantity,
+        spiceLevel: item.spiceLevel,
+        spicePercent: item.spicePercent,
+        note: item.note
       });
     });
   }
 
-  const differences: { itemId: string; name: string; price: number; quantity: number }[] = [];
+  const differences: { itemId: string; name: string; price: number; quantity: number; spiceLevel?: number; spicePercent?: number; note?: string }[] = [];
 
   // Find all unique item IDs from both current and last
   const allItemIds = new Set([...currentQuantities.keys(), ...lastQuantities.keys()]);
@@ -162,15 +174,21 @@ const generateKotDifferences = (
     if (difference !== 0) {
       // Use current item data if available, otherwise last item data
       const itemData = current || last!;
-      differences.push({
+      const diffItem = {
         itemId,
         name: itemData.name,
         price: itemData.price,
-        quantity: difference // Positive = added, Negative = removed
-      });
+        quantity: difference, // Positive = added, Negative = removed
+        spiceLevel: itemData.spiceLevel,
+        spicePercent: itemData.spicePercent,
+        note: itemData.note
+      };
+      console.log("🔍 Adding difference item:", diffItem);
+      differences.push(diffItem);
     }
   });
 
+  console.log("🔍 Generated differences:", differences);
   return differences;
 };
 
@@ -195,6 +213,8 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
   const [tableDraft, setTableDraft] = useState<TableDraft | null>(null);
   const [saving, setSaving] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(true);
   const [useCustomPersons, setUseCustomPersons] = useState(persons > 10);
   const [currentTableSpace, setCurrentTableSpace] = useState<{ _id: string; name: string } | null>(null);
 
@@ -298,7 +318,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     setSelectedSpicePercent(prev => ({ ...prev, [itemId]: percent }));
     // Update cart items with this itemId to have the new spice percent
     setCart(prev => prev.map(ci => {
-      if (ci.id === itemId) {
+      if (ci.itemId === itemId) {
         const level = Math.min(5, Math.max(1, Math.round(percent / 20)));
         return { ...ci, spicePercent: percent, spiceLevel: level };
       }
@@ -351,6 +371,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         // Load table information and draft in background (non-blocking)
         setTimeout(async () => {
           try {
+            setDraftLoading(true);
             // Load table information for space pricing
             const tableData = await getTableById(tableId.toString());
             if (tableData && tableData.locationId) {
@@ -400,7 +421,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
             // Create the cart item with all the information
             const cartItem: CartItem = {
-              id: item.itemId,
+              itemId: item.itemId,
               name: item.name,
               price: item.price,
               quantity: item.quantity,
@@ -424,9 +445,14 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           setLastKotSnapshot(restoredCart);
 
               toast.success("Table draft loaded successfully");
+            } else {
+              // No draft data found, set as loaded
+              setTableDraft(null);
             }
+            setDraftLoading(false);
           } catch (error) {
             console.error("Error loading table/draft data in background:", error);
+            setDraftLoading(false);
           }
         }, 100); // Small delay to ensure UI updates first
 
@@ -472,6 +498,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       // Load table data and draft in background (non-blocking)
       setTimeout(async () => {
         try {
+          setDraftLoading(true);
           // Load table information for space pricing
           const tableData = await getTableById(tableId.toString());
           if (tableData && tableData.locationId) {
@@ -520,7 +547,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
               // Create the cart item with all the information
               const cartItem: CartItem = {
-                id: item.itemId,
+                itemId: item.itemId,
                 name: item.name,
                 price: item.price,
                 quantity: item.quantity,
@@ -544,9 +571,14 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
             setLastKotSnapshot(restoredCart);
 
             toast.success("Table draft loaded successfully");
+          } else {
+            // No draft data found, set as loaded
+            setTableDraft(null);
           }
+          setDraftLoading(false);
         } catch (error) {
           console.error("Error loading table/draft data in background:", error);
+          setDraftLoading(false);
         }
       }, 100); // Small delay to ensure UI updates first
     } catch (err) {
@@ -604,10 +636,10 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
     cart.forEach(item => {
       if (item.spicePercent !== undefined) {
-        restoredSpice[item.id] = item.spicePercent;
+        restoredSpice[item.itemId] = item.spicePercent;
       }
       if (item.isJain !== undefined) {
-        restoredJain[item.id] = item.isJain;
+        restoredJain[item.itemId] = item.isJain;
       }
     });
 
@@ -735,9 +767,20 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
       // If there are differences, create a new KOT entry
       if (kotDifferences.length > 0) {
+        // Ensure all items have itemId
+        const validatedItems = kotDifferences.map(item => ({
+          itemId: item.itemId,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          spiceLevel: item.spiceLevel,
+          spicePercent: item.spicePercent,
+          note: item.note
+        }));
+
         newKotEntry = {
           kotId: generateKotId(),
-          items: kotDifferences,
+          items: validatedItems,
           timestamp: new Date().toISOString()
         };
         console.log("Generated new KOT:", newKotEntry);
@@ -753,7 +796,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         restaurantId: user.restaurantId,
         persons: personsCount,
         cartItems: cartItems.map(item => ({
-          itemId: item.id,
+          itemId: item.itemId,
           name: item.name,
           price: item.price,
           quantity: item.quantity,
@@ -848,13 +891,13 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       };
 
       if (newQuantity === 0) {
-        return prev.filter(cartItem => cartItem.id !== itemId);
+        return prev.filter(cartItem => cartItem.itemId !== itemId);
       }
 
-      const existingItem = prev.find(cartItem => cartItem.id === itemId);
+      const existingItem = prev.find(cartItem => cartItem.itemId === itemId);
       if (existingItem) {
         return prev.map(cartItem =>
-          cartItem.id === itemId
+          cartItem.itemId === itemId
             ? {
               ...cartItem,
               quantity: newQuantity,
@@ -873,12 +916,14 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         saveToRecentItems(item._id);
 
         const newItem: CartItem = {
-          id: item._id,
+          itemId: item._id,
           name: item.name,
           price: getItemPrice(item),
           quantity: newQuantity,
+          spiceLevel: level,
           spicePercent: percent,
           isJain: isJain,
+          note: "",
           addedBy: {
             userId: user.id,
             userName: user.name || user.username
@@ -902,7 +947,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
   // Keep itemId-based spice change for menu cards (applies to all lines of that item)
   const handleSpiceChange = (itemId: string, level: number) => {
-    setCart(prev => prev.map(ci => ci.id === itemId ? { ...ci, spiceLevel: level } : ci));
+    setCart(prev => prev.map(ci => ci.itemId === itemId ? { ...ci, spiceLevel: level } : ci));
   };
 
   const updateQuantityAt = (index: number, change: number) => {
@@ -958,16 +1003,16 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     }
 
     setCart(prev => {
-      const item = prev.find(cartItem => cartItem.id === itemId);
+      const item = prev.find(cartItem => cartItem.itemId === itemId);
       if (!item) return prev;
 
       const newQuantity = item.quantity + change;
       if (newQuantity <= 0) {
-        return prev.filter(cartItem => cartItem.id !== itemId);
+        return prev.filter(cartItem => cartItem.itemId !== itemId);
       }
 
       return prev.map(cartItem =>
-        cartItem.id === itemId
+        cartItem.itemId === itemId
           ? {
             ...cartItem,
             quantity: newQuantity,
@@ -984,7 +1029,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
   // Remove item from cart
   const removeFromCart = (itemId: string) => {
-    setCart(prev => prev.filter(cartItem => cartItem.id !== itemId));
+    setCart(prev => prev.filter(cartItem => cartItem.itemId !== itemId));
     toast.success("Item removed from cart");
   };
 
@@ -1036,7 +1081,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     navigate(billRoute, { state: billData });
   };
 
-  // Print draft (compact) directly from menu - only prints unprinted KOTs
+  // Print draft (compact) directly from menu - prints only the last KOT
   // Now shows a modal instead of redirecting
   const handlePrintDraft = async () => {
     if (cart.length === 0) {
@@ -1049,35 +1094,42 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     }
 
     try {
-      // Get unprinted KOTs from the current draft
-      const unprintedKots = tableDraft?.kotHistory?.filter(kot => !kot.printed) || [];
+      setPrinting(true);
+      console.log("🖨️ Preparing last KOT for printing...");
 
-      if (unprintedKots.length === 0) {
-        toast.error("No new changes to print. All KOTs have been printed already.");
+      // Get the last KOT from the current draft (most recent one)
+      const allKots = tableDraft?.kotHistory || [];
+      if (!allKots || allKots.length === 0) {
+        toast.error("No KOTs available to print.");
         return;
       }
 
-      // Filter out KOTs that have no visible items (quantity > 0)
-      const visibleKots = (unprintedKots || []).map(kot => ({
-        ...kot,
-        items: (kot.items || []).filter((it: any) => Number(it.quantity) > 0),
-      })).filter((kot: any) => (kot.items || []).length > 0);
+      // Get the last (most recent) KOT
+      const lastKot = allKots[allKots.length - 1];
 
-      if (!visibleKots || visibleKots.length === 0) {
-        toast.error("No items to print for selected KOT(s).");
+      // Filter out items that have quantity <= 0
+      const visibleItems = (lastKot.items || []).filter((it: any) => Number(it.quantity) > 0);
+
+      if (!visibleItems || visibleItems.length === 0) {
+        toast.error("No items to print in the last KOT.");
         return;
       }
 
-      // Get KOT IDs of visible KOTs
-      const kotIds = visibleKots.map((kot: any) => kot.kotId);
+      // Create a KOT with only visible items
+      const visibleKot = {
+        ...lastKot,
+        items: visibleItems
+      };
 
       // Store print data in state and show modal
-      setPrintData({ unprintedKots: visibleKots, kotIds });
+      setPrintData({ unprintedKots: [visibleKot], kotIds: [lastKot.kotId] });
       setShowPrintModal(true);
 
     } catch (error) {
-      console.error("Error preparing KOTs for print:", error);
-      toast.error("Failed to prepare KOTs for printing");
+      console.error("Error preparing last KOT for print:", error);
+      toast.error("Failed to prepare KOT for printing");
+    } finally {
+      setPrinting(false);
     }
   };
 
@@ -1323,7 +1375,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
               <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
                 {filteredItems.map((item) => {
                   // Get current spice percent from state or cart
-                  const cartItem = cart.find(ci => ci.id === item._id);
+                  const cartItem = cart.find(ci => ci.itemId === item._id);
                   const currentSpicePercent = selectedSpicePercent[item._id] ?? cartItem?.spicePercent ?? 50;
                   const currentIsJain = selectedIsJain[item._id] ?? cartItem?.isJain ?? false;
 
@@ -1453,9 +1505,20 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           </div>
 
           {/* Cart Section */}
-          <div className="lg:col-span-1" ref={cartSectionRef}>
-            <Card className="sticky top-24">
-              <div className="p-6">
+          <motion.div
+            className="lg:col-span-1"
+            ref={cartSectionRef}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <motion.div
+              className="sticky top-24"
+              whileHover={{ scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            >
+              <Card className="shadow-lg border-2 border-primary/10 relative overflow-hidden">
+                <div className="p-6">
                 <div className="mb-4 flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -1473,51 +1536,141 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                       </p>
                     )}
                   </div>
-                  <div>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
                     <Button
                       onClick={handleSaveDraft}
                       disabled={saving}
                       className={`${hasUnsavedChanges
                         ? 'bg-orange-600 hover:bg-orange-700 animate-pulse'
                         : 'bg-green-600 hover:bg-green-700'
-                        } text-white gap-2 font-semibold shadow-lg hover:shadow-xl transition-all bg-black`}
+                        } text-white gap-2 font-semibold shadow-lg hover:shadow-xl transition-all bg-black relative overflow-hidden`}
                       size="sm"
                       title={hasUnsavedChanges ? "You have unsaved changes" : "Save draft"}
                     >
-                      {saving ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Save className="h-4 w-4" />
+                      {saving && (
+                        <motion.div
+                          className="absolute inset-0 bg-white/20"
+                          initial={{ x: "-100%" }}
+                          animate={{ x: "100%" }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        />
                       )}
-                      <span className="hidden sm:inline">
+                      {saving ? (
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        >
+                          <Loader2 className="h-4 w-4" />
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                        >
+                          <Save className="h-4 w-4" />
+                        </motion.div>
+                      )}
+                      <motion.span
+                        className="hidden sm:inline"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2 }}
+                      >
                         {saving ? "Saving..." : "Save Draft"}
-                      </span>
-                      <span className="sm:hidden ">
+                      </motion.span>
+                      <motion.span
+                        className="sm:hidden"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2 }}
+                      >
                         {saving ? "..." : "Save"}
-                      </span>
+                      </motion.span>
                     </Button>
-                  </div>
+                  </motion.div>
                 </div>
 
 
-                {cart.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">Cart is empty</p>
-                    <p className="text-sm text-muted-foreground mt-2">
+                {draftLoading ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-center py-12"
+                  >
+                    <BouncingCirclesLoader />
+                    <motion.p
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2, duration: 0.3 }}
+                      className="text-sm text-muted-foreground mt-4"
+                    >
+                      Loading table draft...
+                    </motion.p>
+                  </motion.div>
+                ) : cart.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-center py-8"
+                  >
+                    <motion.div
+                      animate={{
+                        y: [0, -5, 0],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                    >
+                      <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                    </motion.div>
+                    <motion.p
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2, duration: 0.3 }}
+                      className="text-muted-foreground"
+                    >
+                      Cart is empty
+                    </motion.p>
+                    <motion.p
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3, duration: 0.3 }}
+                      className="text-sm text-muted-foreground mt-2"
+                    >
                       Add items from the menu
-                    </p>
-                  </div>
+                    </motion.p>
+                  </motion.div>
                 ) : (
                   <>
                     <ScrollArea className="max-h-96 mb-4">
                       <div className="space-y-3">
                         {cart.map((item, index) => (
                           <motion.div
-                            key={item.id}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.15 }}
-                            className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border border-primary/20 shadow-sm hover:shadow-md transition-shadow"
+                            key={item.itemId}
+                            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                            transition={{
+                              duration: 0.3,
+                              delay: index * 0.05,
+                              type: "spring",
+                              stiffness: 300,
+                              damping: 25
+                            }}
+                            whileHover={{
+                              scale: 1.02,
+                              boxShadow: "0 10px 25px rgba(0,0,0,0.1)"
+                            }}
+                            whileTap={{ scale: 0.98 }}
+                            className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border border-primary/20 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
                           >
                             <div className="space-y-3">
                               <div className="flex items-start justify-between">
@@ -1538,14 +1691,19 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                                   </div>
                                   <p className="text-sm text-muted-foreground">₹{item.price} × {item.quantity} = ₹{(item.price * item.quantity).toFixed(2)}</p>
                                 </div>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => removeFromCartAt(index)}
-                                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                <motion.div
+                                  whileHover={{ scale: 1.1, rotate: 5 }}
+                                  whileTap={{ scale: 0.9 }}
                                 >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => removeFromCartAt(index)}
+                                    className="h-8 w-8 text-destructive hover:bg-destructive/10 transition-colors"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </motion.div>
                               </div>
 
                               <Input
@@ -1570,23 +1728,35 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                                 </div>
 
                                 <div className="flex items-center gap-2 bg-white/60 rounded-lg p-1">
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => updateQuantityAt(index, -1)}
-                                    className="h-7 w-7 hover:bg-primary/20"
+                                  <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => updateQuantityAt(index, -1)}
+                                      className="h-7 w-7 hover:bg-primary/20 transition-colors"
+                                    >
+                                      <Minus className="h-3 w-3" />
+                                    </Button>
+                                  </motion.div>
+                                  <motion.span
+                                    key={item.quantity}
+                                    initial={{ scale: 0.8, color: "#10b981" }}
+                                    animate={{ scale: 1, color: "#000000" }}
+                                    transition={{ duration: 0.2 }}
+                                    className="w-6 text-center font-bold text-sm"
                                   >
-                                    <Minus className="h-3 w-3" />
-                                  </Button>
-                                  <span className="w-6 text-center font-bold text-sm">{item.quantity}</span>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => updateQuantityAt(index, 1)}
-                                    className="h-7 w-7 hover:bg-primary/20"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
+                                    {item.quantity}
+                                  </motion.span>
+                                  <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => updateQuantityAt(index, 1)}
+                                      className="h-7 w-7 hover:bg-primary/20 transition-colors"
+                                    >
+                                      <Plus className="h-3 w-3" />
+                                    </Button>
+                                  </motion.div>
                                 </div>
                               </div>
                             </div>
@@ -1596,45 +1766,85 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                     </ScrollArea>
 
                     {/* Persons Count */}
-                    <div className="mb-4 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                    <motion.div
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1, duration: 0.3 }}
+                      className="mb-4 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200"
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-blue-600" />
                           <span className="text-sm font-medium text-blue-800">Persons:</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setPersons(Math.max(1, persons - 1))}
-                            className="h-7 w-7 p-0"
+                          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setPersons(Math.max(1, persons - 1))}
+                              className="h-7 w-7 p-0"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                          </motion.div>
+                          <motion.span
+                            key={persons}
+                            initial={{ scale: 0.8, color: "#10b981" }}
+                            animate={{ scale: 1, color: "#000000" }}
+                            transition={{ duration: 0.2 }}
+                            className="w-8 text-center font-bold text-sm"
                           >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-8 text-center font-bold text-sm">{persons}</span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setPersons(persons + 1)}
-                            className="h-7 w-7 p-0"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
+                            {persons}
+                          </motion.span>
+                          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setPersons(persons + 1)}
+                              className="h-7 w-7 p-0"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </motion.div>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
 
                     {/* Totals */}
-                    <div className="space-y-3 mb-6 p-4 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl border-2 border-primary/20">
-                      <div className="flex justify-between text-base">
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2, duration: 0.4 }}
+                      className="space-y-3 mb-6 p-4 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl border-2 border-primary/20"
+                    >
+                      <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3, duration: 0.3 }}
+                        className="flex justify-between text-base"
+                      >
                         <span className="text-muted-foreground">Subtotal:</span>
                         <span className="font-semibold">₹{subtotal.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between font-bold text-xl border-t-2 border-primary/30 pt-3">
+                      </motion.div>
+                      <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.4, duration: 0.3 }}
+                        className="flex justify-between font-bold text-xl border-t-2 border-primary/30 pt-3"
+                      >
                         <span>Total:</span>
-                        <span className="text-primary">₹{total.toFixed(2)}</span>
-                      </div>
-                    </div>
+                        <motion.span
+                          key={total}
+                          initial={{ scale: 0.8, color: "#10b981" }}
+                          animate={{ scale: 1, color: "#000000" }}
+                          transition={{ duration: 0.3 }}
+                          className="text-primary"
+                        >
+                          ₹{total.toFixed(2)}
+                        </motion.span>
+                      </motion.div>
+                    </motion.div>
 
                     {/* Action Buttons */}
                     <div className="space-y-3">
@@ -1656,53 +1866,101 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                         {saving ? "Saving..." : "Save Draft"}
                       </Button>
 
-                      <Button
-                        onClick={handleGoToBill}
-                        className="w-full h-12 text-base font-bold shadow-lg hover:shadow-xl transition-all"
-                        size="lg"
+                      <motion.div
+                        whileHover={{ scale: 1.02, boxShadow: "0 10px 25px rgba(0,0,0,0.15)" }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
                       >
-                        <Check className="h-5 w-5 mr-2" />
-                        Go to Bill
-                      </Button>
+                        <Button
+                          onClick={handleGoToBill}
+                          className="w-full h-12 text-base font-bold shadow-lg hover:shadow-xl transition-all relative overflow-hidden"
+                          size="lg"
+                        >
+                          <motion.div
+                            className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0"
+                            initial={{ x: "-100%" }}
+                            whileHover={{ x: "100%" }}
+                            transition={{ duration: 0.6 }}
+                          />
+                          <Check className="h-5 w-5 mr-2 relative z-10" />
+                          <span className="relative z-10">Go to Bill</span>
+                        </Button>
+                      </motion.div>
                       <div className="space-y-2">
                         <div className="grid grid-cols-2 gap-2">
-                          <Button
-                            onClick={handlePrintDraft}
-                            className="h-10"
-                            variant="outline"
-                            size="default"
+                          <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                           >
-                            <Printer className="h-4 w-4 mr-1" />
-                            <span className="text-xs">Print KOT</span>
-                          </Button>
-                          <Button
-                            onClick={handlePrintFullDraft}
-                            className="h-10"
-                            variant="secondary"
-                            size="default"
+                            <Button
+                              onClick={handlePrintDraft}
+                              disabled={printing}
+                              className="h-10 relative overflow-hidden"
+                              variant="outline"
+                              size="default"
+                            >
+                              {printing ? (
+                                <motion.div
+                                  animate={{ rotate: 360 }}
+                                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                >
+                                  <Loader2 className="h-4 w-4 mr-1" />
+                                </motion.div>
+                              ) : (
+                                <Printer className="h-4 w-4 mr-1" />
+                              )}
+                              <span className="text-xs">{printing ? "Preparing..." : "Print KOT"}</span>
+                            </Button>
+                          </motion.div>
+                          <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                           >
-                            <Printer className="h-4 w-4 mr-1" />
-                            <span className="text-xs">Print Full</span>
-                          </Button>
+                            <Button
+                              onClick={handlePrintFullDraft}
+                              className="h-10"
+                              variant="secondary"
+                              size="default"
+                            >
+                              <Printer className="h-4 w-4 mr-1" />
+                              <span className="text-xs">Print Full</span>
+                            </Button>
+                          </motion.div>
                         </div>
                         {tableDraft?.kotHistory && tableDraft.kotHistory.length > 0 && (
-                          <Button
-                            onClick={handleViewKots}
-                            className="h-10 w-full"
-                            style={{ backgroundColor: "skyblue", color: "black", marginTop: "40px" }}  
-                            variant="ghost"
-                            size="default"
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3, duration: 0.3 }}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
                           >
-                            <span className="text-xs">View All KOTs ({tableDraft.kotHistory.length})</span>
-                          </Button>
+                            <Button
+                              onClick={handleViewKots}
+                              className="h-10 w-full relative overflow-hidden"
+                              style={{ backgroundColor: "skyblue", color: "black", marginTop: "40px" }}
+                              variant="ghost"
+                              size="default"
+                            >
+                              <motion.div
+                                className="absolute inset-0 bg-white/20"
+                                whileHover={{ x: "100%" }}
+                                initial={{ x: "-100%" }}
+                                transition={{ duration: 0.6 }}
+                              />
+                              <span className="text-xs relative z-10">View All KOTs ({tableDraft.kotHistory.length})</span>
+                            </Button>
+                          </motion.div>
                         )}
                       </div>
                     </div>
                   </>
                 )}
+
               </div>
             </Card>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </div>
 

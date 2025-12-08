@@ -291,13 +291,15 @@ export function PrintKotPopup({
                   </tr>
                 </thead>
                 <tbody>
-                  {printData.unprintedKots.map((kot, kotIndex) => {
+                  {printData.unprintedKots.map((kot, kotIndex) => { 
+                    console.log("kot-=-=-=-=", kot);
                     // Only include items with positive quantity (skip removed items)
                     const visibleItems = (kot.items || []).filter((it: any) => Number(it.quantity) > 0);
+                    // console.log("visibleItems-=-=-=-=", visibleItems);
                     if (!visibleItems || visibleItems.length === 0) {
                       return null; // skip this KOT entirely if no visible items
                     }
-
+ 
                     return (
                       <React.Fragment key={kot.kotId}>
                         {/* KOT Header if multiple */}
@@ -320,7 +322,7 @@ export function PrintKotPopup({
                               {/* Spicy Level */}
                               {item.spiceLevel && item.spiceLevel > 0 && (
                                 <div style={{ fontSize: "16px", color: "#d97706", fontWeight: "bold", marginTop: "2px" }}>
-                                  {"🌶️".repeat(item.spiceLevel)}
+                                  {item.spicePercent ? `${item.spicePercent}% Spicy` : `${"🌶️".repeat(item.spiceLevel)}`}
                                 </div>
                               )}
                               {/* Notes */}

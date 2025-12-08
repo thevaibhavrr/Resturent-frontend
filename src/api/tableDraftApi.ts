@@ -27,6 +27,9 @@ export interface KotEntry {
     name: string;
     price: number;
     quantity: number; // Positive for added, negative for removed
+    spiceLevel?: number;
+    spicePercent?: number;
+    note?: string;
   }[];
   timestamp: string;
   printed?: boolean; // Track if this KOT has been printed
