@@ -317,6 +317,18 @@ export function PrintKotPopup({
                             </td>
                             <td style={{ textAlign: "left", padding: "4px" }}>
                               <div style={{ fontSize: "24px",fontWeight: "bold" }}>{item.name}</div>
+                              {/* Spicy Level */}
+                              {item.spiceLevel && item.spiceLevel > 0 && (
+                                <div style={{ fontSize: "16px", color: "#d97706", fontWeight: "bold", marginTop: "2px" }}>
+                                  {"🌶️".repeat(item.spiceLevel)}
+                                </div>
+                              )}
+                              {/* Notes */}
+                              {item.note && (
+                                <div style={{ fontSize: "14px", color: "#6b7280", fontStyle: "italic", marginTop: "2px" }}>
+                                  Note: {item.note}
+                                </div>
+                              )}
                             </td>
                           </tr>
                         ))}
