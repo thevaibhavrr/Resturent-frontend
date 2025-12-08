@@ -21,7 +21,8 @@ import {
   Printer,
   ArrowDown,
   ArrowUp,
-  Save
+  Save,
+  RefreshCw
 } from "lucide-react";
 import { getCurrentUser } from "../utils/auth";
 import { toast } from "sonner";
@@ -223,6 +224,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const [showKotModal, setShowKotModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printData, setPrintData] = useState<{ unprintedKots: any[]; kotIds: string[] } | null>(null);
+  const [refreshingDraft, setRefreshingDraft] = useState(false);
   const menuEndRef = useRef<HTMLDivElement>(null);
   const cartSectionRef = useRef<HTMLDivElement>(null);
 
@@ -1037,11 +1039,22 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         return;
       }
 
-      // Get KOT IDs
-      const kotIds = unprintedKots.map(kot => kot.kotId);
+      // Filter out KOTs that have no visible items (quantity > 0)
+      const visibleKots = (unprintedKots || []).map(kot => ({
+        ...kot,
+        items: (kot.items || []).filter((it: any) => Number(it.quantity) > 0),
+      })).filter((kot: any) => (kot.items || []).length > 0);
+
+      if (!visibleKots || visibleKots.length === 0) {
+        toast.error("No items to print for selected KOT(s).");
+        return;
+      }
+
+      // Get KOT IDs of visible KOTs
+      const kotIds = visibleKots.map((kot: any) => kot.kotId);
 
       // Store print data in state and show modal
-      setPrintData({ unprintedKots, kotIds });
+      setPrintData({ unprintedKots: visibleKots, kotIds });
       setShowPrintModal(true);
 
     } catch (error) {
@@ -1133,28 +1146,43 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-1 sm:gap-2">
-                <Users className="h-4 w-4" />
-                <Select
-                  value={persons <= 10 && !useCustomPersons ? String(persons) : "custom"}
-                  onValueChange={(v) => {
-                    if (v === "custom") {
-                      setUseCustomPersons(true);
-                    } else {
-                      setUseCustomPersons(false);
-                      setPersons(parseInt(v));
+                
+                {/* Refresh Draft Button */}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={async () => {
+                    if (!user?.restaurantId || !user?.username) {
+                      toast.error("User not available to refresh draft");
+                      return;
+                    }
+
+                    try {
+                      setRefreshingDraft(true);
+                      const refreshed = await getTableDraft(tableId.toString(), user.restaurantId, user.username);
+                      if (refreshed) {
+                        setTableDraft(refreshed);
+                        toast.success("Draft refreshed");
+                      } else {
+                        setTableDraft(null);
+                        toast.info("No draft found for this table");
+                      }
+                    } catch (err) {
+                      console.error("Error refreshing draft:", err);
+                      toast.error("Failed to refresh draft");
+                    } finally {
+                      setRefreshingDraft(false);
                     }
                   }}
+                  className="h-8 w-8 ml-2 p-0"
+                  title="Refresh draft"
                 >
-                  <SelectTrigger className="w-20 sm:w-28 h-8 text-xs sm:text-sm">
-                    <SelectValue placeholder="Persons" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
-                      <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                    ))}
-                    <SelectItem value="custom">Custom…</SelectItem>
-                  </SelectContent>
-                </Select>
+                  {refreshingDraft ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
                 {useCustomPersons && (
                   <Input
                     type="number"

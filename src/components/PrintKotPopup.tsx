@@ -273,7 +273,7 @@ export function PrintKotPopup({
                 marginBottom: "8px",
               }}
             >
-              <p style={{ fontSize: "15px", margin: "2px 0", fontWeight: "bold" }}>
+              <p style={{ fontSize: "18px", margin: "2px 0", fontWeight: "bold" }}>
                 Table: {tableName} • Persons: {persons}
               </p>
               <p style={{ fontSize: "13px", margin: "2px 0", color: "#666", fontWeight:"bold" }}>
@@ -282,7 +282,7 @@ export function PrintKotPopup({
             </div>
 
             {/* KOTs Table */}
-            <div style={{ borderBottom: "1px dashed black", paddingBottom: "8px", marginBottom: "2px" }}>
+            <div style={{ borderBottom: "1px dashed black", paddingBottom: "8px", marginBottom: "5px" }}>
               <table style={{ width: "100%", fontSize: "11px", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid #ccc" }}>
@@ -291,35 +291,38 @@ export function PrintKotPopup({
                   </tr>
                 </thead>
                 <tbody>
-                  {printData.unprintedKots.map((kot, kotIndex) => (
-                    <React.Fragment key={kot.kotId}>
-                      {/* KOT Header if multiple */}
-                      {printData.unprintedKots.length > 1 && (
-                        <tr>
-                          <td colSpan={2} style={{ textAlign: "center", padding: "4px", borderTop: "1px solid black", fontWeight: "bold", fontSize: "10px" }}>
-                            KOT #{kotIndex + 1}
-                          </td>
-                        </tr>
-                      )}
+                  {printData.unprintedKots.map((kot, kotIndex) => {
+                    // Only include items with positive quantity (skip removed items)
+                    const visibleItems = (kot.items || []).filter((it: any) => Number(it.quantity) > 0);
+                    if (!visibleItems || visibleItems.length === 0) {
+                      return null; // skip this KOT entirely if no visible items
+                    }
 
-                      {/* Items */}
-                      {kot.items?.map((item: any, itemIndex: number) => (
-                        <tr key={itemIndex} style={{ borderBottom: "1px solid #eee" }}>
-                          <td style={{ textAlign: "center", padding: "4px", fontWeight: "bold", fontSize: "15px" }}>
-                            {Math.abs(item.quantity)}
-                          </td>
-                          <td style={{ textAlign: "left", padding: "4px" }}>
-                            <div style={{ fontSize: "17px" }}>{item.name}</div>
-                            {item.quantity < 0 && (
-                              <div style={{ fontSize: "9px", color: "#dc2626", fontWeight: "bold" }}>
-                                REMOVED
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </React.Fragment>
-                  ))}
+                    return (
+                      <React.Fragment key={kot.kotId}>
+                        {/* KOT Header if multiple */}
+                        {printData.unprintedKots.length > 1 && (
+                          <tr>
+                            <td colSpan={2} style={{ textAlign: "center", padding: "4px", borderTop: "1px solid black", fontWeight: "bold", fontSize: "10px" }}>
+                              KOT #{kotIndex + 1}
+                            </td>
+                          </tr>
+                        )}
+
+                        {/* Items (only positive quantities) */}
+                        {visibleItems.map((item: any, itemIndex: number) => (
+                          <tr key={itemIndex} style={{ borderBottom: "1px solid #eee" }}>
+                            <td style={{ textAlign: "center", padding: "4px", fontWeight: "bold", fontSize: "12px" }}>
+                              {item.quantity}
+                            </td>
+                            <td style={{ textAlign: "left", padding: "4px" }}>
+                              <div style={{ fontSize: "11px" }}>{item.name}</div>
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
