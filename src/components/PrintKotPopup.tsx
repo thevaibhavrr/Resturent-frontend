@@ -4,6 +4,8 @@ import { Printer, ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import { markKotsAsPrinted } from "../api/tableDraftApi";
+import { getCurrentUser, getRestaurantKey } from "../utils/auth";
+import { getRestaurantPrinterAddress } from "../config/bluetoothPrinter";
 
 interface PrintKotPopupProps {
   tableName: string;
@@ -39,6 +41,54 @@ export function PrintKotPopup({
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  // Get Bluetooth printer settings with fallback and restaurant-specific mapping
+  const getBluetoothPrinterSettings = () => {
+    if (!user?.restaurantId) {
+      console.log('PrintKotPopup: No user or restaurantId');
+      return null;
+    }
+
+    const key = getRestaurantKey("bluetoothPrinter", user.restaurantId);
+    console.log('PrintKotPopup: Loading Bluetooth config with key:', key);
+    const stored = localStorage.getItem(key);
+
+    let config = null;
+
+    if (stored) {
+      try {
+        config = JSON.parse(stored);
+        console.log('PrintKotPopup: Loaded Bluetooth config:', config);
+      } catch (error) {
+        console.warn('PrintKotPopup: Error parsing Bluetooth printer settings:', error);
+        config = null;
+      }
+    }
+
+    // If no config or config doesn't have address, check for restaurant-specific mapping
+    const restaurantPrinterAddress = getRestaurantPrinterAddress(user.restaurantId);
+    if (restaurantPrinterAddress) {
+      if (!config) {
+        config = {
+          name: "Restaurant Printer",
+          address: restaurantPrinterAddress,
+          enabled: true,
+          serviceUuid: "0000ff00-0000-1000-8000-00805f9b34fb",
+          characteristicUuid: "0000ff02-0000-1000-8000-00805f9b34fb"
+        };
+        console.log(`PrintKotPopup: Created restaurant-specific config:`, config);
+      } else if (!config.address || config.address !== restaurantPrinterAddress) {
+        config = {
+          ...config,
+          address: restaurantPrinterAddress,
+          enabled: true
+        };
+        console.log(`PrintKotPopup: Updated config with restaurant address:`, restaurantPrinterAddress);
+      }
+    }
+
+    return config;
+  };
 
   // Auto-print when component mounts
   useEffect(() => {
@@ -78,16 +128,32 @@ export function PrintKotPopup({
       const imgData = canvas.toDataURL("image/png", 1.0);
       console.log("✅ Canvas created successfully");
 
+      // Get Bluetooth printer settings
+      const bluetoothSettings = getBluetoothPrinterSettings();
+      const deviceMacAddress = bluetoothSettings?.address;
+      const deviceName = bluetoothSettings?.name || "Restaurant Printer";
+
+      console.log("🖨️ Bluetooth Settings:", bluetoothSettings);
+      console.log("📱 Device MAC Address:", deviceMacAddress);
+
       if (window.MOBILE_CHANNEL) {
         // Mobile app printing
         console.log("📱 Sending to mobile app...");
         window.MOBILE_CHANNEL.postMessage(
           JSON.stringify({
             event: "flutterPrint",
+            deviceMacAddress: deviceMacAddress,
+            deviceName: deviceName,
             imageBase64: imgData.replace("data:image/png;base64,", ""),
           })
         );
-        toast.success("Print sent to device!");
+        
+        // Show toast with machine address
+        if (deviceMacAddress) {
+          toast.success(`Print sent to: ${deviceName} (${deviceMacAddress})`);
+        } else {
+          toast.success(`Print sent to device: ${deviceName}`);
+        }
       } else {
         // Browser printing
         console.log("🖨️ Opening print window...");
@@ -112,7 +178,13 @@ export function PrintKotPopup({
           setTimeout(() => {
             printWindow.print();
             printWindow.close();
-            toast.success("KOT sent to printer!");
+            
+            // Show toast with machine address
+            if (deviceMacAddress) {
+              toast.success(`KOT sent to: ${deviceName} (${deviceMacAddress})`);
+            } else {
+              toast.success(`KOT sent to printer: ${deviceName}`);
+            }
           }, 250);
         }
       }
