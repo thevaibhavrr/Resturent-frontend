@@ -185,7 +185,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const user = getCurrentUser();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeCategory, setActiveCategory] = useState("recent");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [persons, setPersons] = useState(1);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -340,25 +340,32 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       const cachedData = getCachedMenuData();
 
       if (cachedData) {
-        // Use cached data immediately for faster loading
+        // Use cached data immediately for faster loading - show menu items first
         setCategories(cachedData.categories);
         setMenuItems(cachedData.menuItems);
 
-        // Load table information for space pricing
-        const tableData = await getTableById(tableId.toString());
-        if (tableData && tableData.locationId) {
-          setCurrentTableSpace({
-            _id: tableData.locationId._id,
-            name: tableData.locationId.name
-          });
-        }
+        // Mark initial load complete to show menu immediately
+        setLoading(false);
+        setInitialLoadComplete(true);
 
-        // Still load table draft in parallel (user-specific)
-        const draftData = await getTableDraft(tableId.toString(), user.restaurantId, user.username);
-        console.log("Loaded draft data (cached path):", draftData);
+        // Load table information and draft in background (non-blocking)
+        setTimeout(async () => {
+          try {
+            // Load table information for space pricing
+            const tableData = await getTableById(tableId.toString());
+            if (tableData && tableData.locationId) {
+              setCurrentTableSpace({
+                _id: tableData.locationId._id,
+                name: tableData.locationId.name
+              });
+            }
 
-        // Load existing draft if available
-        if (draftData) {
+            // Load draft data after menu is shown
+            const draftData = await getTableDraft(tableId.toString(), user.restaurantId, user.username);
+            console.log("Loaded draft data (cached path):", draftData);
+
+            // Load existing draft if available
+            if (draftData) {
           setTableDraft(draftData);
           setPersons(draftData.persons);
 
@@ -416,11 +423,12 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           // Set last KOT snapshot to the loaded cart for future comparisons
           setLastKotSnapshot(restoredCart);
 
-          toast.success("Table draft loaded successfully");
-        }
-
-        setLoading(false);
-        setInitialLoadComplete(true);
+              toast.success("Table draft loaded successfully");
+            }
+          } catch (error) {
+            console.error("Error loading table/draft data in background:", error);
+          }
+        }, 100); // Small delay to ensure UI updates first
 
         // Check if cache is close to expiration (within 30 seconds)
         const cacheKey = `menuCache_${user.restaurantId}`;
@@ -446,91 +454,101 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         return;
       }
 
-      // If no cached data, fetch fresh data
-      const [categoriesData, menuItemsData, tableData, draftData] = await Promise.all([
+      // If no cached data, fetch fresh menu data first (fastest loading)
+      const [categoriesData, menuItemsData] = await Promise.all([
         getCategories(user.restaurantId),
-        getMenuItems(user.restaurantId),
-        getTableById(tableId.toString()),
-        getTableDraft(tableId.toString(), user.restaurantId, user.username)
+        getMenuItems(user.restaurantId)
       ]);
 
+      // Show menu items immediately
       setCategories(categoriesData);
       setMenuItems(menuItemsData);
-
-      // Set current table space for price calculation
-      if (tableData && tableData.locationId) {
-        setCurrentTableSpace({
-          _id: tableData.locationId._id,
-          name: tableData.locationId.name
-        });
-      }
+      setLoading(false);
+      setInitialLoadComplete(true);
 
       // Cache the fresh data
       cacheMenuData(categoriesData, menuItemsData);
 
-      // Load existing draft if available
-      if (draftData) {
-        setTableDraft(draftData);
-        setPersons(draftData.persons);
+      // Load table data and draft in background (non-blocking)
+      setTimeout(async () => {
+        try {
+          // Load table information for space pricing
+          const tableData = await getTableById(tableId.toString());
+          if (tableData && tableData.locationId) {
+            setCurrentTableSpace({
+              _id: tableData.locationId._id,
+              name: tableData.locationId.name
+            });
+          }
 
-        // Restore cart items and quantities
-        const restoredCart: CartItem[] = [];
-        const restoredQuantities: Record<string, number> = {};
+          // Load draft data
+          const draftData = await getTableDraft(tableId.toString(), user.restaurantId, user.username);
 
-        draftData.cartItems.forEach((item: any) => {
-          // For backward compatibility, if addedBy is not present, use the draft's updatedBy
-          const addedBy = (item as any).addedBy
-            ? {
-              userId: (item as any).addedBy.userId || 'system',
-              userName: (item as any).addedBy.userName || 'System'
-            }
-            : {
-              userId: draftData.updatedBy || 'system',
-              userName: draftData.updatedBy || 'System'
-            };
+          // Load existing draft if available
+          if (draftData) {
+            setTableDraft(draftData);
+            setPersons(draftData.persons);
 
-          // For backward compatibility, if lastUpdatedBy is not present, use the draft's updatedBy
-          const lastUpdated = (item as any).lastUpdatedBy
-            ? {
-              userId: (item as any).lastUpdatedBy.userId || draftData.updatedBy || 'system',
-              userName: (item as any).lastUpdatedBy.userName || draftData.updatedBy || 'System',
-              timestamp: (item as any).lastUpdatedBy.timestamp || new Date().toISOString()
-            }
-            : {
-              userId: draftData.updatedBy || 'system',
-              userName: draftData.updatedBy || 'System',
-              timestamp: new Date().toISOString()
-            };
+            // Restore cart items and quantities
+            const restoredCart: CartItem[] = [];
+            const restoredQuantities: Record<string, number> = {};
 
-          // Create the cart item with all the information
-          const cartItem: CartItem = {
-            id: item.itemId,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity,
-            note: (item as any).note || "",
-            spiceLevel: (item as any).spiceLevel ?? 0,
-            spicePercent: (item as any).spicePercent ?? 50,
-            isJain: (item as any).isJain ?? false,
-            updatedBy: (item as any).updatedBy || draftData.updatedBy || 'System',
-            addedBy: addedBy,
-            lastUpdatedBy: lastUpdated
-          };
+            draftData.cartItems.forEach((item: any) => {
+              // For backward compatibility, if addedBy is not present, use the draft's updatedBy
+              const addedBy = (item as any).addedBy
+                ? {
+                  userId: (item as any).addedBy.userId || 'system',
+                  userName: (item as any).addedBy.userName || 'System'
+                }
+                : {
+                  userId: draftData.updatedBy || 'system',
+                  userName: draftData.updatedBy || 'System'
+                };
 
-          restoredCart.push(cartItem);
-          restoredQuantities[item.itemId] = item.quantity;
-        });
+              // For backward compatibility, if lastUpdatedBy is not present, use the draft's updatedBy
+              const lastUpdated = (item as any).lastUpdatedBy
+                ? {
+                  userId: (item as any).lastUpdatedBy.userId || draftData.updatedBy || 'system',
+                  userName: (item as any).lastUpdatedBy.userName || draftData.updatedBy || 'System',
+                  timestamp: (item as any).lastUpdatedBy.timestamp || new Date().toISOString()
+                }
+                : {
+                  userId: draftData.updatedBy || 'system',
+                  userName: draftData.updatedBy || 'System',
+                  timestamp: new Date().toISOString()
+                };
 
-        setCart(restoredCart);
-        setItemQuantities(restoredQuantities);
+              // Create the cart item with all the information
+              const cartItem: CartItem = {
+                id: item.itemId,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                note: (item as any).note || "",
+                spiceLevel: (item as any).spiceLevel ?? 0,
+                spicePercent: (item as any).spicePercent ?? 50,
+                isJain: (item as any).isJain ?? false,
+                updatedBy: (item as any).updatedBy || draftData.updatedBy || 'System',
+                addedBy: addedBy,
+                lastUpdatedBy: lastUpdated
+              };
 
-        // Set last KOT snapshot to the loaded cart for future comparisons
-        setLastKotSnapshot(restoredCart);
+              restoredCart.push(cartItem);
+              restoredQuantities[item.itemId] = item.quantity;
+            });
 
-        toast.success("Table draft loaded successfully");
-      }
+            setCart(restoredCart);
+            setItemQuantities(restoredQuantities);
 
-      setInitialLoadComplete(true);
+            // Set last KOT snapshot to the loaded cart for future comparisons
+            setLastKotSnapshot(restoredCart);
+
+            toast.success("Table draft loaded successfully");
+          }
+        } catch (error) {
+          console.error("Error loading table/draft data in background:", error);
+        }
+      }, 100); // Small delay to ensure UI updates first
     } catch (err) {
       console.error("Error loading menu data:", err);
       setError("Failed to load menu data");
