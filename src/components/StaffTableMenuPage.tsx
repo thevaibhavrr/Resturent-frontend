@@ -1287,7 +1287,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                 <span className="sm:hidden ">
                   {saving ? "..." : "Save"}
                 </span>
-              </Button>
+                </Button>
             </div>
           </div>
         </div>

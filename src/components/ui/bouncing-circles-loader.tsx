@@ -3,13 +3,19 @@ import './bouncing-circles-loader.css';
 
 export function BouncingCirclesLoader() {
   return (
-    <div className="wrapper">
-      <div className="circle"></div>
-      <div className="circle"></div>
-      <div className="circle"></div>
-      <div className="shadow"></div>
-      <div className="shadow"></div>
-      <div className="shadow"></div>
-    </div>
+<div className="spinner center">
+    <div className="spinner-blade"></div>
+    <div className="spinner-blade"></div>
+    <div className="spinner-blade"></div>
+    <div className="spinner-blade"></div>
+    <div className="spinner-blade"></div>
+    <div className="spinner-blade"></div>
+    <div className="spinner-blade"></div>
+    <div className="spinner-blade"></div>
+    <div className="spinner-blade"></div>
+    <div className="spinner-blade"></div>
+    <div className="spinner-blade"></div>
+    <div className="spinner-blade"></div>
+</div>
   );
 }

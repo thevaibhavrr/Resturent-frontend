@@ -1,3 +1,4 @@
+import React from "react";
 import { Button } from "./ui/button";
 import { useState, useEffect } from "react";
 import { RefreshCw } from "lucide-react";
@@ -6,8 +7,31 @@ import { getAllTableDrafts } from "../api/tableDraftApi";
 import { getCurrentUser, getRestaurantKey } from "../utils/auth";
 import { toast } from "sonner";
 import { TableCard } from "./TableCard";
+import { BouncingCirclesLoader } from "./ui/bouncing-circles-loader";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+
+// Simple localStorage for table names only
+const getTableNamesKey = (restaurantId: string) =>
+  `restaurant_${restaurantId}_table_names`;
+
+const getCachedTableNames = (restaurantId: string): string[] | null => {
+  try {
+    const cached = localStorage.getItem(getTableNamesKey(restaurantId));
+    return cached ? JSON.parse(cached) : null;
+  } catch (error) {
+    console.error('Error reading table names cache:', error);
+    return null;
+  }
+};
+
+const saveTableNamesToCache = (restaurantId: string, tableNames: string[]): void => {
+  try {
+    localStorage.setItem(getTableNamesKey(restaurantId), JSON.stringify(tableNames));
+  } catch (error) {
+    console.error('Error writing table names cache:', error);
+  }
+};
 
 interface Table {
   _id: string;
@@ -35,11 +59,11 @@ const filters = [
   { id: "inactive", label: "Inactive" },
 ];
 
-export function TablesPage({ 
-  tables: propTables, 
-  activeFilter: propActiveFilter = "all", 
+export function TablesPage({
+  tables: propTables,
+  activeFilter: propActiveFilter = "all",
   setActiveFilter: propSetActiveFilter,
-  onTableSelect 
+  onTableSelect
 }: TablesPageProps = {}) {
   const user = getCurrentUser();
   const navigate = useNavigate();
@@ -48,6 +72,8 @@ export function TablesPage({
   const [loading, setLoading] = useState(!propTables);
   const [tableDrafts, setTableDrafts] = useState<any[]>([]);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [cachedTableNames, setCachedTableNames] = useState<string[]>([]);
+  const [dataLoading, setDataLoading] = useState<boolean>(true);
   const [selectedSpace, setSelectedSpace] = useState<string>(() => {
     const u = getCurrentUser();
     if (!u?.restaurantId) return "all";
@@ -57,15 +83,18 @@ export function TablesPage({
 
   useEffect(() => {
     if (!propTables) {
+      // Load cached table names immediately to show tables
+      loadCachedTableNames();
+      // Always fetch fresh data
       loadTables();
     }
     loadTableDrafts();
-    
+
     // Refresh table drafts every 30 seconds
     const interval = setInterval(() => {
       loadTableDrafts();
     }, 30000);
-    
+
     return () => clearInterval(interval);
   }, [propTables]);
 
@@ -77,6 +106,17 @@ export function TablesPage({
       localStorage.setItem(key, selectedSpace);
     } catch {}
   }, [selectedSpace, user?.restaurantId]);
+
+  // Load cached table names immediately
+  const loadCachedTableNames = () => {
+    if (!user?.restaurantId) return;
+
+    const cachedNames = getCachedTableNames(user.restaurantId);
+    if (cachedNames && cachedNames.length > 0) {
+      setCachedTableNames(cachedNames);
+      setLoading(false); // Show tables immediately
+    }
+  };
 
   // Load table drafts to check occupied status
   const loadTableDrafts = async () => {
@@ -106,18 +146,22 @@ export function TablesPage({
       toast.error("Please login to view tables");
       return;
     }
-    
+
     console.log("Loading tables for restaurant:", user.restaurantId);
     try {
-      setLoading(true);
+      setDataLoading(true);
       const tablesData = await getAllTables(user.restaurantId);
       console.log("Tables loaded:", tablesData);
       setTables(tablesData);
+
+      // Save table names to localStorage for faster future loads
+      const tableNamesList = tablesData.map(table => table.tableName);
+      saveTableNamesToCache(user.restaurantId, tableNamesList);
     } catch (error) {
       console.error("Error loading tables:", error);
       toast.error("Failed to load tables");
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
   };
 
@@ -163,6 +207,9 @@ export function TablesPage({
     },
     { total: 0, available: 0, occupied: 0, reserved: 0 }
   );
+
+  // Use cached table names count for initial display if no tables loaded yet
+  const displayCount = filteredTables.length > 0 ? statusCounts : { total: cachedTableNames.length, available: 0, occupied: 0, reserved: 0 };
 
   const handleTableSelect = (table: Table) => {
     console.log("Selected table:", table);
@@ -265,67 +312,101 @@ export function TablesPage({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
           <div className="p-3 rounded-md bg-card border">
             <p className="text-xs text-muted-foreground">Total</p>
-            <p className="text-xl mt-0.5">{statusCounts.total}</p>
+            <p className="text-xl mt-0.5">{displayCount.total}</p>
           </div>
           <div className="p-3 rounded-md bg-card border">
             <p className="text-xs text-muted-foreground">Available</p>
-            <p className="text-xl mt-0.5 text-green-600">{statusCounts.available}</p>
+            <p className="text-xl mt-0.5 text-green-600">{statusCounts.available || 0}</p>
           </div>
           <div className="p-3 rounded-md bg-card border">
             <p className="text-xs text-muted-foreground">Occupied</p>
-            <p className="text-xl mt-0.5 text-amber-600">{statusCounts.occupied}</p>
+            <p className="text-xl mt-0.5 text-amber-600">{statusCounts.occupied || 0}</p>
           </div>
           <div className="p-3 rounded-md bg-card border">
             <p className="text-xs text-muted-foreground">Reserved</p>
-            <p className="text-xl mt-0.5 text-blue-600">{statusCounts.reserved}</p>
+            <p className="text-xl mt-0.5 text-blue-600">{statusCounts.reserved || 0}</p>
           </div>
         </div>
 
-        {/* Loading State */}
-        {loading && (
+        {/* Loading State - Show cached table names if available */}
+        {loading && cachedTableNames.length === 0 && (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Loading tables...</p>
           </div>
         )}
 
-        {/* Tables Grid - two per row */}
+        {/* Tables Grid - Show cached names while loading, full data when ready */}
         {!loading && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredTables.map((table) => {
-              // Get draft information for this table
-              const draft = tableDrafts.find(d => d.tableId === table._id);
-              const isOccupied = draft && draft.cartItems && draft.cartItems.length > 0;
-              
-              console.log(`Rendering table ${table._id}:`, {
-                draft,
-                isOccupied,
-                persons: draft?.persons,
-                total: draft?.total,
-                cartItems: draft?.cartItems?.length
-              });
-              
-              // Format last order time
-              const lastOrderTime = draft?.lastUpdated 
-                ? new Date(draft.lastUpdated).toLocaleTimeString('en-US', { 
-                    hour: '2-digit', 
-                    minute: '2-digit',
-                    hour12: true 
-                  })
-                : "-";
-              
-              return (
+            {dataLoading && cachedTableNames.length > 0 ? (
+              // Show cached table names with loading state
+              cachedTableNames.map((tableName, index) => (
                 <TableCard
-                  key={table._id}
-                  tableName={table.tableName}
-                  location={table.locationId?.name || "Unknown Location"}
-                  lastOrderTime={lastOrderTime}
-                  persons={draft?.persons || 0}
-                  totalAmount={Math.round(draft?.total || 0)}
-                  status={getTableStatus(table)}
-                  onClick={() => handleTableSelect(table)}
+                  key={`cached-${index}`}
+                  tableName={tableName}
+                  location="Loading..."
+                  lastOrderTime="-"
+                  persons={0}
+                  totalAmount={0}
+                  status="available"
+                  loading={true}
+                  onClick={() => toast.info("Table data is still loading. Please wait...")}
                 />
-              );
-            })}
+              ))
+            ) : filteredTables.length > 0 ? (
+              // Show full table data
+              filteredTables.map((table) => {
+                // Get draft information for this table
+                const draft = tableDrafts.find(d => d.tableId === table._id);
+                const isOccupied = draft && draft.cartItems && draft.cartItems.length > 0;
+
+                console.log(`Rendering table ${table._id}:`, {
+                  draft,
+                  isOccupied,
+                  persons: draft?.persons,
+                  total: draft?.total,
+                  cartItems: draft?.cartItems?.length
+                });
+
+                // Format last order time
+                const lastOrderTime = draft?.lastUpdated
+                  ? new Date(draft.lastUpdated).toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true
+                    })
+                  : "-";
+
+                return (
+                  <TableCard
+                    key={table._id}
+                    tableName={table.tableName}
+                    location={table.locationId?.name || "Unknown Location"}
+                    lastOrderTime={lastOrderTime}
+                    persons={draft?.persons || 0}
+                    totalAmount={Math.round(draft?.total || 0)}
+                    status={getTableStatus(table)}
+                    loading={false}
+                    onClick={() => handleTableSelect(table)}
+                  />
+                );
+              })
+            ) : cachedTableNames.length > 0 ? (
+              // Fallback: show cached names if no filtered tables but we have cache
+              cachedTableNames.map((tableName, index) => (
+                <TableCard
+                  key={`cached-fallback-${index}`}
+                  tableName={tableName}
+                  location="Loading..."
+                  lastOrderTime="-"
+                  persons={0}
+                  totalAmount={0}
+                  status="available"
+                  loading={true}
+                  onClick={() => toast.info("Table data is still loading. Please wait...")}
+                />
+              ))
+            ) : null}
           </div>
         )}
 
