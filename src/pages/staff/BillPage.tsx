@@ -1,6 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { BillPage as BillPageComponent } from "../../components/BillPage";
-import { toast } from "sonner";
 
 export default function BillPage() {
   const location = useLocation();
@@ -25,11 +24,6 @@ export default function BillPage() {
     navigate("/order-tables");
   };
 
-  const handleSaveAndPrint = (printData: any) => {
-    // Navigate to print bill page for printing
-    navigate("/order-tables/print-bill", { state: { printData: printData }, replace: true });
-  };
-
   return (
     <BillPageComponent
       tableId={tableData.id}
@@ -39,7 +33,6 @@ export default function BillPage() {
       initialTotalDiscount={totalDiscountData}
       initialAdditionalPrice={additionalPriceData}
       onBack={handleBack}
-      onSaveAndPrint={handleSaveAndPrint}
       isEdit={isEdit}
       originalBillId={originalBillId}
       originalBillNumber={originalBillNumber}

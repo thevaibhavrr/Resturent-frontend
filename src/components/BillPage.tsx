@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { getMenuItems, getCategories } from "../api/menuApi";
 import { clearTableDraft, getTableDraft, deleteTableDraft } from "../api/tableDraftApi";
 import { createBill, updateBill } from "../api/billApi";
+import { PrintBillPopup } from "./PrintBillPopup";
 
 interface MenuItem {
   _id: string;
@@ -93,6 +94,8 @@ export function BillPage({
   const [totalDiscount, setTotalDiscount] = useState(initialTotalDiscount); // Total discount in ₹
   const [additionalPrice, setAdditionalPrice] = useState(initialAdditionalPrice); // Additional charges/price in ₹
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showPrintBillPopup, setShowPrintBillPopup] = useState(false);
+  const [printBillData, setPrintBillData] = useState<any>(null);
 
   // Load menu data
   useEffect(() => {
@@ -481,9 +484,7 @@ export function BillPage({
         cgst: 0,
         sgst: 0,
         grandTotal: total,
-        restaurantId: user?.restaurantId, // Add restaurantId for settings loading
-        autoPrint: true, // Add autoPrint flag
-        redirectAfterPrint: true, // Add redirect flag
+        restaurantId: user?.restaurantId,
         billDate: new Date().toLocaleDateString("en-IN", {
           day: "2-digit",
           month: "2-digit",
@@ -495,12 +496,9 @@ export function BillPage({
         })
       };
 
-      // Call parent callback if provided
-      if (onSaveAndPrint) {
-        onSaveAndPrint(printData);
-      } else {
-        toast.error("Print functionality not available");
-      }
+      // Show print popup instead of navigating
+      setPrintBillData(printData);
+      setShowPrintBillPopup(true);
     } catch (error) {
       console.error("Error updating bill:", error);
       // Error message already shown in persistBillHistory
@@ -550,9 +548,7 @@ export function BillPage({
         cgst: 0,
         sgst: 0,
         grandTotal: total,
-        restaurantId: user?.restaurantId, // Add restaurantId for settings loading
-        autoPrint: true, // Add autoPrint flag
-        redirectAfterPrint: true, // Add redirect flag
+        restaurantId: user?.restaurantId,
         billDate: new Date().toLocaleDateString("en-IN", {
           day: "2-digit",
           month: "2-digit",
@@ -564,17 +560,13 @@ export function BillPage({
         })
       };
 
-      // Call parent callback if provided
-      if (onSaveAndPrint) {
-        onSaveAndPrint(printData);
-        // Note: Navigation and auto-print happens in parent component
-        // No need to call onBack() here as print component handles redirect
-      } else {
-        toast.error("Print functionality not available");
-      }
+      // Show print popup instead of navigating
+      setPrintBillData(printData);
+      setShowPrintBillPopup(true);
     } catch (error) {
       console.error("Error saving bill:", error);
       // Error message already shown in persistBillHistory
+
       // Don't proceed with print if save failed
     } finally {
       setIsProcessing(false);
@@ -582,7 +574,8 @@ export function BillPage({
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card shadow-sm sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4" style={{ marginTop: '30px' }}>
@@ -942,5 +935,29 @@ export function BillPage({
         </div>
       </div>
     </div>
+
+    {/* Print Bill Popup */}
+    {showPrintBillPopup && printBillData && (
+      <PrintBillPopup
+        billNumber={printBillData.billNumber}
+        tableName={printBillData.tableName}
+        persons={printBillData.persons}
+        items={printBillData.items}
+        additionalCharges={printBillData.additionalCharges || []}
+        discountAmount={printBillData.discountAmount || 0}
+        cgst={printBillData.cgst || 0}
+        sgst={printBillData.sgst || 0}
+        grandTotal={printBillData.grandTotal}
+        billDate={printBillData.billDate}
+        billTime={printBillData.billTime}
+        onClose={() => {
+          setShowPrintBillPopup(false);
+          // Go back after closing the print popup
+          onBack();
+        }}
+        user={user}
+      />
+    )}
+    </>
   );
 }

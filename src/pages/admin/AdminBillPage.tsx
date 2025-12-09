@@ -18,11 +18,6 @@ export default function AdminBillPage() {
     navigate("/admin/order-tables");
   };
 
-  const handleSaveAndPrint = (data: any) => {
-    // Navigate to print bill page for printing
-    navigate("/admin/order-tables/print-bill", { state: { printData: data }, replace: true });
-  };
-
   return (
     <BillPage
       tableId={billData.table.id}
@@ -32,10 +27,10 @@ export default function AdminBillPage() {
       initialTotalDiscount={billData.totalDiscount || 0}
       initialAdditionalPrice={billData.additionalPrice || 0}
       onBack={handleBack}
-      onSaveAndPrint={handleSaveAndPrint}
       isEdit={billData.isEdit || false}
       originalBillId={billData.originalBillId}
       originalBillNumber={billData.originalBillNumber}
     />
   );
+
 }
