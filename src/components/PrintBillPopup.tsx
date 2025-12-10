@@ -321,7 +321,7 @@ export function PrintBillPopup({
                   <img
                     src={restaurantSettings.logo}
                     alt="Logo"
-                    style={{ maxWidth: "40mm", maxHeight: "30px", margin: "0 auto" }}
+                    style={{ maxWidth: "40px", maxHeight: "40px", margin: "0 auto" }}
                   />
                 </div>
               )}
@@ -373,14 +373,14 @@ export function PrintBillPopup({
                           </div>
                         )}
                       </td>
-                      <td style={{ textAlign: "center", padding: "2px" }}>
+                      <td style={{ textAlign: "center" }}>
                         {item.quantity}
                       </td>
-                      <td style={{ textAlign: "right", padding: "2px" }}>
+                      <td style={{ textAlign: "right" }}>
                         {item.price}
                       </td>
-                      <td style={{ textAlign: "right", padding: "2px" }}>
-                        ₹{(item.quantity * item.price - (item.discountAmount || 0))}
+                      <td style={{ textAlign: "left", paddingRight: "2px" }}>
+                        {(item.quantity * item.price - (item.discountAmount || 0))}
                       </td>
                     </tr>
                   ))}
