@@ -302,6 +302,8 @@ export function PrintBillPopup({
               maxWidth: "58mm",
               boxSizing: "border-box",
               padding: "10px",
+              paddingBottom:"20px",
+              paddingRight:"15px",
               borderRadius: "4px",
               boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
             }}
@@ -321,7 +323,7 @@ export function PrintBillPopup({
                   <img
                     src={restaurantSettings.logo}
                     alt="Logo"
-                    style={{ maxWidth: "40px", maxHeight: "40px", margin: "0 auto" }}
+                    style={{ maxWidth: "50px", maxHeight: "50px", margin: "0 auto" , width:"100%",height:"100%" }}
                   />
                 </div>
               )}
@@ -359,7 +361,7 @@ export function PrintBillPopup({
                     <th style={{ textAlign: "left", padding: "2px" }}>Item</th>
                     <th style={{ textAlign: "center", padding: "2px", width: "30px" }}>Qty</th>
                     <th style={{ textAlign: "center", padding: "2px", width: "30px" }}>Price</th>
-                    <th style={{ textAlign: "right", padding: "2px", width: "40px" }}>Total</th>
+                    <th style={{ textAlign: "center", padding: "2px", width: "40px" }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -376,10 +378,10 @@ export function PrintBillPopup({
                       <td style={{ textAlign: "center" }}>
                         {item.quantity}
                       </td>
-                      <td style={{ textAlign: "right" }}>
+                      <td style={{ textAlign: "center" }}>
                         {item.price}
                       </td>
-                      <td style={{ textAlign: "left", paddingRight: "2px" }}>
+                      <td style={{ textAlign: "center" }}>
                         {(item.quantity * item.price - (item.discountAmount || 0))}
                       </td>
                     </tr>
@@ -394,7 +396,7 @@ export function PrintBillPopup({
  
                   <tr style={{fontSize:"16px"}}>
                     <td>Subtotal:</td>
-                    <td style={{ textAlign: "right" }}>
+                    <td style={{ textAlign: "center" }}>
                       ₹{formatAmount(
                         items.reduce((sum, item) => {
                           const itemTotal = item.price * item.quantity;
@@ -407,13 +409,13 @@ export function PrintBillPopup({
                   {discountAmount > 0 && (
                     <tr style={{ color: "#ef4444",fontSize:"16px" }}>
                       <td>Total Discount:</td>
-                      <td style={{ textAlign: "right" }}>-₹{formatAmount(discountAmount)}</td>
+                      <td style={{ textAlign: "center" }}>-₹{formatAmount(discountAmount)}</td>
                     </tr>
                   )}
                   {additionalCharges.length > 0 && additionalCharges.map((charge) => (
                     <tr key={charge.id}>
                       <td>{charge.name}:</td>
-                      <td style={{ textAlign: "right" }}>+₹{formatAmount(charge.amount)}</td>
+                      <td style={{ textAlign: "center" }}>+₹{formatAmount(charge.amount)}</td>
                     </tr>
                   ))}
 
