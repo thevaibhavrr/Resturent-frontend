@@ -194,26 +194,26 @@ const getBluetoothPrinterSettings = () => {
 
 
 
-      // Get the restaurantSettings from localStorage
-const restaurantSettings = localStorage.getItem("restaurantSettings");
+      // Read global restaurant settings (non-restaurant-specific) and prefer explicit kotPrinterAddress
+      const restaurantSettingsRaw = localStorage.getItem("restaurantSettings");
+      let globalSettings: any = null;
+      if (restaurantSettingsRaw) {
+        try {
+          globalSettings = JSON.parse(restaurantSettingsRaw);
+        } catch (err) {
+          console.error("Error parsing restaurantSettings:", err);
+          globalSettings = null;
+        }
+      }
 
-// Parse the JSON string to an object
-let settings = {};
-try {
-    settings = JSON.parse(restaurantSettings);
-} catch (error) {
-    console.error("Error parsing restaurantSettings:", error);
-    settings = {};
-}
+      // Prefer explicit top-level kotPrinterAddress, fall back to kotBluetoothPrinter.address, then to bluetoothSettings
+      const kotPrinterAddress =
+        globalSettings?.kotPrinterAddress ||
+        globalSettings?.kotBluetoothPrinter?.address ||
+        bluetoothSettings?.address ||
+        null;
 
-// Get the kotBluetoothPrinter address
-const KOtPrinteraddress = settings.kotBluetoothPrinter?.address; // default to "1234" if not found
-
-console.log("KOT Printer Address:---------------", KOtPrinteraddress);
-
-
-      // const KOtPrinteraddress = localStorage.getItem("kotBluetoothPrinter");
-      const deviceMacAddress = bluetoothSettings?.address;
+      const deviceMacAddress = kotPrinterAddress || bluetoothSettings?.address;
       const deviceName = bluetoothSettings?.name || "Restaurant Printer";
 
       console.log("🖨️ Bluetooth Settings:", bluetoothSettings);
@@ -225,8 +225,7 @@ console.log("KOT Printer Address:---------------", KOtPrinteraddress);
         window.MOBILE_CHANNEL.postMessage(
           JSON.stringify({
             event: "flutterPrint",
-            // deviceMacAddress: deviceMacAddress,
-            deviceMacAddress: KOtPrinteraddress,
+            deviceMacAddress: deviceMacAddress,
             deviceName: deviceName,
             imageBase64: imgData.replace("data:image/png;base64,", ""),
           })
