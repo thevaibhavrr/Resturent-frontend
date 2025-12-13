@@ -18,18 +18,7 @@ export interface Restaurant {
 
 // Default restaurants data
 const defaultRestaurants: Restaurant[] = [
-  {
-    id: "dev-restaurant",
-    name: "Dev Restaurant",
-    adminUsername: "devrestaurant",
-    adminPassword: "1234",
-  },
-  {
-    id: "divya-restaurant",
-    name: "Divya Restaurant",
-    adminUsername: "divyarestaurant",
-    adminPassword: "1234",
-  },
+  
 ];
 
 // Initialize restaurants in localStorage
@@ -103,6 +92,8 @@ export const authenticateUser = (
     const staffRestaurant = restaurants.find(
       (r) => r.id === staff.restaurantId
     );
+
+    console.log("][][][][][][][][][][][",staff)
     return {
       id: staff.id,
       username: staff.username,
@@ -129,7 +120,8 @@ export const getCurrentUser = (): User | null => {
 
 // Logout
 export const logout = () => {
-  localStorage.removeItem("currentUser");
+  // Clear all localStorage data
+  localStorage.clear();
 };
 
 // Get restaurant-specific key for localStorage

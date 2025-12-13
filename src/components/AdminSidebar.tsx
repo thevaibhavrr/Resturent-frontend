@@ -53,14 +53,14 @@ export function AdminSidebar({
 
   // Close mobile sidebar when the route changes
   useEffect(() => {
+
     if (!visible) return;
     if (onCloseMenu) {
       onCloseMenu();
     } else {
       setIsOpen(false);
     }
-    // We intentionally only want to run when the pathname changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [location.pathname]);
 
   const handleLogout = () => {

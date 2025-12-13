@@ -43,52 +43,113 @@ export function PrintKotPopup({
   });
 
   // Get Bluetooth printer settings with fallback and restaurant-specific mapping
-  const getBluetoothPrinterSettings = () => {
-    if (!user?.restaurantId) {
-      console.log('PrintKotPopup: No user or restaurantId');
-      return null;
-    }
+  // const getBluetoothPrinterSettings = () => {
+  //   if (!user?.restaurantId) {
+  //     console.log('PrintKotPopup: No user or restaurantId');
+  //     return null;
+  //   }
 
-    const key = getRestaurantKey("bluetoothPrinter", user.restaurantId);
-    console.log('PrintKotPopup: Loading Bluetooth config with key:', key);
-    const stored = localStorage.getItem(key);
+  //   const key = getRestaurantKey("bluetoothPrinter", user.restaurantId);
+  //   console.log('PrintKotPopup: Loading Bluetooth config with key:', key); 
+  //   const stored = localStorage.getItem(key);
 
-    let config = null;
+  //   let config = null;
 
-    if (stored) {
-      try {
-        config = JSON.parse(stored);
-        console.log('PrintKotPopup: Loaded Bluetooth config:', config);
-      } catch (error) {
-        console.warn('PrintKotPopup: Error parsing Bluetooth printer settings:', error);
-        config = null;
-      }
-    }
+  //   if (stored) {
+  //     try {
+  //       config = JSON.parse(stored);
+  //       console.log('PrintKotPopup: Loaded Bluetooth config:', config);
+  //     } catch (error) {
+  //       console.warn('PrintKotPopup: Error parsing Bluetooth printer settings:', error);
+  //       config = null;
+  //     }
+  //   }
 
-    // If no config or config doesn't have address, check for restaurant-specific mapping
-    const restaurantPrinterAddress = getRestaurantPrinterAddress(user.restaurantId);
-    if (restaurantPrinterAddress) {
-      if (!config) {
-        config = {
-          name: "Restaurant Printer",
-          address: restaurantPrinterAddress,
+  //   // If no config or config doesn't have address, check for restaurant-specific mapping
+  //   const restaurantPrinterAddress = getRestaurantPrinterAddress(user.restaurantId);
+  //   if (restaurantPrinterAddress) {
+  //     if (!config) {
+  //       config = {
+  //         name: "Restaurant Printer",
+  //         address: restaurantPrinterAddress,
+  //         enabled: true,
+  //         serviceUuid: "0000ff00-0000-1000-8000-00805f9b34fb",
+  //         characteristicUuid: "0000ff02-0000-1000-8000-00805f9b34fb"
+  //       };
+  //       console.log(`PrintKotPopup: Created restaurant-specific config:`, config);
+  //     } else if (!config.address || config.address !== restaurantPrinterAddress) {
+  //       config = {
+  //         ...config,
+  //         address: restaurantPrinterAddress,
+  //         enabled: true
+  //       };
+  //       console.log(`PrintKotPopup: Updated config with restaurant address:`, restaurantPrinterAddress);
+  //     }
+  //   }
+
+  //   return config;
+  // };
+  // In PrintKotPopup.tsx, update the getBluetoothPrinterSettings function
+const getBluetoothPrinterSettings = () => {
+  if (!user?.restaurantId) {
+    console.log('PrintKotPopup: No user or restaurantId');
+    return null;
+  }
+
+  // First try to get printer settings from restaurant settings
+  const restaurantSettingsKey = `restaurantSettings_${user.restaurantId}`;
+  const restaurantSettings = localStorage.getItem(restaurantSettingsKey);
+  
+  if (restaurantSettings) {
+    try {
+      const settings = JSON.parse(restaurantSettings);
+      if (settings.kotBluetoothPrinter?.address) {
+        console.log('Using KOT printer settings from restaurant settings');
+        return {
+          name: "KOT Printer",
+          address: settings.kotBluetoothPrinter.address,
           enabled: true,
-          serviceUuid: "0000ff00-0000-1000-8000-00805f9b34fb",
+          serviceUuid:  "0000ff00-0000-1000-8000-00805f9b34fb",
           characteristicUuid: "0000ff02-0000-1000-8000-00805f9b34fb"
         };
-        console.log(`PrintKotPopup: Created restaurant-specific config:`, config);
-      } else if (!config.address || config.address !== restaurantPrinterAddress) {
-        config = {
-          ...config,
-          address: restaurantPrinterAddress,
-          enabled: true
-        };
-        console.log(`PrintKotPopup: Updated config with restaurant address:`, restaurantPrinterAddress);
       }
+    } catch (error) {
+      console.warn('Error parsing restaurant settings:', error);
     }
+  }
 
-    return config;
-  };
+  // Fallback to old method if no restaurant settings found
+  const key = getRestaurantKey("bluetoothPrinter", user.restaurantId);
+  console.log('PrintKotPopup: Falling back to legacy Bluetooth config with key:', key);
+  const stored = localStorage.getItem(key);
+
+  if (stored) {
+    try {
+      const config = JSON.parse(stored);
+      console.log('PrintKotPopup: Loaded legacy Bluetooth config:', config);
+      return config;
+    } catch (error) {
+      console.warn('PrintKotPopup: Error parsing legacy Bluetooth printer settings:', error);
+    }
+  }
+
+  // Final fallback to restaurant-specific mapping
+  const restaurantPrinterAddress = getRestaurantPrinterAddress(user.restaurantId);
+  if (restaurantPrinterAddress) {
+    const fallbackConfig = {
+      name: "Restaurant KOT Printer",
+      address: restaurantPrinterAddress,
+      enabled: true,
+      serviceUuid: "0000ff00-0000-1000-8000-00805f9b34fb",
+      characteristicUuid: "0000ff02-0000-1000-8000-00805f9b34fb"
+    };
+    console.log('PrintKotPopup: Using restaurant-specific fallback config:', fallbackConfig);
+    return fallbackConfig;
+  }
+
+  console.log('PrintKotPopup: No printer configuration found');
+  return null;
+};
 
   // Auto-print when component mounts
   useEffect(() => {
@@ -130,6 +191,28 @@ export function PrintKotPopup({
 
       // Get Bluetooth printer settings
       const bluetoothSettings = getBluetoothPrinterSettings();
+
+
+
+      // Get the restaurantSettings from localStorage
+const restaurantSettings = localStorage.getItem("restaurantSettings");
+
+// Parse the JSON string to an object
+let settings = {};
+try {
+    settings = JSON.parse(restaurantSettings);
+} catch (error) {
+    console.error("Error parsing restaurantSettings:", error);
+    settings = {};
+}
+
+// Get the kotBluetoothPrinter address
+const KOtPrinteraddress = settings.kotBluetoothPrinter?.address; // default to "1234" if not found
+
+console.log("KOT Printer Address:---------------", KOtPrinteraddress);
+
+
+      // const KOtPrinteraddress = localStorage.getItem("kotBluetoothPrinter");
       const deviceMacAddress = bluetoothSettings?.address;
       const deviceName = bluetoothSettings?.name || "Restaurant Printer";
 
@@ -142,7 +225,8 @@ export function PrintKotPopup({
         window.MOBILE_CHANNEL.postMessage(
           JSON.stringify({
             event: "flutterPrint",
-            deviceMacAddress: deviceMacAddress,
+            // deviceMacAddress: deviceMacAddress,
+            deviceMacAddress: KOtPrinteraddress,
             deviceName: deviceName,
             imageBase64: imgData.replace("data:image/png;base64,", ""),
           })
@@ -181,7 +265,7 @@ export function PrintKotPopup({
             
             // Show toast with machine address
             if (deviceMacAddress) {
-              toast.success(`KOT sent to: ${deviceName} (${deviceMacAddress})`);
+              toast.success(`KOT sent to:--- ${deviceName} (${deviceMacAddress})`);
             } else {
               toast.success(`KOT sent to printer: ${deviceName}`);
             }

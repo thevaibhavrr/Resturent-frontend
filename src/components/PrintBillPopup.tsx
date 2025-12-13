@@ -323,7 +323,7 @@ export function PrintBillPopup({
                   <img
                     src={restaurantSettings.logo}
                     alt="Logo"
-                    style={{ maxWidth: "50px", maxHeight: "50px", margin: "0 auto" , width:"100%",height:"100%" }}
+                    style={{ margin: "0 auto" , width:"100%",height:"100%" }}
                   />
                 </div>
               )}

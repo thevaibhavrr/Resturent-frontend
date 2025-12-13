@@ -127,15 +127,17 @@ export function MainSidebar({ onUpdate, currentTheme, onThemeChange, currentPage
 
   // Settings
   const [restaurantSettings, setRestaurantSettings] = useState<RestaurantSettings>({
-    name: "Restaurant Name",
-    address: "123 Street, City - 400001",
-    phone: "+91 1234567890",
-    gstin: "22AAAAA0000A1Z5",
+    name: "",
+    address: "",
+    phone: "",
+    gstin: "",
     logo: "",
   });
 
+
   useEffect(() => {
     if (isOpen) {
+
       loadHistory();
       loadMenuItems();
       loadTables();
@@ -333,7 +335,7 @@ export function MainSidebar({ onUpdate, currentTheme, onThemeChange, currentPage
 
   const handleSaveSettings = () => {
     localStorage.setItem("restaurantSettings", JSON.stringify(restaurantSettings));
-    toast.success("Settings saved successfully");
+    toast.success("Settings saved successfully"); 
   };
 
   // Hard refresh all data except token and currentUser
@@ -988,70 +990,69 @@ export function MainSidebar({ onUpdate, currentTheme, onThemeChange, currentPage
   );
 }
 
-// Default data functions
-function getDefaultMenuItems(): MenuItem[] {
-  return [
-    { id: 1, name: "Butter Roti", image: "https://images.unsplash.com/photo-1637471631117-ded3d248c468?w=400", price: 25, spiceLevel: 0, category: "roti" },
-    { id: 2, name: "Garlic Naan", image: "https://images.unsplash.com/photo-1637471631117-ded3d248c468?w=400", price: 40, spiceLevel: 10, category: "roti" },
-    { id: 3, name: "Tandoori Roti", image: "https://images.unsplash.com/photo-1756137949459-8aad8455d040?w=400", price: 20, spiceLevel: 0, category: "roti" },
-    { id: 4, name: "Lachha Paratha", image: "https://images.unsplash.com/photo-1637471631117-ded3d248c468?w=400", price: 35, spiceLevel: 0, category: "roti" },
-    { id: 5, name: "Paneer Butter Masala", image: "https://images.unsplash.com/photo-1708782340377-882559d544fb?w=400", price: 220, spiceLevel: 40, category: "paneer" },
-    { id: 6, name: "Kadai Paneer", image: "https://images.unsplash.com/photo-1708782340377-882559d544fb?w=400", price: 240, spiceLevel: 60, category: "paneer" },
-    { id: 7, name: "Paneer Tikka Masala", image: "https://images.unsplash.com/photo-1708782340377-882559d544fb?w=400", price: 250, spiceLevel: 50, category: "paneer" },
-    { id: 8, name: "Shahi Paneer", image: "https://images.unsplash.com/photo-1708782340377-882559d544fb?w=400", price: 260, spiceLevel: 30, category: "paneer" },
-    { id: 9, name: "Mix Veg Curry", image: "https://images.unsplash.com/photo-1612108438004-257c47560118?w=400", price: 180, spiceLevel: 40, category: "veg-sabji" },
-    { id: 10, name: "Aloo Gobi", image: "https://images.unsplash.com/photo-1612108438004-257c47560118?w=400", price: 160, spiceLevel: 30, category: "veg-sabji" },
-    { id: 11, name: "Bhindi Masala", image: "https://images.unsplash.com/photo-1612108438004-257c47560118?w=400", price: 170, spiceLevel: 50, category: "veg-sabji" },
-    { id: 12, name: "Baingan Bharta", image: "https://images.unsplash.com/photo-1612108438004-257c47560118?w=400", price: 190, spiceLevel: 60, category: "veg-sabji" },
-    { id: 13, name: "Veg Spring Roll", image: "https://images.unsplash.com/photo-1583911288204-278762197eca?w=400", price: 150, spiceLevel: 20, category: "starter" },
-    { id: 14, name: "Paneer Tikka", image: "https://images.unsplash.com/photo-1619714604882-db1396d4a718?w=400", price: 180, spiceLevel: 50, category: "starter" },
-    { id: 15, name: "Hara Bhara Kabab", image: "https://images.unsplash.com/photo-1619714604882-db1396d4a718?w=400", price: 160, spiceLevel: 40, category: "starter" },
-    { id: 16, name: "Crispy Corn", image: "https://images.unsplash.com/photo-1583911288204-278762197eca?w=400", price: 140, spiceLevel: 60, category: "starter" },
-    { id: 17, name: "Boondi Raita", image: "https://images.unsplash.com/photo-1709620044505-d7dc01c665d2?w=400", price: 80, spiceLevel: 0, category: "raita" },
-    { id: 18, name: "Mix Veg Raita", image: "https://images.unsplash.com/photo-1709620044505-d7dc01c665d2?w=400", price: 90, spiceLevel: 10, category: "raita" },
-    { id: 19, name: "Cucumber Raita", image: "https://images.unsplash.com/photo-1709620044505-d7dc01c665d2?w=400", price: 70, spiceLevel: 0, category: "raita" },
-    { id: 20, name: "Pineapple Raita", image: "https://images.unsplash.com/photo-1709620044505-d7dc01c665d2?w=400", price: 100, spiceLevel: 0, category: "raita" },
-    { id: 21, name: "Malai Kofta", image: "https://images.unsplash.com/photo-1743362818809-5291a1566ec1?w=400", price: 240, spiceLevel: 40, category: "kofta" },
-    { id: 22, name: "Veg Kofta Curry", image: "https://images.unsplash.com/photo-1743362818809-5291a1566ec1?w=400", price: 220, spiceLevel: 50, category: "kofta" },
-    { id: 23, name: "Lauki Kofta", image: "https://images.unsplash.com/photo-1743362818809-5291a1566ec1?w=400", price: 200, spiceLevel: 30, category: "kofta" },
-    { id: 24, name: "Paneer Kofta", image: "https://images.unsplash.com/photo-1743362818809-5291a1566ec1?w=400", price: 260, spiceLevel: 40, category: "kofta" },
-    { id: 25, name: "Fresh Lime Soda", image: "https://images.unsplash.com/photo-1652922664558-03d0f2932e58?w=400", price: 60, spiceLevel: 0, category: "drinks" },
-    { id: 26, name: "Sweet Lassi", image: "https://images.unsplash.com/photo-1568268205735-fbb7cbb46e23?w=400", price: 70, spiceLevel: 0, category: "drinks" },
-    { id: 27, name: "Masala Chaas", image: "https://images.unsplash.com/photo-1568268205735-fbb7cbb46e23?w=400", price: 50, spiceLevel: 20, category: "drinks" },
-    { id: 28, name: "Fresh Juice", image: "https://images.unsplash.com/photo-1652922664558-03d0f2932e58?w=400", price: 80, spiceLevel: 0, category: "drinks" },
-  ];
-}
+// function getDefaultMenuItems(): MenuItem[] {
+//   return [
+//     { id: 1, name: "Butter Roti", image: "https://images.unsplash.com/photo-1637471631117-ded3d248c468?w=400", price: 25, spiceLevel: 0, category: "roti" },
+//     { id: 2, name: "Garlic Naan", image: "https://images.unsplash.com/photo-1637471631117-ded3d248c468?w=400", price: 40, spiceLevel: 10, category: "roti" },
+//     { id: 3, name: "Tandoori Roti", image: "https://images.unsplash.com/photo-1756137949459-8aad8455d040?w=400", price: 20, spiceLevel: 0, category: "roti" },
+//     { id: 4, name: "Lachha Paratha", image: "https://images.unsplash.com/photo-1637471631117-ded3d248c468?w=400", price: 35, spiceLevel: 0, category: "roti" },
+//     { id: 5, name: "Paneer Butter Masala", image: "https://images.unsplash.com/photo-1708782340377-882559d544fb?w=400", price: 220, spiceLevel: 40, category: "paneer" },
+//     { id: 6, name: "Kadai Paneer", image: "https://images.unsplash.com/photo-1708782340377-882559d544fb?w=400", price: 240, spiceLevel: 60, category: "paneer" },
+//     { id: 7, name: "Paneer Tikka Masala", image: "https://images.unsplash.com/photo-1708782340377-882559d544fb?w=400", price: 250, spiceLevel: 50, category: "paneer" },
+//     { id: 8, name: "Shahi Paneer", image: "https://images.unsplash.com/photo-1708782340377-882559d544fb?w=400", price: 260, spiceLevel: 30, category: "paneer" },
+//     { id: 9, name: "Mix Veg Curry", image: "https://images.unsplash.com/photo-1612108438004-257c47560118?w=400", price: 180, spiceLevel: 40, category: "veg-sabji" },
+//     { id: 10, name: "Aloo Gobi", image: "https://images.unsplash.com/photo-1612108438004-257c47560118?w=400", price: 160, spiceLevel: 30, category: "veg-sabji" },
+//     { id: 11, name: "Bhindi Masala", image: "https://images.unsplash.com/photo-1612108438004-257c47560118?w=400", price: 170, spiceLevel: 50, category: "veg-sabji" },
+//     { id: 12, name: "Baingan Bharta", image: "https://images.unsplash.com/photo-1612108438004-257c47560118?w=400", price: 190, spiceLevel: 60, category: "veg-sabji" },
+//     { id: 13, name: "Veg Spring Roll", image: "https://images.unsplash.com/photo-1583911288204-278762197eca?w=400", price: 150, spiceLevel: 20, category: "starter" },
+//     { id: 14, name: "Paneer Tikka", image: "https://images.unsplash.com/photo-1619714604882-db1396d4a718?w=400", price: 180, spiceLevel: 50, category: "starter" },
+//     { id: 15, name: "Hara Bhara Kabab", image: "https://images.unsplash.com/photo-1619714604882-db1396d4a718?w=400", price: 160, spiceLevel: 40, category: "starter" },
+//     { id: 16, name: "Crispy Corn", image: "https://images.unsplash.com/photo-1583911288204-278762197eca?w=400", price: 140, spiceLevel: 60, category: "starter" },
+//     { id: 17, name: "Boondi Raita", image: "https://images.unsplash.com/photo-1709620044505-d7dc01c665d2?w=400", price: 80, spiceLevel: 0, category: "raita" },
+//     { id: 18, name: "Mix Veg Raita", image: "https://images.unsplash.com/photo-1709620044505-d7dc01c665d2?w=400", price: 90, spiceLevel: 10, category: "raita" },
+//     { id: 19, name: "Cucumber Raita", image: "https://images.unsplash.com/photo-1709620044505-d7dc01c665d2?w=400", price: 70, spiceLevel: 0, category: "raita" },
+//     { id: 20, name: "Pineapple Raita", image: "https://images.unsplash.com/photo-1709620044505-d7dc01c665d2?w=400", price: 100, spiceLevel: 0, category: "raita" },
+//     { id: 21, name: "Malai Kofta", image: "https://images.unsplash.com/photo-1743362818809-5291a1566ec1?w=400", price: 240, spiceLevel: 40, category: "kofta" },
+//     { id: 22, name: "Veg Kofta Curry", image: "https://images.unsplash.com/photo-1743362818809-5291a1566ec1?w=400", price: 220, spiceLevel: 50, category: "kofta" },
+//     { id: 23, name: "Lauki Kofta", image: "https://images.unsplash.com/photo-1743362818809-5291a1566ec1?w=400", price: 200, spiceLevel: 30, category: "kofta" },
+//     { id: 24, name: "Paneer Kofta", image: "https://images.unsplash.com/photo-1743362818809-5291a1566ec1?w=400", price: 260, spiceLevel: 40, category: "kofta" },
+//     { id: 25, name: "Fresh Lime Soda", image: "https://images.unsplash.com/photo-1652922664558-03d0f2932e58?w=400", price: 60, spiceLevel: 0, category: "drinks" },
+//     { id: 26, name: "Sweet Lassi", image: "https://images.unsplash.com/photo-1568268205735-fbb7cbb46e23?w=400", price: 70, spiceLevel: 0, category: "drinks" },
+//     { id: 27, name: "Masala Chaas", image: "https://images.unsplash.com/photo-1568268205735-fbb7cbb46e23?w=400", price: 50, spiceLevel: 20, category: "drinks" },
+//     { id: 28, name: "Fresh Juice", image: "https://images.unsplash.com/photo-1652922664558-03d0f2932e58?w=400", price: 80, spiceLevel: 0, category: "drinks" },
+//   ];
+// }
 
-function getDefaultTables(): Table[] {
-  return [
-    { id: 1, tableName: "G-1", location: "garden" },
-    { id: 2, tableName: "G-2", location: "garden" },
-    { id: 3, tableName: "G-3", location: "garden" },
-    { id: 4, tableName: "G-4", location: "garden" },
-    { id: 5, tableName: "FH-1", location: "family-hall" },
-    { id: 6, tableName: "FH-2", location: "family-hall" },
-    { id: 7, tableName: "FH-3", location: "family-hall" },
-    { id: 8, tableName: "FH-4", location: "family-hall" },
-    { id: 9, tableName: "PH-1", location: "party-hall" },
-    { id: 10, tableName: "PH-2", location: "party-hall" },
-    { id: 11, tableName: "PH-3", location: "party-hall" },
-    { id: 12, tableName: "R1-1", location: "roof-1" },
-    { id: 13, tableName: "R1-2", location: "roof-1" },
-    { id: 14, tableName: "R1-3", location: "roof-1" },
-    { id: 15, tableName: "R1-4", location: "roof-1" },
-  ];
-}
+// function getDefaultTables(): Table[] {
+//   return [
+//     { id: 1, tableName: "G-1", location: "garden" },
+//     { id: 2, tableName: "G-2", location: "garden" },
+//     { id: 3, tableName: "G-3", location: "garden" },
+//     { id: 4, tableName: "G-4", location: "garden" },
+//     { id: 5, tableName: "FH-1", location: "family-hall" },
+//     { id: 6, tableName: "FH-2", location: "family-hall" },
+//     { id: 7, tableName: "FH-3", location: "family-hall" },
+//     { id: 8, tableName: "FH-4", location: "family-hall" },
+//     { id: 9, tableName: "PH-1", location: "party-hall" },
+//     { id: 10, tableName: "PH-2", location: "party-hall" },
+//     { id: 11, tableName: "PH-3", location: "party-hall" },
+//     { id: 12, tableName: "R1-1", location: "roof-1" },
+//     { id: 13, tableName: "R1-2", location: "roof-1" },
+//     { id: 14, tableName: "R1-3", location: "roof-1" },
+//     { id: 15, tableName: "R1-4", location: "roof-1" },
+//   ];
+// }
 
-export function getRestaurantSettings(): RestaurantSettings {
-  const stored = localStorage.getItem("restaurantSettings");
-  if (stored) {
-    return JSON.parse(stored);
-  }
-  return {
-    name: "Restaurant Name",
-    address: "123 Street, City - 400001",
-    phone: "+91 1234567890",
-    gstin: "22AAAAA0000A1Z5",
-    logo: "",
-  };
-}
+// export function getRestaurantSettings(): RestaurantSettings {
+//   const stored = localStorage.getItem("restaurantSettings");
+//   if (stored) {
+//     return JSON.parse(stored);
+//   }
+//   return {
+//     name: "Restaurant Name",
+//     address: "123 Street, City - 400001",
+//     phone: "+91 1234567890",
+//     gstin: "22AAAAA0000A1Z5",
+//     logo: "",
+//   };
+// }

@@ -31,6 +31,7 @@ export function LoginPage({ onLogin, redirectPath = '/admin/order-tables' }: Log
       try {
         const res = await makeApi('/api/auth/login', 'POST', { username, password });
         const data = res.data;
+        console.log("-----------",data)
         if (data.token) {
           localStorage.setItem('token', data.token);
           // Save user info from API response (includes restaurantId from JWT)

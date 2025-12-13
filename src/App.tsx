@@ -43,6 +43,7 @@ import ExpensesListPage from "./pages/ExpensesListPage";
 import AddExpensePage from "./pages/AddExpensePage";
 import EditExpensePage from "./pages/EditExpensePage";
 import BluetoothPrinterPage from "./pages/admin/BluetoothPrinterPage";
+import { makeApi } from "./api/makeapi";
 
 interface TableData {
   id: number;
@@ -138,6 +139,8 @@ function AppContent() {
       setIsLoggedIn(true);
       setCurrentUser(user);
       // Check subscription status for all users (admin and staff)
+
+
       if (user.restaurantId) {
         checkSubscription(user.restaurantId);
       }
@@ -188,16 +191,53 @@ function AppContent() {
     });
   };
 
-  const handleLogin = () => {
-    const user = getCurrentUser();
-    setCurrentUser(user);
-    setIsLoggedIn(true);
+  // const handleLogin = () => {
+  //   const user = getCurrentUser();
+  //   setCurrentUser(user);
+  //   setIsLoggedIn(true);
     
-    // Check subscription status after login for all users (admin and staff)
-    if (user && user.restaurantId) {
-      checkSubscription(user.restaurantId);
+
+  //   if (user && user.restaurantId) {
+  //     checkSubscription(user.restaurantId);
+  //   }
+  // };
+  const handleLogin = async () => {
+  const user = getCurrentUser();
+  setCurrentUser(user);
+  setIsLoggedIn(true);
+  
+  // Check subscription status after login for all users (admin and staff)
+  if (user && user.restaurantId) {
+    checkSubscription(user.restaurantId);
+    
+    // Load and save printer settings
+    try {
+      const response = await makeApi(`/api/settings/${user.restaurantId}`, "GET");
+      console.log("Printer settings:", response.data);
+      // if (response.data) {
+        // Save bill printer settings
+        const billKey = getRestaurantKey("billBluetoothPrinter", user.restaurantId);
+        localStorage.setItem(billKey, JSON.stringify({
+          address: response.data.billPrinterAddress || "",
+          enabled: response.data.billPrinterEnabled || false,
+          name: "",
+          status: 'disconnected'
+        }));
+
+        // Save KOT printer settings
+        const kotKey = getRestaurantKey("kotBluetoothPrinter", user.restaurantId);
+        localStorage.setItem(kotKey, JSON.stringify({
+          address: response.data.kotPrinterAddress || "",
+          enabled: response.data.kotPrinterEnabled || false,
+          name: "",
+          status: 'disconnected'
+        }));
+      // }
+    } catch (error) {
+      console.error("Error loading printer settings:", error);
     }
-  };
+  }
+};
 
   const handleLogout = () => {
     setIsLoggedIn(false);
