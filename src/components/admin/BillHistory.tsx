@@ -30,6 +30,7 @@ import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
 import { toast } from "sonner";
 import { getBills, deleteBill } from "../../api/billApi";
 import { useNavigate } from "react-router-dom";
+import { PrintBillPopup } from "../PrintBillPopup";
 
 interface BillHistoryItem {
   _id?: string; // MongoDB ID for API operations
@@ -70,6 +71,7 @@ export function BillHistory() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalBills, setTotalBills] = useState(0);
+  const [autoPrintData, setAutoPrintData] = useState<any | null>(null);
 
   const loadHistory = async () => {
     if (!user) return;
@@ -261,9 +263,10 @@ export function BillHistory() {
       })
     };
     
-    // Use the appropriate route based on user role
-    const routePrefix = user?.role === 'admin' ? '/admin' : '';
-    navigate(`${routePrefix}/order-tables/print-bill`, { state: { printData } });
+    // Instead of navigating to the print page, open the auto-print popup
+    setAutoPrintData({ printData });
+    // Optionally show a small toast
+    toast.success('Opening print popup...');
   };
 
   const handlePageChange = (page: number) => {
@@ -705,6 +708,14 @@ export function BillHistory() {
             </div>
           </div>
         </Card>
+      )}
+      {/* Auto-print popup for history bills */}
+      {autoPrintData && (
+        <PrintBillPopup
+          {...autoPrintData.printData}
+          onClose={() => setAutoPrintData(null)}
+          user={user}
+        />
       )}
     </div>
   );
