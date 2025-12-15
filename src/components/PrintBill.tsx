@@ -322,9 +322,30 @@ export function PrintBill({
 
       const imgData = canvas.toDataURL("image/png", 1.0); // Maximum quality
 
-      // Get Bluetooth printer settings for MAC address Pan
+      // Get Bluetooth printer settings (legacy/restaurant-specific)
       const bluetoothSettings = getBluetoothPrinterSettings();
-      const deviceMacAddress = bluetoothSettings?.address; // Fallback to old address if not found
+
+      // Also prefer global restaurantSettings stored in localStorage for billing printer
+      const restaurantSettingsRaw = localStorage.getItem("restaurantSettings");
+      let globalSettings: any = null;
+      if (restaurantSettingsRaw) {
+        try {
+          globalSettings = JSON.parse(restaurantSettingsRaw);
+        } catch (err) {
+          console.error("PrintBill: Error parsing restaurantSettings:", err);
+          globalSettings = null;
+        }
+      }
+
+      // Prefer explicit top-level billPrinterAddress, then billBluetoothPrinter.address, then legacy bluetoothSettings address
+      const billPrinterAddress =
+        globalSettings?.billPrinterAddress ||
+        globalSettings?.billBluetoothPrinter?.address ||
+        bluetoothSettings?.address ||
+        null;
+
+      const deviceMacAddress = billPrinterAddress;
+      const deviceName = bluetoothSettings?.name || globalSettings?.name || 'Restaurant Printer';
 
       console.log('Using Bluetooth printer address:', deviceMacAddress);
       console.log('Bluetooth settings:', bluetoothSettings);
@@ -336,11 +357,16 @@ export function PrintBill({
           JSON.stringify({
             event: "flutterPrint",
             deviceMacAddress: deviceMacAddress,
+            deviceName: deviceName,
             imageBase64: imgData.replace("data:image/png;base64,", ""), // Remove data URL prefix
           })
         );
 
-        toast.success(`Print request sent to Flutter! (Device: ${deviceMacAddress})`);
+        if (deviceMacAddress) {
+          toast.success(`Print request sent to: ${deviceName} (${deviceMacAddress})`);
+        } else {
+          toast.success(`Print request sent to device: ${deviceName}`);
+        }
       } else {
         // Fallback for web browsers - set image URL
         setPdfUrl(imgData);
