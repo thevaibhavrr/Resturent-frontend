@@ -430,8 +430,9 @@ export function Settings() {
     
     setIsTestingPrint(true);
 
-    // Compute preferred device address: prefer global restaurantSettings keys, then saved setting
-    const restaurantSettingsRaw = localStorage.getItem("restaurantSettings");
+    // Compute preferred device address: prefer restaurant-specific settings, then global restaurantSettings, then saved setting
+    const restaurantSettingsKey = user?.restaurantId ? `restaurantSettings_${user.restaurantId}` : "restaurantSettings";
+    const restaurantSettingsRaw = localStorage.getItem(restaurantSettingsKey) || localStorage.getItem("restaurantSettings");
     let globalSettings: any = null;
     if (restaurantSettingsRaw) {
       try {
@@ -449,18 +450,28 @@ export function Settings() {
 
     try {
       if (window.MOBILE_CHANNEL) {
-        // Create a small canvas with text "Printer is working fine" to send to the mobile bridge
+        // Create a small canvas with text indicating the printer type and address
         const canvas = document.createElement('canvas');
         canvas.width = 384; // typical thermal width in px
-        canvas.height = 120;
+        canvas.height = 160;
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.fillStyle = '#000000';
-          ctx.font = '20px Arial';
           ctx.textAlign = 'center';
-          ctx.fillText('Printer is working fine', canvas.width / 2, canvas.height / 2 + 8);
+          // Title line
+          ctx.font = '22px Arial';
+          const title = printerType === 'bill' ? 'Bill printer working' : 'KOT printer working';
+          ctx.fillText(title, canvas.width / 2, 40);
+          // Address line (if available)
+          ctx.font = '16px Arial';
+          const addrText = preferredAddress ? `Address: ${preferredAddress}` : 'Address: (not set)';
+          ctx.fillText(addrText, canvas.width / 2, 80);
+          // App/restaurant name line
+          ctx.font = '14px Arial';
+          const nameText = deviceName || '';
+          ctx.fillText(nameText, canvas.width / 2, 120);
         }
 
         const imgData = canvas.toDataURL('image/png');
@@ -473,9 +484,17 @@ export function Settings() {
         }));
 
         if (preferredAddress) {
-          toast.success(`Printer is working fine: ${deviceName} (${preferredAddress})`);
+          if (printerType === 'bill') {
+            toast.success(`Bill printer working with address: ${preferredAddress}`);
+          } else {
+            toast.success(`KOT printer working with address: ${preferredAddress}`);
+          }
         } else {
-          toast.success(`Printer is working fine: ${deviceName}`);
+          if (printerType === 'bill') {
+            toast.success('Bill printer working');
+          } else {
+            toast.success('KOT printer working');
+          }
         }
       } else {
         // Fallback: use existing printerService testPrint for browser/bluetooth path
