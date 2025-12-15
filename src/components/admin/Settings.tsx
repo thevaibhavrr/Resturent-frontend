@@ -520,15 +520,28 @@ export function Settings() {
   const handleConnectToDevice = async (deviceAddress: string, printerType: 'bill' | 'kot') => {
     try {
       // Update settings with the selected device address
-      const updatedSettings = {
-        ...settings,
-        [printerType + 'BluetoothPrinter']: {
-          ...settings[printerType as keyof RestaurantSettings] as any,
-          address: deviceAddress,
-          enabled: true,
-          status: 'connected' as PrinterStatus
-        }
-      };
+      let updatedSettings: RestaurantSettings;
+      if (printerType === 'bill') {
+        updatedSettings = {
+          ...settings,
+          billBluetoothPrinter: {
+            ...(settings.billBluetoothPrinter || {}),
+            address: deviceAddress,
+            enabled: true,
+            status: 'connected' as PrinterStatus,
+          },
+        };
+      } else {
+        updatedSettings = {
+          ...settings,
+          kotBluetoothPrinter: {
+            ...(settings.kotBluetoothPrinter || {}),
+            address: deviceAddress,
+            enabled: true,
+            status: 'connected' as PrinterStatus,
+          },
+        };
+      }
 
       setSettings(updatedSettings);
       setShowDeviceDialog(false);
