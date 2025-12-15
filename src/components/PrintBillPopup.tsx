@@ -171,10 +171,30 @@ export function PrintBillPopup({
       const imgData = canvas.toDataURL("image/png", 1.0);
       console.log("✅ Canvas created successfully");
 
-      // Get Bluetooth printer settings
+      // Get Bluetooth printer settings (legacy/restaurant-specific)
       const bluetoothSettings = getBluetoothPrinterSettings();
-      const deviceMacAddress = bluetoothSettings?.address;
-      const deviceName = bluetoothSettings?.name || "Restaurant Printer";
+
+      // Prefer global restaurantSettings stored in localStorage for billing printer
+      const restaurantSettingsRaw = localStorage.getItem("restaurantSettings");
+      let globalSettings: any = null;
+      if (restaurantSettingsRaw) {
+        try {
+          globalSettings = JSON.parse(restaurantSettingsRaw);
+        } catch (err) {
+          console.error("PrintBillPopup: Error parsing restaurantSettings:", err);
+          globalSettings = null;
+        }
+      }
+
+      // Prefer explicit top-level billPrinterAddress, fall back to billBluetoothPrinter.address, then legacy bluetoothSettings
+      const billPrinterAddress =
+        globalSettings?.billPrinterAddress ||
+        globalSettings?.billBluetoothPrinter?.address ||
+        bluetoothSettings?.address ||
+        null;
+
+      const deviceMacAddress = billPrinterAddress;
+      const deviceName = bluetoothSettings?.name || globalSettings?.name || "Restaurant Printer";
 
       console.log("🖨️ Bluetooth Settings:", bluetoothSettings);
       console.log("📱 Device MAC Address:", deviceMacAddress);
@@ -190,7 +210,7 @@ export function PrintBillPopup({
             imageBase64: imgData.replace("data:image/png;base64,", ""),
           })
         );
-        
+
         // Show toast with machine address
         if (deviceMacAddress) {
           toast.success(`Bill printed: ${deviceName} (${deviceMacAddress})`);
