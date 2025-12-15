@@ -416,7 +416,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
   }, []);
 
   return (
-    <div className="bg-background" style={{height:"90vh" , marginTop:"80px" }} >
+    <div className="bg-background" style={{height:"80vh" , marginTop:"80px" }} >
       {/* Header */}
       <div className="print:hidden p-4 border-b bg-card">
         <div className="flex items-center justify-between gap-4">

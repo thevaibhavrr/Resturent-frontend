@@ -431,16 +431,33 @@ export function Settings() {
     setIsTestingPrint(true);
     
     try {
-      // Test print with the current printer settings
-      await printerService.testPrint({
-        ...printer,
-        serviceUuid: BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID,
-        characteristicUuid: BLUETOOTH_PRINTER_CONFIG.CHARACTERISTIC_UUID
-      });
-      toast.success(`Test print sent to ${printerType.toUpperCase()} printer successfully!`);
+      // Build a simple ESC/POS test print that says "PRINTER IS WORKING FINE"
+      const esc = String.fromCharCode;
+      let content = '';
+      // Initialize printer
+      content += esc(0x1B) + esc(0x40);
+      // Center align
+      content += esc(0x1B) + esc(0x61) + esc(0x01);
+      // Double height & width (if supported)
+      content += esc(0x1D) + esc(0x21) + esc(0x11);
+      content += 'PRINTER IS WORKING FINE\n';
+      // Restore normal text and left align
+      content += esc(0x1D) + esc(0x21) + esc(0x00);
+      content += esc(0x1B) + esc(0x61) + esc(0x00);
+      content += '\n';
+      content += 'Thank you\n';
+      // Feed and cut (partial cut)
+      content += esc(0x1D) + esc(0x56) + esc(0x41) + esc(0x10);
+
+      const printed = await printerService.print(content);
+      if (printed) {
+        toast.success('Printer is working fine');
+      } else {
+        toast.error('Failed to send test print');
+      }
     } catch (error: any) {
       console.error("Error testing printer:", error);
-      toast.error(`Failed to print test page: ${error.message}`);
+      toast.error(`Failed to print test page: ${error?.message || 'Unknown error'}`);
     } finally {
       setIsTestingPrint(false);
     }
