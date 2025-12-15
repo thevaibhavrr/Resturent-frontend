@@ -318,9 +318,29 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
 
       const imgData = canvas.toDataURL("image/png", 1.0);
 
-      // Get Bluetooth printer settings for MAC address
+      // Get Bluetooth printer settings for MAC address (legacy/restaurant-specific)
       const bluetoothSettings = getBluetoothPrinterSettings();
-      const deviceMacAddress = bluetoothSettings?.address; // Use saved address or fallback
+
+      // Read global restaurant settings and prefer explicit kotPrinterAddress
+      const restaurantSettingsRaw = localStorage.getItem("restaurantSettings");
+      let globalSettings: any = null;
+      if (restaurantSettingsRaw) {
+        try {
+          globalSettings = JSON.parse(restaurantSettingsRaw);
+        } catch (err) {
+          console.error("Error parsing restaurantSettings:", err);
+          globalSettings = null;
+        }
+      }
+
+      // Prefer top-level kotPrinterAddress, then kotBluetoothPrinter.address, then bluetoothSettings.address
+      const kotPrinterAddress =
+        globalSettings?.kotPrinterAddress ||
+        globalSettings?.kotBluetoothPrinter?.address ||
+        bluetoothSettings?.address ||
+        null;
+
+      const deviceMacAddress = kotPrinterAddress;
 
       console.log('Using Bluetooth printer address for draft:', deviceMacAddress);
       console.log('Bluetooth settings for draft:', bluetoothSettings);
