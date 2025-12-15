@@ -429,35 +429,70 @@ export function Settings() {
     }
     
     setIsTestingPrint(true);
-    
-    try {
-      // Build a simple ESC/POS test print that says "PRINTER IS WORKING FINE"
-      const esc = String.fromCharCode;
-      let content = '';
-      // Initialize printer
-      content += esc(0x1B) + esc(0x40);
-      // Center align
-      content += esc(0x1B) + esc(0x61) + esc(0x01);
-      // Double height & width (if supported)
-      content += esc(0x1D) + esc(0x21) + esc(0x11);
-      content += 'PRINTER IS WORKING FINE\n';
-      // Restore normal text and left align
-      content += esc(0x1D) + esc(0x21) + esc(0x00);
-      content += esc(0x1B) + esc(0x61) + esc(0x00);
-      content += '\n';
-      content += 'Thank you\n';
-      // Feed and cut (partial cut)
-      content += esc(0x1D) + esc(0x56) + esc(0x41) + esc(0x10);
 
-      const printed = await printerService.print(content);
-      if (printed) {
-        toast.success('Printer is working fine');
+    // Compute preferred device address: prefer global restaurantSettings keys, then saved setting
+    const restaurantSettingsRaw = localStorage.getItem("restaurantSettings");
+    let globalSettings: any = null;
+    if (restaurantSettingsRaw) {
+      try {
+        globalSettings = JSON.parse(restaurantSettingsRaw);
+      } catch (err) {
+        globalSettings = null;
+      }
+    }
+
+    const preferredAddress = printerType === 'bill'
+      ? (globalSettings?.billPrinterAddress || globalSettings?.billBluetoothPrinter?.address || printer?.address || null)
+      : (globalSettings?.kotPrinterAddress || globalSettings?.kotBluetoothPrinter?.address || printer?.address || null);
+
+    const deviceName = printer?.name || globalSettings?.name || (printerType === 'bill' ? 'Bill Printer' : 'KOT Printer');
+
+    try {
+      if (window.MOBILE_CHANNEL) {
+        // Create a small canvas with text "Printer is working fine" to send to the mobile bridge
+        const canvas = document.createElement('canvas');
+        canvas.width = 384; // typical thermal width in px
+        canvas.height = 120;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#000000';
+          ctx.font = '20px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('Printer is working fine', canvas.width / 2, canvas.height / 2 + 8);
+        }
+
+        const imgData = canvas.toDataURL('image/png');
+
+        window.MOBILE_CHANNEL.postMessage(JSON.stringify({
+          event: 'flutterPrint',
+          deviceMacAddress: preferredAddress,
+          deviceName: deviceName,
+          imageBase64: imgData.replace('data:image/png;base64,', ''),
+        }));
+
+        if (preferredAddress) {
+          toast.success(`Printer is working fine: ${deviceName} (${preferredAddress})`);
+        } else {
+          toast.success(`Printer is working fine: ${deviceName}`);
+        }
       } else {
-        toast.error('Failed to send test print');
+        // Fallback: use existing printerService testPrint for browser/bluetooth path
+        await printerService.testPrint({
+          ...printer,
+          serviceUuid: BLUETOOTH_PRINTER_CONFIG.SERVICE_UUID,
+          characteristicUuid: BLUETOOTH_PRINTER_CONFIG.CHARACTERISTIC_UUID
+        });
+        if (preferredAddress) {
+          toast.success(`Printer is working fine: ${deviceName} (${preferredAddress})`);
+        } else {
+          toast.success(`Printer is working fine: ${deviceName}`);
+        }
       }
     } catch (error: any) {
-      console.error("Error testing printer:", error);
-      toast.error(`Failed to print test page: ${error?.message || 'Unknown error'}`);
+      console.error('Error testing printer:', error);
+      toast.error(`Failed to print test page: ${error?.message || error}`);
     } finally {
       setIsTestingPrint(false);
     }
