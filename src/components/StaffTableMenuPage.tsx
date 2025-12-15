@@ -9,6 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./
 import { NewtonsCradleLoader } from "./ui/newtons-cradle-loader";
 import { BouncingCirclesLoader } from "./ui/bouncing-circles-loader";
 import { PrintKotPopup } from "./PrintKotPopup";
+import { PrintDraftBill } from "./PrintDraftBill";
 import {
   ArrowLeft,
   Search,
@@ -244,6 +245,8 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const [showKotModal, setShowKotModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printData, setPrintData] = useState<{ unprintedKots: any[]; kotIds: string[] } | null>(null);
+  const [showFullDraftModal, setShowFullDraftModal] = useState(false);
+  const [fullDraftData, setFullDraftData] = useState<any | null>(null);
   const [refreshingDraft, setRefreshingDraft] = useState(false);
   const menuEndRef = useRef<HTMLDivElement>(null);
   const cartSectionRef = useRef<HTMLDivElement>(null);
@@ -1158,9 +1161,9 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
     toast.success("Printing full draft...");
 
-    // Navigate to appropriate route based on user role
-    const printRoute = user?.role === "admin" ? "/admin/order-tables/print-draft" : "/order-tables/print-draft";
-    navigate(printRoute, { state: draftData });
+    // Open full-draft print modal (auto-print) instead of navigating
+    setFullDraftData(draftData);
+    setShowFullDraftModal(true);
   };
 
   // View all KOTs in modal
@@ -2003,6 +2006,40 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           tableId={tableId}
           user={user}
         />
+      )}
+
+      {/* Full draft print modal (auto print) */}
+      {showFullDraftModal && fullDraftData && (
+        // <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50">
+        //   <div className="bg-transparent w-full h-full flex items-center justify-center">
+        //     <PrintDraftBill
+        //       tableName={fullDraftData.table.tableName}
+        //       persons={fullDraftData.persons}
+        //       items={fullDraftData.cart}
+        //       unprintedKots={fullDraftData.unprintedKots}
+        //       allKots={fullDraftData.allKots}
+        //       onBack={() => {
+        //         setShowFullDraftModal(false);
+        //         setFullDraftData(null);
+        //       }}
+        //     />
+        //   </div>
+        // </div>
+        <div className="fixed inset-0 z-[9999] backdrop-blur-md bg-black/5">
+  <div className="bg-transparent w-full h-full flex items-center justify-center">
+    <PrintDraftBill
+      tableName={fullDraftData.table.tableName}
+      persons={fullDraftData.persons}
+      items={fullDraftData.cart}
+      unprintedKots={fullDraftData.unprintedKots}
+      allKots={fullDraftData.allKots}
+      onBack={() => {
+        setShowFullDraftModal(false);
+        setFullDraftData(null);
+      }}
+    />
+  </div>
+</div>
       )}
 
       {/* KOT History Modal */}

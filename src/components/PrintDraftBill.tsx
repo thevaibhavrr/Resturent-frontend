@@ -416,7 +416,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
   }, []);
 
   return (
-    <div className="bg-background">
+    <div className="bg-background" style={{height:"90vh" , marginTop:"80px" }} >
       {/* Header */}
       <div className="print:hidden p-4 border-b bg-card">
         <div className="flex items-center justify-between gap-4">
@@ -434,15 +434,15 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
                 </span>
               </div>
             )}
-            {isBluetoothPrinting && (
+            {/* {isBluetoothPrinting && (
               <div className="flex items-center gap-2 text-sm text-blue-600">
                 <NewtonsCradleLoader size={16} speed={1.2} color="#3b82f6" />
                 <span>Printing via Bluetooth...</span>
               </div>
-            )}
+            )} */}
 
             <div className="flex items-center gap-2">
-              {typeof navigator !== "undefined" && navigator.bluetooth && (
+              {/* {typeof navigator !== "undefined" && navigator.bluetooth && (
                 <Button
                   variant="outline"
                   onClick={handleBluetoothPrint}
@@ -465,7 +465,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
                     </>
                   )}
                 </Button>
-              )}
+              )} */}
 
               <Button variant="default" onClick={handlePrint} className="gap-2 bg-primary">
                 <Printer className="w-4 h-4" />
@@ -581,7 +581,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
       `}</style>
 
       {/* Bluetooth Printer Status */}
-      {typeof navigator !== "undefined" && navigator.bluetooth && (
+      {/* {typeof navigator !== "undefined" && navigator.bluetooth && (
         <div className="print:hidden fixed bottom-4 right-4 z-50">
           <BluetoothPrinterStatus
             onConnect={() => setBluetoothStatus("connected")}
@@ -589,7 +589,7 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
             onError={() => setBluetoothStatus("error")}
           />
         </div>
-      )}
+      )} */}
     </div>
   );
 }
