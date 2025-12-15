@@ -164,6 +164,44 @@ export function Settings() {
     }
   }, [settings.billBluetoothPrinter, settings.kotBluetoothPrinter, user]);
 
+  // Helper: resolve printer address from localStorage (restaurant-specific restaurantSettings_<id>),
+  // then saved printer key (billBluetoothPrinter/kotBluetoothPrinter), then settings state
+  const resolvePrinterAddressFromStorage = (printerType: 'bill' | 'kot') => {
+    // 1) restaurant-specific settings key
+    const restaurantSettingsKey = user?.restaurantId ? `restaurantSettings_${user.restaurantId}` : "restaurantSettings";
+    const restaurantSettingsRaw = localStorage.getItem(restaurantSettingsKey) || localStorage.getItem("restaurantSettings");
+    if (restaurantSettingsRaw) {
+      try {
+        const rs = JSON.parse(restaurantSettingsRaw);
+        if (printerType === 'bill' && rs?.billPrinterAddress) return rs.billPrinterAddress;
+        if (printerType === 'kot' && rs?.kotPrinterAddress) return rs.kotPrinterAddress;
+        // also check nested objects
+        if (printerType === 'bill' && rs?.billBluetoothPrinter?.address) return rs.billBluetoothPrinter.address;
+        if (printerType === 'kot' && rs?.kotBluetoothPrinter?.address) return rs.kotBluetoothPrinter.address;
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    // 2) saved printer config under getRestaurantKey
+    if (user?.restaurantId) {
+      const key = getRestaurantKey(printerType === 'bill' ? 'billBluetoothPrinter' : 'kotBluetoothPrinter', user.restaurantId);
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        try {
+          const cfg = JSON.parse(stored);
+          if (cfg?.address) return cfg.address;
+        } catch (err) {
+          // ignore
+        }
+      }
+    }
+
+    // 3) fall back to in-memory settings state
+    const stateAddress = printerType === 'bill' ? settings.billBluetoothPrinter?.address : settings.kotBluetoothPrinter?.address;
+    return stateAddress || null;
+  };
+
   // Load saved printer config on mount
   useEffect(() => {
     if (user?.restaurantId) {
@@ -419,11 +457,10 @@ export function Settings() {
   };
 
   const handlePrinterTest = async (printerType: 'bill' | 'kot') => {
-    const printer = printerType === 'bill' 
-      ? settings.billBluetoothPrinter 
-      : settings.kotBluetoothPrinter;
-      
-    if (!printer?.address) {
+    const printer = printerType === 'bill' ? settings.billBluetoothPrinter : settings.kotBluetoothPrinter;
+    // Resolve address from localStorage / saved config / state
+    const resolvedAddress = resolvePrinterAddressFromStorage(printerType);
+    if (!resolvedAddress) {
       toast.error(`Please set up the ${printerType.toUpperCase()} Bluetooth printer first`);
       return;
     }
@@ -443,8 +480,8 @@ export function Settings() {
     }
 
     const preferredAddress = printerType === 'bill'
-      ? (globalSettings?.billPrinterAddress || globalSettings?.billBluetoothPrinter?.address || printer?.address || null)
-      : (globalSettings?.kotPrinterAddress || globalSettings?.kotBluetoothPrinter?.address || printer?.address || null);
+      ? (globalSettings?.billPrinterAddress || globalSettings?.billBluetoothPrinter?.address || resolvedAddress || null)
+      : (globalSettings?.kotPrinterAddress || globalSettings?.kotBluetoothPrinter?.address || resolvedAddress || null);
 
     const deviceName = printer?.name || globalSettings?.name || (printerType === 'bill' ? 'Bill Printer' : 'KOT Printer');
 
@@ -779,7 +816,7 @@ export function Settings() {
                     variant="outline"
                     className="gap-2"
                     onClick={() => handlePrinterTest('bill')}
-                    disabled={isTestingPrint || !settings.billBluetoothPrinter.address}
+                    disabled={isTestingPrint || !resolvePrinterAddressFromStorage('bill')}
                   >
                     {isTestingPrint ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -841,7 +878,7 @@ export function Settings() {
                     variant="outline"
                     className="gap-2"
                     onClick={() => handlePrinterTest('kot')}
-                    disabled={isTestingPrint || !settings.kotBluetoothPrinter.address}
+                    disabled={isTestingPrint || !resolvePrinterAddressFromStorage('kot')}
                   >
                     {isTestingPrint ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
