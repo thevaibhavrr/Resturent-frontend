@@ -256,6 +256,23 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
 
     setIsBluetoothPrinting(true);
     try {
+      // Resolve printer address/name (prefer global restaurantSettings)
+      const btSettings = getBluetoothPrinterSettings();
+      const restaurantSettingsRaw = localStorage.getItem("restaurantSettings");
+      let globalSettings: any = null;
+      if (restaurantSettingsRaw) {
+        try {
+          globalSettings = JSON.parse(restaurantSettingsRaw);
+        } catch (err) {
+          globalSettings = null;
+        }
+      }
+      const kotPrinterAddress =
+        globalSettings?.kotPrinterAddress ||
+        globalSettings?.kotBluetoothPrinter?.address ||
+        btSettings?.address ||
+        null;
+      const btDeviceName = btSettings?.name || "Restaurant Printer";
       // Ensure we're connected before printing
       if (bluetoothStatus !== 'connected') {
         console.log('Attempting to reconnect to Bluetooth printer...');
@@ -285,10 +302,10 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
       const success = await printerService.current.print(thermalData);
 
       if (success) {
-        toast.success("Draft bill printed via Bluetooth!");
+        toast.success(`Draft bill printed via Bluetooth: ${btDeviceName} ${kotPrinterAddress ? `(${kotPrinterAddress})` : ''}`);
         setPrintAttempted(true);
       } else {
-        toast.error("Failed to print via Bluetooth");
+        toast.error(`Failed to print via Bluetooth${kotPrinterAddress ? `: ${kotPrinterAddress}` : ''}`);
       }
     } catch (error) {
       console.error("Bluetooth print error:", error);
@@ -354,7 +371,12 @@ export function PrintDraftBill({ tableName, persons, items, unprintedKots, allKo
           })
         );
 
-        toast.success(`Print request sent to device! (Draft Bill)`);
+        const deviceName = bluetoothSettings?.name || globalSettings?.name || 'Restaurant Printer';
+        if (deviceMacAddress) {
+          toast.success(`Print request sent to: ${deviceName} (${deviceMacAddress})`);
+        } else {
+          toast.success(`Print request sent to device: ${deviceName}`);
+        }
       } else {
         const printWindow = window.open();
         if (printWindow) {
