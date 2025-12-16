@@ -162,6 +162,8 @@ export function TablesPage({
       toast.error("Failed to load tables");
     } finally {
       setDataLoading(false);
+      // Ensure the overall loading indicator is cleared so the UI updates
+      setLoading(false);
     }
   };
 
