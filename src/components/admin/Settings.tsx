@@ -72,6 +72,22 @@ import { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+
+// Type declarations for mobile channel
+declare global {
+  interface Window {
+    MOBILE_CHANNEL?: {
+      postMessage: (message: string) => void;
+    };
+    onBluetoothDeviceSelected?: (device: { id: string; name: string }) => void;
+  }
+}
+
+// Type for Bluetooth device
+interface BluetoothDevice {
+  id: string;
+  name: string;
+}
 import { Textarea } from "../ui/textarea";
 import { Card } from "../ui/card";
 import { Separator } from "../ui/separator";
@@ -106,6 +122,8 @@ interface RestaurantSettings {
     name: string;
     status: PrinterStatus;
   };
+  billPrinterWidth?: number;
+  kotPrinterWidth?: number;
 }
 
 export function Settings() {
@@ -142,7 +160,7 @@ export function Settings() {
   const [printerService] = useState(() => new BluetoothPrinterService(setPrinterStatus));
   const [isTestingPrint, setIsTestingPrint] = useState(false);
   const [isScanningDevices, setIsScanningDevices] = useState(false);
-  const [availableDevices, setAvailableDevices] = useState<Array<{name: string, id: string}>>([]);
+  const [availableDevices, setAvailableDevices] = useState<BluetoothDevice[]>([]);
   const [showDeviceDialog, setShowDeviceDialog] = useState(false);
 
   useEffect(() => {
@@ -287,6 +305,8 @@ export function Settings() {
           logo: response.data.logo || "",
           qrCode: response.data.qrCode || "",
           description: response.data.description || "",
+          billPrinterWidth: response.data.billPrinterWidth ,
+          kotPrinterWidth: response.data.kotPrinterWidth ,
           billBluetoothPrinter: {
             address: response.data.billPrinterAddress || "",
             enabled: response.data.billPrinterEnabled || false,
@@ -336,6 +356,8 @@ export function Settings() {
               logo: response.data.logo || "",
               qrCode: response.data.qrCode || "",
               description: response.data.description || "",
+              billPrinterWidth: response.data.billPrinterWidth || 2,
+              kotPrinterWidth: response.data.kotPrinterWidth || 2,
               billBluetoothPrinter: {
                 address: response.data.billPrinterAddress || "",
                 enabled: response.data.billPrinterEnabled || false,
@@ -622,18 +644,81 @@ export function Settings() {
     }
   };
 
+  // Handle device selection from the mobile app
+  useEffect(() => {
+    // This function will be called by the mobile app when a device is selected
+    const onDeviceSelected = (device: BluetoothDevice) => {
+      if (device) {
+        // Check if device already exists in the list
+        const deviceExists = availableDevices.some(d => d.id === device.id);
+        if (!deviceExists) {
+          const newDevice = {
+            id: device.id,
+            name: device.name || `Printer ${availableDevices.length + 1}`
+          };
+          setAvailableDevices(prev => [...prev, newDevice]);
+          if (!showDeviceDialog) {
+            setShowDeviceDialog(true);
+          }
+        }
+      }
+    };
+
+    // Set up the global handler
+    window.onBluetoothDeviceSelected = onDeviceSelected;
+
+    // Cleanup
+    return () => {
+      if (window.onBluetoothDeviceSelected === onDeviceSelected) {
+        delete window.onBluetoothDeviceSelected;
+      }
+    };
+  }, [availableDevices, showDeviceDialog]);
+
   const handleScanDevices = async () => {
     setIsScanningDevices(true);
-    try {
-      const devices = await printerService.scanDevices();
-      setAvailableDevices(devices);
-      setShowDeviceDialog(true);
-      toast.success(`Found ${devices.length} devices`);
-    } catch (error: any) {
-      console.error('Error scanning devices:', error);
-      toast.error(`Failed to scan devices: ${error.message}`);
-    } finally {
-      setIsScanningDevices(false);
+    
+    if (window.MOBILE_CHANNEL) {
+      // For mobile app
+      try {
+        // Clear previous devices
+        setAvailableDevices([]);
+        setShowDeviceDialog(true);
+        
+        // Request the mobile app to start scanning for Bluetooth devices
+        window.MOBILE_CHANNEL.postMessage(JSON.stringify({
+          event: 'scanBluetoothDevices',
+          // The mobile app should call window.onBluetoothDeviceSelected for each found device
+        }));
+        
+        toast.success('Scanning for Bluetooth devices...');
+        
+        // Auto-close scanning after 10 seconds if no devices found
+        setTimeout(() => {
+          if (availableDevices.length === 0) {
+            toast.info('No Bluetooth devices found. Make sure your printer is turned on and in pairing mode.');
+          }
+          setIsScanningDevices(false);
+        }, 10000);
+      } catch (error) {
+        console.error('Error starting Bluetooth scan:', error);
+        toast.error('Failed to start Bluetooth scan');
+        setIsScanningDevices(false);
+      }
+    } else {
+      // Fallback for web (if needed)
+      try {
+        // @ts-ignore - This is a fallback and won't be used in mobile
+        const devices = await printerService.scanDevices?.() || [];
+        setAvailableDevices(devices);
+        setShowDeviceDialog(true);
+        toast.success(`Found ${devices.length} devices`);
+      } catch (error: any) {
+        console.error('Error scanning devices:', error);
+        toast.error(`Failed to scan devices: ${error.message}`);
+      } finally {
+        setIsScanningDevices(false);
+      }
     }
   };
 
@@ -774,28 +859,48 @@ export function Settings() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium">Bill Printer</h3>
                   <div className="flex items-center gap-2">
-                    <span className={`text-sm ${getConnectionStatusColor('bill')}`}>
+                    {/* <span className={`text-sm ${getConnectionStatusColor('bill')}`}>
                       {getConnectionStatusText('bill')}
-                    </span>
+                    </span> */}
                   </div>
                 </div>
                 
-                <div>
-                  <Label htmlFor="billPrinterAddress">Bill Printer Bluetooth Address</Label>
-                  <Input
-                    id="billPrinterAddress"
-                    value={settings.billBluetoothPrinter.address}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        billBluetoothPrinter: {
-                          ...settings.billBluetoothPrinter,
-                          address: e.target.value
-                        }
-                      })
-                    }
-                    placeholder="e.g., 00:11:22:33:44:55"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="billPrinterAddress">Bluetooth Address</Label>
+                    <Input
+                      id="billPrinterAddress"
+                      value={settings.billBluetoothPrinter.address}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          billBluetoothPrinter: {
+                            ...settings.billBluetoothPrinter,
+                            address: e.target.value
+                          }
+                        })
+                      }
+                      placeholder="e.g., 00:11:22:33:44:55"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="billPrinterWidth">Printer Width (inches)</Label>
+                    <Input
+                      id="billPrinterWidth"
+                      type="number"
+                      min="1"
+                      max="4"
+                      step="0.5"
+                      value={settings.billPrinterWidth}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          billPrinterWidth: parseFloat(e.target.value) || 2
+                        })
+                      }
+                      placeholder="Width in inches"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex gap-2">
@@ -836,28 +941,48 @@ export function Settings() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium">KOT Printer</h3>
                   <div className="flex items-center gap-2">
-                    <span className={`text-sm ${getConnectionStatusColor('kot')}`}>
+                    {/* <span className={`text-sm ${getConnectionStatusColor('kot')}`}>
                       {getConnectionStatusText('kot')}
-                    </span>
+                    </span> */}
                   </div>
                 </div>
                 
-                <div>
-                  <Label htmlFor="kotPrinterAddress">KOT Printer Bluetooth Address</Label>
-                  <Input
-                    id="kotPrinterAddress"
-                    value={settings.kotBluetoothPrinter.address}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        kotBluetoothPrinter: {
-                          ...settings.kotBluetoothPrinter,
-                          address: e.target.value
-                        }
-                      })
-                    }
-                    placeholder="e.g., 00:11:22:33:44:55"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="kotPrinterAddress">Bluetooth Address</Label>
+                    <Input
+                      id="kotPrinterAddress"
+                      value={settings.kotBluetoothPrinter.address}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          kotBluetoothPrinter: {
+                            ...settings.kotBluetoothPrinter,
+                            address: e.target.value
+                          }
+                        })
+                      }
+                      placeholder="e.g., 00:11:22:33:44:55"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="kotPrinterWidth">Printer Width (inches)</Label>
+                    <Input
+                      id="kotPrinterWidth"
+                      type="number"
+                      min="1"
+                      max="4"
+                      step="0.5"
+                      value={settings.kotPrinterWidth}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          kotPrinterWidth: parseFloat(e.target.value) || 2
+                        })
+                      }
+                      placeholder="Width in inches"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex gap-2">
