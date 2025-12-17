@@ -90,6 +90,7 @@ interface CartItem {
     userName: string;
     timestamp: string;
   };
+  isManualItem?: boolean; // Flag for manually entered items
 }
 
 interface KotEntry {
@@ -218,6 +219,11 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const [draftLoading, setDraftLoading] = useState(true);
   const [useCustomPersons, setUseCustomPersons] = useState(persons > 10);
   const [currentTableSpace, setCurrentTableSpace] = useState<{ _id: string; name: string } | null>(null);
+
+  // Manual entry form state
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [manualItemName, setManualItemName] = useState("");
+  const [manualItemPrice, setManualItemPrice] = useState("");
 
   // Get the correct price for the current space
   const getItemPrice = (item: MenuItem): number => {
@@ -364,7 +370,8 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
 
       if (cachedData) {
         // Use cached data immediately for faster loading - show menu items first
-        setCategories(cachedData.categories);
+        const categoriesWithExtra = [{ _id: 'extra', name: 'Extra', description: 'Manually add custom items', icon: '✏️' }, ...cachedData.categories];
+        setCategories(categoriesWithExtra);
         setMenuItems(cachedData.menuItems);
 
         // Mark initial load complete to show menu immediately
@@ -490,7 +497,8 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
       ]);
 
       // Show menu items immediately
-      setCategories(categoriesData);
+      const categoriesWithExtra = [{ _id: 'extra', name: 'Extra', description: 'Manually add custom items', icon: '✏️' }, ...categoriesData];
+      setCategories(categoriesWithExtra);
       setMenuItems(menuItemsData);
       setLoading(false);
       setInitialLoadComplete(true);
@@ -603,7 +611,8 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
         getMenuItems(user.restaurantId)
       ]);
 
-      setCategories(categoriesData);
+      const categoriesWithExtra = [{ _id: 'extra', name: 'Extra', description: 'Manually add custom items', icon: '✏️' }, ...categoriesData];
+      setCategories(categoriesWithExtra);
       setMenuItems(menuItemsData);
 
       // Cache the fresh data
@@ -696,6 +705,9 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     if (activeCategory === "recent") {
       const recentItems = getRecentItems();
       matchesCategory = recentItems.includes(item._id);
+    } else if (activeCategory === "extra") {
+      // Extra category doesn't show menu items, it shows manual entry form
+      return false;
     } else if (activeCategory !== "all") {
       matchesCategory = item.categoryId?.name === activeCategory;
     }
@@ -1036,6 +1048,64 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     toast.success("Item removed from cart");
   };
 
+  // Add manual item to cart
+  const handleAddManualItem = () => {
+    if (!user) {
+      toast.error("Please log in to add items");
+      return;
+    }
+
+    const name = manualItemName.trim();
+    const price = parseFloat(manualItemPrice);
+
+    if (!name) {
+      toast.error("Please enter item name");
+      return;
+    }
+
+    if (!price || price <= 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+
+    const currentTime = new Date().toISOString();
+    const userInfo = {
+      userId: user.id,
+      userName: user.name || user.username,
+      timestamp: currentTime
+    };
+
+    // Create a unique ID for the manual item
+    const manualItemId = `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    const manualCartItem: CartItem = {
+      itemId: manualItemId,
+      name: name,
+      price: price,
+      quantity: 1,
+      spiceLevel: 1,
+      spicePercent: 50,
+      isJain: false,
+      note: "",
+      addedBy: {
+        userId: user.id,
+        userName: user.name || user.username
+      },
+      lastUpdatedBy: userInfo,
+      updatedBy: user.name || user.username,
+      // Mark as manual item for special handling
+      isManualItem: true
+    };
+
+    setCart(prev => [...prev, manualCartItem]);
+
+    // Clear the form
+    setManualItemName("");
+    setManualItemPrice("");
+
+    toast.success(`${name} added to cart`);
+  };
+
   // Calculate totals (no tax for draft)
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const total = subtotal; // No tax in draft
@@ -1343,11 +1413,13 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                   {categories.map((category) => (
                     <Button
                       key={category._id}
-                      variant={activeCategory === category.name ? "default" : "outline"}
-                      size="lg"
-                      onClick={() => setActiveCategory(category.name)}
-                      className="gap-2"
+                      variant={activeCategory === (category._id === 'extra' ? 'extra' : category.name) ? "default" : "outline"}
+                      size={category._id === 'extra' ? "default" : "lg"}
+                      onClick={() => setActiveCategory(category._id === 'extra' ? 'extra' : category.name)}
+                      className={`gap-2 ${category._id === 'extra' ? 'bg-purple-600 hover:bg-purple-700 text-white' : ''}`}
+                      style={{ color: category._id === 'extra' ? 'black' : '' }}
                     >
+                      {category.icon && <span>{category.icon}</span>}
                       {category.name}
                     </Button>
                   ))}
@@ -1373,8 +1445,66 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
               </Card>
             )}
 
+            {/* Manual Entry Form for Extra Category */}
+            {!loading && !error && activeCategory === "extra" && (
+              <Card className="p-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-2xl">✏️</span>
+                    <h3 className="text-lg font-semibold">Add Custom Item</h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Item Name</label>
+                      <Input
+                        placeholder="Enter item name"
+                        value={manualItemName}
+                        onChange={(e) => setManualItemName(e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Price (₹)</label>
+                      <Input
+                        type="number"
+                        placeholder="Enter price"
+                        value={manualItemPrice}
+                        onChange={(e) => setManualItemPrice(e.target.value)}
+                        min="0"
+                        step="0.01"
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-4">
+                    <Button
+                      onClick={handleAddManualItem}
+                      disabled={!manualItemName.trim() || !manualItemPrice || parseFloat(manualItemPrice) <= 0}
+                      className="flex-1"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add to Order
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setManualItemName("");
+                        setManualItemPrice("");
+                      }}
+                      className="px-4"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             {/* Menu Items */}
-            {!loading && !error && (
+            {!loading && !error && activeCategory !== "extra" && (
               <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
                 {filteredItems.map((item) => {
                   // Get current spice percent from state or cart
@@ -1679,7 +1809,14 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 pr-3">
                                   <div className="flex items-center justify-between">
-                                    <p className="font-bold text-base">{item.name}</p>
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-bold text-base">{item.name}</p>
+                                      {item.isManualItem && (
+                                        <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800">
+                                          Manual
+                                        </Badge>
+                                      )}
+                                    </div>
                                     <div className="text-xs text-muted-foreground text-right">
                                       <div>Added by: {item.addedBy.userName}</div>
                                       {/* {item.lastUpdatedBy && item.lastUpdatedBy.userId !== item.addedBy.userId && (
