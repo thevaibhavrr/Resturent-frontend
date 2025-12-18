@@ -6,6 +6,7 @@ import html2canvas from "html2canvas";
 import { markKotsAsPrinted } from "../api/tableDraftApi";
 import { getCurrentUser, getRestaurantKey } from "../utils/auth";
 import { getRestaurantPrinterAddress } from "../config/bluetoothPrinter";
+import { getKotPrinterDimensions, getPrintContainerStyles, getPrinterWidthFromStorage } from "../utils/printerUtils";
 
 interface PrintKotPopupProps {
   tableName: string;
@@ -30,6 +31,10 @@ export function PrintKotPopup({
   const [isPrinting, setIsPrinting] = useState(false);
   const [printAttempted, setShowPrintAgain] = useState(false);
   const kotContentRef = useRef<HTMLDivElement>(null);
+
+  // Get KOT printer width from localStorage
+  const kotPrinterWidth = getPrinterWidthFromStorage(user, 'kot', 2);
+  const printerDimensions = getKotPrinterDimensions(kotPrinterWidth);
 
   const currentDate = new Date().toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -247,7 +252,7 @@ const getBluetoothPrinterSettings = () => {
               <head>
                 <title>KOT</title>
                 <style>
-                  @page { size: 58mm auto; margin: 5mm; }
+                  @page { size: ${printerDimensions.widthMm}mm auto; margin: 5mm; }
                   body { margin: 5mm; padding: 0; text-align:center; }
                   img { width: 100%; height: auto; display: block; }
                 </style>
@@ -333,15 +338,12 @@ const getBluetoothPrinterSettings = () => {
             overflowY: "auto",
           }}
         >
-          {/* KOT Content - 58mm width for thermal printer */}
+          {/* KOT Content - Dynamic width based on printer settings */}
           <div
             id="kot-print-content"
             className="bg-white text-black"
             style={{
-              width: "58mm",
-              maxWidth: "58mm",
-              boxSizing: "border-box",
-              padding: "10px",
+              ...getPrintContainerStyles(printerDimensions),
               borderRadius: "4px",
               boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
             }}
@@ -352,25 +354,25 @@ const getBluetoothPrinterSettings = () => {
               style={{
                 textAlign: "center",
                 borderBottom: "2px solid black",
-                paddingBottom: "8px",
-                marginBottom: "8px",
+                paddingBottom: `${printerDimensions.padding * 0.5}px`,
+                marginBottom: `${printerDimensions.padding * 0.5}px`,
               }}
             >
-              <p style={{ fontSize: "18px", margin: "2px 0", fontWeight: "bold" }}>
+              <p className="print-title" style={{ fontSize: `${printerDimensions.fontSize.title}px`, margin: "2px 0", fontWeight: "bold" }}>
                 Table: {tableName} • Persons: {persons}
               </p>
-              <p style={{ fontSize: "13px", margin: "2px 0", color: "#666", fontWeight:"bold" }}>
+              <p style={{ fontSize: `${printerDimensions.fontSize.small}px`, margin: "2px 0", color: "#666", fontWeight:"bold" }}>
                 {currentDate} {currentTime}
               </p>
             </div>
 
             {/* KOTs Table */}
-            <div style={{ borderBottom: "1px dashed black", paddingBottom: "8px", marginBottom: "5px" }}>
-              <table style={{ width: "100%", fontSize: "11px", borderCollapse: "collapse" }}>
+            <div style={{ borderBottom: "1px dashed black", paddingBottom: `${printerDimensions.padding * 0.5}px`, marginBottom: `${printerDimensions.padding * 0.3}px` }}>
+              <table style={{ width: "100%", fontSize: `${printerDimensions.fontSize.normal}px`, borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid #ccc" }}>
-                    <th style={{ textAlign: "center", padding: "4px", width: "30px" }}>Qty</th>
-                    <th style={{ textAlign: "left", padding: "4px" }}>Item</th>
+                    <th style={{ textAlign: "center", padding: `${printerDimensions.padding * 0.25}px`, width: "30px" }}>Qty</th>
+                    <th style={{ textAlign: "left", padding: `${printerDimensions.padding * 0.25}px` }}>Item</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -388,7 +390,7 @@ const getBluetoothPrinterSettings = () => {
                         {/* KOT Header if multiple */}
                         {printData.unprintedKots.length > 1 && (
                           <tr>
-                            <td colSpan={2} style={{ textAlign: "center", padding: "4px", borderTop: "1px solid black", fontWeight: "bold", fontSize: "10px" }}>
+                            <td colSpan={2} style={{ textAlign: "center", padding: `${printerDimensions.padding * 0.25}px`, borderTop: "1px solid black", fontWeight: "bold", fontSize: `${printerDimensions.fontSize.small}px` }}>
                               KOT #{kotIndex + 1}
                             </td>
                           </tr>
@@ -397,20 +399,20 @@ const getBluetoothPrinterSettings = () => {
                         {/* Items (only positive quantities) */}
                         {visibleItems.map((item: any, itemIndex: number) => (
                           <tr key={itemIndex} style={{ borderBottom: "1px solid #eee" }}>
-                            <td style={{ textAlign: "center", padding: "4px", fontWeight: "bold", fontSize: "24px" }}>
+                            <td style={{ textAlign: "center", padding: `${printerDimensions.padding * 0.25}px`, fontWeight: "bold", fontSize: `${printerDimensions.fontSize.title}px` }}>
                               {item.quantity}
                             </td>
-                            <td style={{ textAlign: "left", padding: "4px" }}>
-                              <div style={{ fontSize: "24px",fontWeight: "bold" }}>{item.name}</div>
+                            <td style={{ textAlign: "left", padding: `${printerDimensions.padding * 0.25}px` }}>
+                              <div style={{ fontSize: `${printerDimensions.fontSize.title}px`, fontWeight: "bold" }}>{item.name}</div>
                               {/* Spicy Level */}
                               {item.spiceLevel && item.spiceLevel > 0 && (
-                                <div style={{ fontSize: "16px", color: "#d97706", fontWeight: "bold", marginTop: "2px" }}>
+                                <div style={{ fontSize: `${printerDimensions.fontSize.normal}px`, color: "#d97706", fontWeight: "bold", marginTop: "2px" }}>
                                   {item.spicePercent ? `${item.spicePercent}% Spicy` : `${"🌶️".repeat(item.spiceLevel)}`}
                                 </div>
                               )}
                               {/* Notes */}
                               {item.note && (
-                                <div style={{ fontSize: "14px", color: "#6b7280", fontStyle: "italic", marginTop: "2px" }}>
+                                <div className="print-small" style={{ fontSize: `${printerDimensions.fontSize.small}px`, color: "#6b7280", fontStyle: "italic", marginTop: "2px" }}>
                                   Note: {item.note}
                                 </div>
                               )}

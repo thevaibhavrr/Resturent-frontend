@@ -6,6 +6,7 @@ import html2canvas from "html2canvas";
 import { getCurrentUser, getRestaurantKey } from "../utils/auth";
 import { getRestaurantPrinterAddress } from "../config/bluetoothPrinter";
 import { settingsService } from "../utils/settingsService";
+import { getBillPrinterDimensions, getPrintContainerStyles, getPrinterWidthFromStorage } from "../utils/printerUtils";
 
 interface BillItem {
   id: string;
@@ -67,6 +68,11 @@ export function PrintBillPopup({
     description: "",
   });
   const billContentRef = useRef<HTMLDivElement>(null);
+
+  // Get bill printer width from localStorage
+  const billPrinterWidth = getPrinterWidthFromStorage(user, 'bill', 2);
+
+  const printerDimensions = getBillPrinterDimensions(billPrinterWidth);
 
   const currentDate = billDate || new Date().toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -227,7 +233,7 @@ export function PrintBillPopup({
               <head>
                 <title>Bill</title>
                 <style>
-                  @page { size: 58mm auto; margin: 5mm; }
+                  @page { size: ${printerDimensions.widthMm}mm auto; margin: 5mm; }
                   body { margin: 5mm; padding: 0; text-align:center; }
                   img { width: 100%; height: auto; display: block; }
                 </style>
@@ -313,17 +319,12 @@ export function PrintBillPopup({
             overflowY: "auto",
           }}
         >
-          {/* Bill Content - 58mm width for thermal printer */}
+          {/* Bill Content - Dynamic width based on printer settings */}
           <div
             id="bill-print-content"
             className="bg-white text-black"
             style={{
-              width: "58mm",
-              maxWidth: "58mm",
-              boxSizing: "border-box",
-              padding: "10px",
-              paddingBottom:"20px",
-              paddingRight:"15px",
+              ...getPrintContainerStyles(printerDimensions),
               borderRadius: "4px",
               boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
             }}

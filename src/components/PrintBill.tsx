@@ -15,6 +15,7 @@ import { BluetoothPrinterService } from "../utils/bluetoothPrinter";
 import { BluetoothPrinterStatus } from "./BluetoothPrinterStatus";
 import { getRestaurantPrinterAddress } from "../config/bluetoothPrinter";
 import { NewtonsCradleLoader } from "./ui/newtons-cradle-loader";
+import { getBillPrinterDimensions, getPrintStyles, getPrintContainerStyles, getPrinterWidthFromStorage } from "../utils/printerUtils";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -88,6 +89,12 @@ export function PrintBill({
   });
 
   const user = getCurrentUser();
+
+  // Get bill printer width from localStorage
+  const billPrinterWidth = getPrinterWidthFromStorage(user, 'bill', 2);
+
+  const printerDimensions = getBillPrinterDimensions(billPrinterWidth);
+
   const [isLoading, setIsLoading] = useState(true);
   const [restaurantSettings, setRestaurantSettings] = useState(() => {
     // Initialize with localStorage data immediately
@@ -510,9 +517,15 @@ export function PrintBill({
       {/* Print Bill Content */}
       <div className="flex items-center justify-center min-h-screen p-4 print:p-0 print:block">
         <div
-          className="w-[58mm] max-w-[58mm] bg-white text-black p-2 print:p-2 overflow-hidden"
           id="bill-content"
-          style={{ boxSizing: 'border-box', fontFamily: 'system-ui, -apple-system, sans-serif', padding:"20px", paddingTop:"0px" }}
+          style={{
+            ...getPrintContainerStyles(printerDimensions),
+            boxSizing: 'border-box',
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+            backgroundColor: 'white',
+            color: 'black',
+            overflow: 'hidden'
+          }}
         >
           {/* Premium Header with Logo */}
           <div className="text-center p-3 mb pb-1 border-b-4 border-double border-gray-800">
@@ -536,8 +549,9 @@ export function PrintBill({
               </div>
             )}
             <h1
-              className="text-2xl font-black uppercase tracking-wider mb-1"
+              className="font-black uppercase tracking-wider mb-1 print-title"
               style={{
+                fontSize: `${printerDimensions.fontSize.title}px`,
                 letterSpacing: "2px",
                 textShadow: "1px 1px 2px rgba(0,0,0,0.1)",
               }}
@@ -546,7 +560,7 @@ export function PrintBill({
             </h1>
             <div className="flex items-center justify-center gap-2 mt-1">
               <div className="h-px bg-gray-400 flex-1"></div>
-              <div className="text-[8px] text-gray-500 font-semibold">
+              <div className="font-semibold print-tiny" style={{ fontSize: `${printerDimensions.fontSize.tiny}px`, color: "#6b7280" }}>
                 * * *
               </div>
               <div className="h-px bg-gray-400 flex-1"></div>
@@ -555,7 +569,7 @@ export function PrintBill({
 
           {/* Bill Information - Premium Style */}
           <div className="mb-2 pb-2 border-b-2 border-dashed border-gray-500">
-            <div className="grid grid-cols-2 gap-1.5 text-[14px]">
+            <div className="grid grid-cols-2 gap-1.5" style={{ fontSize: `${printerDimensions.fontSize.normal}px` }}>
               <div className="flex justify-between items-center bg-gray-50 px-2 py-0.5 rounded">
                 <span className="font-semibold text-black">Date:</span>
                 <span className="font-medium">{displayDate}</span>
@@ -762,31 +776,31 @@ Total
       <style>{`
         @media print {
           @page {
-            size: 58mm auto;
+            size: ${printerDimensions.widthMm}mm auto;
             margin: 0;
           }
-          
+
           body {
             margin: 0;
             padding: 0;
             background: white;
           }
-          
+
           body * {
             visibility: hidden;
           }
-          
+
           #bill-content,
           #bill-content * {
             visibility: visible;
           }
-          
+
           #bill-content {
             position: absolute;
             left: 0;
             top: 0;
-            width: 58mm;
-            padding: 2mm;
+            width: ${printerDimensions.widthPx}px;
+            padding: ${printerDimensions.padding}px;
             background: white;
             box-shadow: none;
           }

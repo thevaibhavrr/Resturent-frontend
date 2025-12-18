@@ -53,18 +53,20 @@ export async function getRestaurantSettings(restaurantId: string): Promise<Resta
     logo: "",
     qrCode: "",
     description: "",
-    billBluetoothPrinter: {
-      address: "",
-      enabled: false,
-      name: "",
-      status: 'disconnected' as const
-    },
-    kotBluetoothPrinter: {
-      address: "",
-      enabled: false,
-      name: "",
-      status: 'disconnected' as const
-    }
+      billBluetoothPrinter: {
+        address: "",
+        enabled: false,
+        name: "",
+        status: 'disconnected' as const,
+        width: 2
+      },
+      kotBluetoothPrinter: {
+        address: "",
+        enabled: false,
+        name: "",
+        status: 'disconnected' as const,
+        width: 2
+      }
   };
 }
 
@@ -115,12 +117,14 @@ interface RestaurantSettings {
     enabled: boolean;
     name: string;
     status: PrinterStatus;
+    width?: number;
   };
   kotBluetoothPrinter: {
     address: string;
     enabled: boolean;
     name: string;
     status: PrinterStatus;
+    width?: number;
   };
   billPrinterWidth?: number;
   kotPrinterWidth?: number;
@@ -142,13 +146,15 @@ export function Settings() {
       address: "",
       enabled: true,
       name: "",
-      status: 'disconnected'
+      status: 'disconnected',
+      width: 2
     },
     kotBluetoothPrinter: {
       address: "",
       enabled: true,
       name: "",
-      status: 'disconnected'
+      status: 'disconnected',
+      width: 2
     }
   });
 
@@ -172,15 +178,23 @@ export function Settings() {
     if (user) {
       const billKey = getRestaurantKey("billBluetoothPrinter", user.restaurantId);
       const kotKey = getRestaurantKey("kotBluetoothPrinter", user.restaurantId);
-      
+
       if (settings.billBluetoothPrinter) {
-        localStorage.setItem(billKey, JSON.stringify(settings.billBluetoothPrinter));
+        const billPrinterConfig = {
+          ...settings.billBluetoothPrinter,
+          width: settings.billPrinterWidth || 2
+        };
+        localStorage.setItem(billKey, JSON.stringify(billPrinterConfig));
       }
       if (settings.kotBluetoothPrinter) {
-        localStorage.setItem(kotKey, JSON.stringify(settings.kotBluetoothPrinter));
+        const kotPrinterConfig = {
+          ...settings.kotBluetoothPrinter,
+          width: settings.kotPrinterWidth || 2
+        };
+        localStorage.setItem(kotKey, JSON.stringify(kotPrinterConfig));
       }
     }
-  }, [settings.billBluetoothPrinter, settings.kotBluetoothPrinter, user]);
+  }, [settings.billBluetoothPrinter, settings.kotBluetoothPrinter, settings.billPrinterWidth, settings.kotPrinterWidth, user]);
 
   // Helper: resolve printer address from localStorage (restaurant-specific restaurantSettings_<id>),
   // then saved printer key (billBluetoothPrinter/kotBluetoothPrinter), then settings state
@@ -244,8 +258,10 @@ export function Settings() {
 
       setSettings(prev => ({
         ...prev,
-        billBluetoothPrinter: billConfig || { address: '', enabled: false, name: '', status: 'disconnected' },
-        kotBluetoothPrinter: kotConfig || { address: '', enabled: false, name: '', status: 'disconnected' }
+        billPrinterWidth: billConfig?.width || 2,
+        kotPrinterWidth: kotConfig?.width || 2,
+        billBluetoothPrinter: billConfig || { address: '', enabled: false, name: '', status: 'disconnected', width: 2 },
+        kotBluetoothPrinter: kotConfig || { address: '', enabled: false, name: '', status: 'disconnected', width: 2 }
       }));
     }
   }, [user?.restaurantId]);
@@ -262,12 +278,17 @@ export function Settings() {
       address: "",
       enabled: false,
       name: "",
-      status: 'disconnected' as PrinterStatus
+      status: 'disconnected' as PrinterStatus,
+      width: 2
     };
-    
+
     if (storedBillPrinter) {
       try {
-        billPrinterDefaults = JSON.parse(storedBillPrinter);
+        const parsed = JSON.parse(storedBillPrinter);
+        billPrinterDefaults = {
+          ...parsed,
+          width: parsed.width || 2
+        };
       } catch (error) {
         console.error("Error parsing stored Bill printer settings:", error);
       }
@@ -280,12 +301,17 @@ export function Settings() {
       address: "",
       enabled: false,
       name: "",
-      status: 'disconnected' as PrinterStatus
+      status: 'disconnected' as PrinterStatus,
+      width: 2
     };
-    
+
     if (storedKotPrinter) {
       try {
-        kotPrinterDefaults = JSON.parse(storedKotPrinter);
+        const parsed = JSON.parse(storedKotPrinter);
+        kotPrinterDefaults = {
+          ...parsed,
+          width: parsed.width || 2
+        };
       } catch (error) {
         console.error("Error parsing stored KOT printer settings:", error);
       }
@@ -305,19 +331,21 @@ export function Settings() {
           logo: response.data.logo || "",
           qrCode: response.data.qrCode || "",
           description: response.data.description || "",
-          billPrinterWidth: response.data.billPrinterWidth ,
-          kotPrinterWidth: response.data.kotPrinterWidth ,
+          billPrinterWidth: response.data.billPrinterWidth || billPrinterDefaults.width,
+          kotPrinterWidth: response.data.kotPrinterWidth || kotPrinterDefaults.width,
           billBluetoothPrinter: {
             address: response.data.billPrinterAddress || "",
             enabled: response.data.billPrinterEnabled || false,
             name: "",
-            status: 'disconnected' as PrinterStatus
+            status: 'disconnected' as PrinterStatus,
+            width: billPrinterDefaults.width
           },
           kotBluetoothPrinter: {
             address: response.data.kotPrinterAddress || "",
             enabled: response.data.kotPrinterEnabled || false,
             name: "",
-            status: 'disconnected' as PrinterStatus
+            status: 'disconnected' as PrinterStatus,
+            width: kotPrinterDefaults.width
           }
         });
       }
@@ -338,8 +366,16 @@ export function Settings() {
           logo: storedSettings.logo || "",
           qrCode: storedSettings.qrCode || "",
           description: storedSettings.description || "",
-          billBluetoothPrinter: storedSettings.billBluetoothPrinter || billPrinterDefaults,
-          kotBluetoothPrinter: storedSettings.kotBluetoothPrinter || kotPrinterDefaults
+          billPrinterWidth: storedSettings.billPrinterWidth || billPrinterDefaults.width,
+          kotPrinterWidth: storedSettings.kotPrinterWidth || kotPrinterDefaults.width,
+          billBluetoothPrinter: {
+            ...(storedSettings.billBluetoothPrinter || billPrinterDefaults),
+            width: storedSettings.billPrinterWidth || billPrinterDefaults.width
+          },
+          kotBluetoothPrinter: {
+            ...(storedSettings.kotBluetoothPrinter || kotPrinterDefaults),
+            width: storedSettings.kotPrinterWidth || kotPrinterDefaults.width
+          }
         });
       } else {
         // If no stored settings, try to load from API response format
@@ -362,13 +398,15 @@ export function Settings() {
                 address: response.data.billPrinterAddress || "",
                 enabled: response.data.billPrinterEnabled || false,
                 name: "",
-                status: 'disconnected' as PrinterStatus
+                status: 'disconnected' as PrinterStatus,
+                width: response.data.billPrinterWidth || 2
               },
               kotBluetoothPrinter: {
                 address: response.data.kotPrinterAddress || "",
                 enabled: response.data.kotPrinterEnabled || false,
                 name: "",
-                status: 'disconnected' as PrinterStatus
+                status: 'disconnected' as PrinterStatus,
+                width: response.data.kotPrinterWidth || 2
               }
             });
           }
@@ -460,12 +498,20 @@ export function Settings() {
         // Save printer settings individually
         const billKey = getRestaurantKey("billBluetoothPrinter", user.restaurantId);
         const kotKey = getRestaurantKey("kotBluetoothPrinter", user.restaurantId);
-        
+
         if (settings.billBluetoothPrinter) {
-          localStorage.setItem(billKey, JSON.stringify(settings.billBluetoothPrinter));
+          const billPrinterConfig = {
+            ...settings.billBluetoothPrinter,
+            width: settings.billPrinterWidth || 2
+          };
+          localStorage.setItem(billKey, JSON.stringify(billPrinterConfig));
         }
         if (settings.kotBluetoothPrinter) {
-          localStorage.setItem(kotKey, JSON.stringify(settings.kotBluetoothPrinter));
+          const kotPrinterConfig = {
+            ...settings.kotBluetoothPrinter,
+            width: settings.kotPrinterWidth || 2
+          };
+          localStorage.setItem(kotKey, JSON.stringify(kotPrinterConfig));
         }
       }
       
@@ -588,6 +634,7 @@ export function Settings() {
             address: deviceAddress,
             enabled: true,
             status: 'connected' as PrinterStatus,
+            width: settings.billPrinterWidth || 2
           },
         };
       } else {
@@ -598,6 +645,7 @@ export function Settings() {
             address: deviceAddress,
             enabled: true,
             status: 'connected' as PrinterStatus,
+            width: settings.kotPrinterWidth || 2
           },
         };
       }

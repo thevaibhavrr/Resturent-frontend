@@ -3,6 +3,7 @@ import { Button } from "./ui/button";
 import { Printer, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { markKotsAsPrinted } from "../api/tableDraftApi";
+import { getKotPrinterDimensions, getPrintStyles, getPrintContainerStyles, getPrinterWidthFromStorage } from "../utils/printerUtils";
 
 interface PrintKotAutoModalProps {
   tableName: string;
@@ -28,6 +29,10 @@ export function PrintKotAutoModal({
 }: PrintKotAutoModalProps) {
   const [isPrinting, setIsPrinting] = useState(false);
   const [autoStarted, setAutoStarted] = useState(false);
+
+  // Get KOT printer width from localStorage
+  const kotPrinterWidth = getPrinterWidthFromStorage(user, 'kot', 2);
+  const printerDimensions = getKotPrinterDimensions(kotPrinterWidth);
 
   // Auto-print when modal opens
   useEffect(() => {
@@ -105,19 +110,19 @@ export function PrintKotAutoModal({
     <>
       {/* Print Preview - Visible for printing only */}
       <div id="print-kot-preview" style={{ width: "100%", position: "fixed", top: "-9999px", left: "-9999px" }}>
-        <div style={{ padding: "20px", fontFamily: "Arial, sans-serif", width: "80mm" }}>
+        <div style={getPrintContainerStyles(printerDimensions)}>
           {/* KOT Header */}
-          <div style={{ textAlign: "center", marginBottom: "24px", paddingBottom: "16px", borderBottom: "2px solid #000" }}>
-            <h3 style={{ fontSize: "16px", fontWeight: "bold", margin: "0 0 8px 0" }}>
+          <div style={{ textAlign: "center", marginBottom: `${printerDimensions.padding * 1.5}px`, paddingBottom: `${printerDimensions.padding}px`, borderBottom: "2px solid #000" }}>
+            <h3 className="print-title" style={{ fontSize: `${printerDimensions.fontSize.title}px`, fontWeight: "bold", margin: "0 0 8px 0" }}>
               KITCHEN ORDER TICKET
             </h3>
-            <p style={{ fontSize: "12px", margin: "4px 0", fontWeight: "bold" }}>
+            <p style={{ fontSize: `${printerDimensions.fontSize.normal}px`, margin: "4px 0", fontWeight: "bold" }}>
               Table: {tableName}
             </p>
-            <p style={{ fontSize: "12px", margin: "4px 0" }}>
+            <p style={{ fontSize: `${printerDimensions.fontSize.normal}px`, margin: "4px 0" }}>
               Persons: {persons}
             </p>
-            <p style={{ fontSize: "10px", color: "#666", margin: "4px 0" }}>
+            <p className="print-small" style={{ fontSize: `${printerDimensions.fontSize.small}px`, color: "#666", margin: "4px 0" }}>
               {new Date().toLocaleString("en-IN", {
                 day: "2-digit",
                 month: "2-digit",
@@ -130,21 +135,21 @@ export function PrintKotAutoModal({
 
           {/* KOTs */}
           {printData.unprintedKots.map((kot, kotIndex) => (
-            <div key={kot.kotId} style={{ marginBottom: "16px", paddingBottom: "12px", borderBottom: "1px solid #ddd" }}>
+            <div key={kot.kotId} style={{ marginBottom: `${printerDimensions.padding}px`, paddingBottom: `${printerDimensions.padding * 0.75}px`, borderBottom: "1px solid #ddd" }}>
               {printData.unprintedKots.length > 1 && (
-                <div style={{ fontSize: "11px", fontWeight: "bold", marginBottom: "8px", backgroundColor: "#f0f0f0", padding: "4px" }}>
+                <div style={{ fontSize: `${printerDimensions.fontSize.small}px`, fontWeight: "bold", marginBottom: "8px", backgroundColor: "#f0f0f0", padding: "4px" }}>
                   KOT #{kotIndex + 1} - {new Date(kot.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                 </div>
               )}
               <div>
                 {kot.items?.map((item: any, itemIndex: number) => (
-                  <div key={itemIndex} style={{ fontSize: "11px", marginBottom: "4px" }}>
+                  <div key={itemIndex} style={{ fontSize: `${printerDimensions.fontSize.normal}px`, marginBottom: "4px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span>{item.name}</span>
                       <span style={{ fontWeight: "bold" }}>{Math.abs(item.quantity)}</span>
                     </div>
                     {item.quantity < 0 && (
-                      <div style={{ fontSize: "9px", color: "#dc2626", fontWeight: "bold" }}>REMOVED</div>
+                      <div className="print-tiny" style={{ fontSize: `${printerDimensions.fontSize.tiny}px`, color: "#dc2626", fontWeight: "bold" }}>REMOVED</div>
                     )}
                   </div>
                 ))}
@@ -153,7 +158,7 @@ export function PrintKotAutoModal({
           ))}
 
           {/* Footer */}
-          <div style={{ textAlign: "center", fontSize: "9px", color: "#666", marginTop: "16px", paddingTop: "12px", borderTop: "2px solid #000" }}>
+          <div style={{ textAlign: "center", fontSize: `${printerDimensions.fontSize.tiny}px`, color: "#666", marginTop: `${printerDimensions.padding}px`, paddingTop: `${printerDimensions.padding * 0.75}px`, borderTop: "2px solid #000" }}>
             <p style={{ margin: "0" }}>{new Date().toLocaleString("en-IN")}</p>
             <p style={{ margin: "4px 0 0 0" }}>DRAFT - For Kitchen Use Only</p>
           </div>
@@ -306,44 +311,8 @@ export function PrintKotAutoModal({
       </div>
 
       <style>{`
-        @media print {
-          html, body {
-            margin: 0 !important;
-            padding: 0 !important;
-            height: 100% !important;
-            width: 100% !important;
-            background: white !important;
-          }
-          
-          * {
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-          
-          body * {
-            display: none !important;
-            visibility: hidden !important;
-          }
-          
-          #print-kot-preview {
-            display: block !important;
-            visibility: visible !important;
-            position: static !important;
-            top: auto !important;
-            left: auto !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-            box-shadow: none !important;
-          }
-          
-          #print-kot-preview * {
-            display: block !important;
-            visibility: visible !important;
-          }
-        }
-        
+        ${getPrintStyles(printerDimensions)}
+
         @keyframes spin {
           from {
             transform: rotate(0deg);
