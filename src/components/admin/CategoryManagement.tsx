@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { Plus, Edit2, Trash2, Tag, MoveVertical } from "lucide-react";
+import { Plus, Edit2, Trash2, Tag, MoveVertical, RefreshCw } from "lucide-react";
 import { getCurrentUser } from "../../utils/auth";
 import { toast } from "sonner";
 import type { MenuCategory } from "../../types/menu";
@@ -21,6 +21,7 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
+  reactivateCategory,
   updateCategoryOrder
 } from "../../api/menuApi";
 import { getMenuItems } from "../../api/menuApi";
@@ -31,6 +32,10 @@ export function CategoryManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<MenuCategory | null>(null);
   const [loading, setLoading] = useState(false);
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
+  const [reactivatingCategory, setReactivatingCategory] = useState<string | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: ""
@@ -38,7 +43,7 @@ export function CategoryManagement() {
 
   useEffect(() => {
     loadCategories();
-  }, []);
+  }, [showInactive]);
 
   const loadCategories = async () => {
     if (!user?.restaurantId) return;
@@ -80,6 +85,7 @@ export function CategoryManagement() {
   };
 
   const handleSave = async () => {
+    console.log('handleSave called');
     if (!user?.restaurantId) {
       toast.error("Restaurant ID not found");
       return;
@@ -90,9 +96,12 @@ export function CategoryManagement() {
     }
 
     try {
+      console.log('Setting savingCategory to true');
+      setSavingCategory(true);
       if (editingCategory) {
         if (!editingCategory._id) {
           toast.error("Category ID not found");
+          setSavingCategory(false);
           return;
         }
         const updateData = {
@@ -118,6 +127,9 @@ export function CategoryManagement() {
     } catch (err: any) {
       console.error("Error saving category:", err);
       toast.error(err?.response?.data?.error || err?.message || "Failed to save category");
+    } finally {
+      console.log('Setting savingCategory to false');
+      setSavingCategory(false);
     }
   };
 
@@ -126,7 +138,7 @@ export function CategoryManagement() {
       toast.error("Category ID not found");
       return;
     }
-    
+
     try {
       const itemCount = await getCategoryItemCount(category._id);
       if (itemCount > 0) {
@@ -135,6 +147,7 @@ export function CategoryManagement() {
       }
 
       if (confirm(`Are you sure you want to delete "${category.name}"?`)) {
+        setDeletingCategory(category._id);
         await deleteCategory(category._id);
         toast.success("Category deleted successfully");
         await loadCategories();
@@ -142,6 +155,24 @@ export function CategoryManagement() {
     } catch (err: any) {
       console.error("Error deleting category:", err);
       toast.error(err?.message || "Failed to delete category");
+    } finally {
+      setDeletingCategory(null);
+    }
+  };
+
+  const handleReactivate = async (category: MenuCategory) => {
+    if (!category._id) return;
+
+    try {
+      setReactivatingCategory(category._id);
+      await reactivateCategory(category._id);
+      toast.success("Category reactivated successfully");
+      await loadCategories();
+    } catch (err: any) {
+      console.error("Error reactivating category:", err);
+      toast.error(err?.message || "Failed to reactivate category");
+    } finally {
+      setReactivatingCategory(null);
     }
   };
 
@@ -159,6 +190,20 @@ export function CategoryManagement() {
           <Plus className="w-4 h-4" />
           Add Category
         </Button>
+      </div>
+
+      {/* Show Inactive Toggle */}
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          id="showInactiveCategories"
+          checked={showInactive}
+          onChange={(e) => setShowInactive(e.target.checked)}
+          className="rounded border-gray-300"
+        />
+        <Label htmlFor="showInactiveCategories" className="text-sm">
+          Show Inactive Categories
+        </Label>
       </div>
 
       {/* Stats */}
@@ -184,9 +229,18 @@ export function CategoryManagement() {
                   <Tag className="w-6 h-6" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold mb-1">{category.name}</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className={`font-semibold ${category.status === 'inactive' ? 'text-muted-foreground line-through' : ''}`}>
+                      {category.name}
+                    </p>
+                    {category.status === 'inactive' && (
+                      <Badge variant="destructive" className="text-xs">
+                        Inactive
+                      </Badge>
+                    )}
+                  </div>
                   {category.description && (
-                    <p className="text-sm text-muted-foreground mb-2">
+                    <p className={`text-sm mb-2 ${category.status === 'inactive' ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
                       {category.description}
                     </p>
                   )}
@@ -198,22 +252,47 @@ export function CategoryManagement() {
                 </div>
               </div>
               <div className="flex gap-1">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => handleEdit(category)}
-                  className="h-8 w-8"
-                >
-                  <Edit2 className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => handleDelete(category)}
-                  className="h-8 w-8 text-destructive"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                {category.status === 'active' ? (
+                  <>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleEdit(category)}
+                      className="h-8 w-8"
+                      disabled={deletingCategory === category._id || reactivatingCategory === category._id}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleDelete(category)}
+                      className="h-8 w-8 text-destructive"
+                      disabled={deletingCategory === category._id || reactivatingCategory === category._id}
+                    >
+                      {deletingCategory === category._id ? (
+                        <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => handleReactivate(category)}
+                    className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700"
+                    disabled={reactivatingCategory === category._id}
+                  >
+                    {reactivatingCategory === category._id ? (
+                      <div className="w-3 h-3 animate-spin rounded-full border-2 border-current border-t-transparent mr-1" />
+                    ) : (
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                    )}
+                    Reactivate
+                  </Button>
+                )}
               </div>
             </div>
           </Card>
@@ -268,8 +347,18 @@ export function CategoryManagement() {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>
-              {editingCategory ? "Update" : "Add"} Category
+            <Button onClick={handleSave} disabled={savingCategory}>
+              {console.log('Button rendering, savingCategory:', savingCategory)}
+              {savingCategory ? (
+                <>
+                  <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                  {editingCategory ? "Updating..." : "Adding..."}
+                </>
+              ) : (
+                <>
+                  {editingCategory ? "Update" : "Add"} Category
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

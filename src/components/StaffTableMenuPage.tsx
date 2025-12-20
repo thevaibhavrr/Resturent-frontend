@@ -10,6 +10,9 @@ import { NewtonsCradleLoader } from "./ui/newtons-cradle-loader";
 import { BouncingCirclesLoader } from "./ui/bouncing-circles-loader";
 import { PrintKotPopup } from "./PrintKotPopup";
 import { PrintDraftBill } from "./PrintDraftBill";
+import { PasswordConfirmationModal } from "./ui/password-confirmation-modal";
+import { settingsService } from "../utils/settingsService";
+import { getRestaurantSettings } from "../components/admin/Settings";
 import {
   ArrowLeft,
   Search,
@@ -125,16 +128,12 @@ const generateKotDifferences = (
   currentCart: CartItem[],
   lastKotSnapshot: CartItem[] | null
 ): { itemId: string; name: string; price: number; quantity: number; spiceLevel?: number; spicePercent?: number; note?: string }[] => {
-  console.log("🔍 generateKotDifferences called with:");
-  console.log("Current cart:", currentCart);
-  console.log("Last snapshot:", lastKotSnapshot);
 
   const currentQuantities = new Map<string, { name: string; price: number; quantity: number; spiceLevel?: number; spicePercent?: number; note?: string }>();
   const lastQuantities = new Map<string, { name: string; price: number; quantity: number; spiceLevel?: number; spicePercent?: number; note?: string }>();
 
   // Build current cart quantities map
   currentCart.forEach(item => {
-    console.log("Processing current item:", item);
     currentQuantities.set(item.itemId, {
       name: item.name,
       price: item.price,
@@ -201,6 +200,19 @@ const generateKotId = (): string => {
   return `KOT-${timestamp}-${random}`;
 };
 
+// Helper function to check if an item was added in the last KOT
+const isItemInLastKOT = (itemId: string, kotHistory: KotEntry[] | undefined): boolean => {
+  if (!kotHistory || kotHistory.length === 0) return false;
+  
+  // Get the last (most recent) KOT
+  const lastKot = kotHistory[kotHistory.length - 1];
+  
+  // Check if the item exists in the last KOT with positive quantity
+  return lastKot.items.some(item => 
+    item.itemId === itemId && item.quantity > 0
+  );
+};
+
 export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }: StaffTableMenuPageProps) {
   const user = getCurrentUser();
   const navigate = useNavigate();
@@ -254,6 +266,11 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   const [showFullDraftModal, setShowFullDraftModal] = useState(false);
   const [fullDraftData, setFullDraftData] = useState<any | null>(null);
   const [refreshingDraft, setRefreshingDraft] = useState(false);
+
+  // Password protection state
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordAction, setPasswordAction] = useState<{ type: 'delete' | 'decrease', itemId?: string, index?: number } | null>(null);
+  const [settings, setSettings] = useState<{ removePassword?: string } | null>(null);
   const menuEndRef = useRef<HTMLDivElement>(null);
   const cartSectionRef = useRef<HTMLDivElement>(null);
 
@@ -624,10 +641,50 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
     }
   };
 
+  // Load settings for password protection
+  const loadSettings = async () => {
+    if (!user?.restaurantId) return;
+
+    try {
+      const restaurantSettings = await getRestaurantSettings(user.restaurantId);
+      setSettings(restaurantSettings);
+    } catch (error) {
+      console.error("Error loading settings:", error);
+      // Set empty settings if loading fails
+      setSettings({});
+    }
+  };
+
+  // Check if password protection should be enabled (when draft is saved)
+  const shouldRequirePassword = (): boolean => {
+    // Don't require password if settings haven't loaded yet
+    if (!settings) {
+      console.log('shouldRequirePassword: Settings not loaded yet, no password required');
+      return false;
+    }
+
+    // Don't require password if no password is configured
+    if (!settings.removePassword || settings.removePassword.trim() === '') {
+      console.log('shouldRequirePassword: No password configured, no password required');
+      return false;
+    }
+
+    // Require password only if draft exists, cart has items, and password is configured
+    const requiresPassword = !!(tableDraft && cart.length > 0);
+    console.log('shouldRequirePassword:', {
+      hasDraft: !!tableDraft,
+      cartLength: cart.length,
+      hasPassword: !!settings.removePassword,
+      requiresPassword
+    });
+    return requiresPassword;
+  };
+
   // Load menu data on component mount and set up auto-refresh
   useEffect(() => {
     // Initial load
     loadMenuData();
+    loadSettings();
 
     // Set up auto-refresh every 5 minutes (300,000 ms)
     const refreshInterval = setInterval(() => {
@@ -966,6 +1023,14 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   };
 
   const updateQuantityAt = (index: number, change: number) => {
+    // Check if password protection is required for decrease operations
+    if (change < 0 && shouldRequirePassword()) {
+      setPasswordAction({ type: 'decrease', index });
+      setShowPasswordModal(true);
+      return;
+    }
+
+    // Proceed with normal quantity update
     setCart(prev => {
       const next = [...prev];
       const item = next[index];
@@ -981,6 +1046,14 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
   };
 
   const removeFromCartAt = (index: number) => {
+    // Check if password protection is required for delete operations
+    if (shouldRequirePassword()) {
+      setPasswordAction({ type: 'delete', index });
+      setShowPasswordModal(true);
+      return;
+    }
+
+    // Proceed with normal removal
     setCart(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -1553,7 +1626,7 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                                 </label>
                                 <Select
                                   value={String(currentSpicePercent)}
-                                  onValueChange={(v) => setSpicePercent(item._id, parseInt(v))}
+                                  onValueChange={(v: string) => setSpicePercent(item._id, parseInt(v))}
                                 >
                                   <SelectTrigger className="h-8 sm:h-9 border-2 hover:border-primary/50 transition-colors text-xs sm:text-sm w-full">
                                     <SelectValue placeholder="50%" />
@@ -1785,7 +1858,11 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                   <>
                     <ScrollArea className="max-h-96 mb-4">
                       <div className="space-y-3">
-                        {cart.map((item, index) => (
+                        {cart.map((item, index) => {
+                          // Check if this item was added in the last KOT
+                          const isLastKOTItem = isItemInLastKOT(item.itemId, tableDraft?.kotHistory);
+                          
+                          return (
                           <motion.div
                             key={item.itemId}
                             initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -1803,7 +1880,11 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                               boxShadow: "0 10px 25px rgba(0,0,0,0.1)"
                             }}
                             whileTap={{ scale: 0.98 }}
-                            className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border border-primary/20 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
+                            className={`p-4 rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
+                              !isLastKOTItem 
+                                ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-300 shadow-green-400' 
+                                : 'bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20'
+                            }`}
                           >
                             <div className="space-y-3">
                               <div className="flex items-start justify-between">
@@ -1811,6 +1892,11 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                       <p className="font-bold text-base">{item.name}</p>
+                                      {isLastKOTItem && (
+                                        <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 animate-pulse">
+                                          Last KOT
+                                        </Badge>
+                                      )}
                                       {item.isManualItem && (
                                         <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800">
                                           Manual
@@ -1901,7 +1987,8 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
                               </div>
                             </div>
                           </motion.div>
-                        ))}
+                        );
+                        })}
                       </div>
                     </ScrollArea>
 
@@ -2279,6 +2366,55 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           </div>
         </div>
       )}
+
+      {/* Password Confirmation Modal */}
+      <PasswordConfirmationModal
+        isOpen={showPasswordModal}
+        onClose={() => {
+          setShowPasswordModal(false);
+          setPasswordAction(null);
+        }}
+        onConfirm={() => {
+          if (passwordAction) {
+            if (passwordAction.type === 'delete' && passwordAction.index !== undefined) {
+              // Execute the delete operation
+              setCart(prev => prev.filter((_, i) => i !== passwordAction!.index));
+            } else if (passwordAction.type === 'decrease' && passwordAction.index !== undefined) {
+              // Execute the decrease operation
+              setCart(prev => {
+                const next = [...prev];
+                const item = next[passwordAction!.index!];
+                if (!item) return prev;
+                const newQty = item.quantity - 1; // Decrease by 1
+                if (newQty <= 0) {
+                  next.splice(passwordAction!.index!, 1);
+                } else {
+                  next[passwordAction!.index!] = { ...item, quantity: newQty };
+                }
+                return next;
+              });
+            }
+          }
+          setShowPasswordModal(false);
+          setPasswordAction(null);
+        }}
+        expectedPassword={settings?.removePassword || ''}
+        title={
+          passwordAction?.type === 'delete'
+            ? "Confirm Item Deletion"
+            : "Confirm Quantity Decrease"
+        }
+        description={
+          passwordAction?.type === 'delete'
+            ? "Enter the remove password to delete this item from the saved draft."
+            : "Enter the remove password to decrease the quantity of this item in the saved draft."
+        }
+        actionButtonText={
+          passwordAction?.type === 'delete'
+            ? "Delete Item"
+            : "Decrease Quantity"
+        }
+      />
     </div>
   );
 }

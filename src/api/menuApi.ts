@@ -1,11 +1,14 @@
 import { makeApi } from './makeapi';
 
-export const getMenuItems = async (restaurantId: string, category?: string) => {
+export const getMenuItems = async (restaurantId: string, category?: string, includeInactive?: boolean) => {
   const params = new URLSearchParams({ restaurantId });
   if (category && category !== 'all') {
     params.append('category', category);
   }
-  
+  if (includeInactive) {
+    params.append('includeInactive', 'true');
+  }
+
   const response = await makeApi(`/api/menu/items?${params.toString()}`, 'GET');
   return response.data;
 };
@@ -40,6 +43,11 @@ export const deleteMenuItem = async (id: string) => {
   return response.data;
 };
 
+export const reactivateMenuItem = async (id: string) => {
+  const response = await makeApi(`/api/menu/items/${id}/reactivate`, 'PATCH');
+  return response.data;
+};
+
 // Category management functions
 export const updateCategory = async (id: string, categoryData: any) => {
   const response = await makeApi(`/api/menu/categories/${id}`, 'PUT', categoryData);
@@ -48,6 +56,11 @@ export const updateCategory = async (id: string, categoryData: any) => {
 
 export const deleteCategory = async (id: string) => {
   const response = await makeApi(`/api/menu/categories/${id}`, 'DELETE');
+  return response.data;
+};
+
+export const reactivateCategory = async (id: string) => {
+  const response = await makeApi(`/api/menu/categories/${id}/reactivate`, 'PATCH');
   return response.data;
 };
 

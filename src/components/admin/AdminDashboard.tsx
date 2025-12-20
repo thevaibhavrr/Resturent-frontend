@@ -22,6 +22,24 @@ import {
   CalendarIcon,
   TrendingUp,
 } from "lucide-react";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "../ui/chart";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Label,
+  Tooltip,
+} from "recharts";
 import { Loader } from "../ui/loader";
 import { getCurrentUser, getRestaurantKey } from "../../utils/auth";
 import { getRestaurantSubscription, Subscription } from "../../api/planApi";
@@ -48,6 +66,8 @@ export function AdminDashboard() {
     totalOrders: 0,
     averageNetProfit: 0,
     totalItems: 0,
+    regularItems: 0,
+    extraItems: 0,
   });
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loadingSubscription, setLoadingSubscription] = useState(true);
@@ -123,7 +143,16 @@ export function AdminDashboard() {
         getBillStats({ startDate, endDate }),
         getNetProfitStats({ startDate, endDate }).catch(error => {
           console.warn('Failed to load net profit stats:', error);
-          return netProfitStats; // Return current state as fallback
+          return {
+            totalNetProfit: 0,
+            totalRevenue: 0,
+            totalCost: 0,
+            totalOrders: 0,
+            averageNetProfit: 0,
+            totalItems: 0,
+            regularItems: 0,
+            extraItems: 0,
+          }; // Return fallback with new fields
         })
       ]);
 
@@ -244,7 +273,7 @@ export function AdminDashboard() {
   }
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6">
+    <div className="p-1 sm:p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Header with Date Filter and Refresh Button */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -481,49 +510,49 @@ export function AdminDashboard() {
       )}
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card className="p-6">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        <Card className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Orders</p>
-              <h3 className="text-2xl font-bold">{loadingStats ? <Loader className="h-6 w-6" /> : stats.totalOrders}</h3>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Orders</p>
+              <h3 className="text-lg sm:text-2xl font-bold">{loadingStats ? <Loader className="h-4 w-4 sm:h-6 sm:w-6" /> : stats.totalOrders}</h3>
             </div>
-            <div className="rounded-full bg-blue-100 p-3">
-              <ShoppingCart className="h-6 w-6 text-blue-600" />
+            <div className="rounded-full bg-blue-100 p-2 sm:p-3 ml-2">
+              <ShoppingCart className="h-4 w-4 sm:h-6 sm:w-6 text-blue-600" />
             </div>
           </div>
         </Card>
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
-              <h3 className="text-2xl font-bold">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Revenue</p>
+              <h3 className="text-lg sm:text-2xl font-bold">
                 {loadingStats ? (
-                  <Loader className="h-6 w-6" />
+                  <Loader className="h-4 w-4 sm:h-6 sm:w-6" />
                 ) : (
                   `₹${stats.totalRevenue.toLocaleString('en-IN')}`
                 )}
               </h3>
             </div>
-            <div className="rounded-full bg-green-100 p-3">
-              <DollarSign className="h-6 w-6 text-green-600" />
+            <div className="rounded-full bg-green-100 p-2 sm:p-3 ml-2">
+              <DollarSign className="h-4 w-4 sm:h-6 sm:w-6 text-green-600" />
             </div>
           </div>
         </Card>
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Discount</p>
-              <h3 className="text-2xl font-bold">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Discount</p>
+              <h3 className="text-lg sm:text-2xl font-bold">
                 {loadingStats ? (
-                  <Loader className="h-6 w-6" />
+                  <Loader className="h-4 w-4 sm:h-6 sm:w-6" />
                 ) : (
                   `-₹${stats.totalDiscount.toLocaleString('en-IN')}`
                 )}
               </h3>
             </div>
-            <div className="rounded-full bg-purple-100 p-3">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-purple-600">
+            <div className="rounded-full bg-purple-100 p-2 sm:p-3 ml-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 sm:h-6 sm:w-6 text-purple-600">
                 <path d="M8 3v4a2 2 0 0 1-2 2H2"></path>
                 <path d="M21 12.5v-2a4.83 4.83 0 0 0-1.7-3.68A5.14 5.14 0 0 0 16 5.15 4.9 4.9 0 0 0 12 7a4.9 4.9 0 0 0-4-1.85 5.14 5.14 0 0 0-3.3 1.67A4.83 4.83 0 0 0 3 10.5v2a4.83 4.83 0 0 0 1.7 3.68A5.14 5.14 0 0 0 8 18.85 4.9 4.9 0 0 0 12 17a4.9 4.9 0 0 0 4 1.85 5.14 5.14 0 0 0 3.3-1.67A4.83 4.83 0 0 0 21 12.5z"></path>
                 <path d="M12 17v5"></path>
@@ -532,20 +561,308 @@ export function AdminDashboard() {
             </div>
           </div>
         </Card>
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Net Profit</p>
-              <h3 className="text-2xl font-bold">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Net Profit</p>
+              <h3 className="text-lg sm:text-2xl font-bold">
                 {loadingStats ? (
-                  <Loader className="h-6 w-6" />
+                  <Loader className="h-4 w-4 sm:h-6 sm:w-6" />
                 ) : (
                   `₹${netProfitStats.totalNetProfit.toLocaleString('en-IN')}`
                 )}
               </h3>
             </div>
-            <div className="rounded-full bg-green-100 p-3">
-              <TrendingUp className="h-6 w-6 text-green-600" />
+            <div className="rounded-full bg-green-100 p-2 sm:p-3 ml-2">
+              <TrendingUp className="h-4 w-4 sm:h-6 sm:w-6 text-green-600" />
+            </div>
+          </div>
+        </Card>
+        <Card className="p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Items</p>
+              <h3 className="text-lg sm:text-2xl font-bold">{loadingStats ? <Loader className="h-4 w-4 sm:h-6 sm:w-6" /> : netProfitStats.totalItems}</h3>
+            </div>
+            <div className="rounded-full bg-orange-100 p-2 sm:p-3 ml-2">
+              <ShoppingCart className="h-4 w-4 sm:h-6 sm:w-6 text-orange-600" />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Charts Section - Two Column Layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        {/* Financial Overview Pie Chart */}
+        <Card className="p-3 sm:p-4 h-full">
+          <div className="mb-2 sm:mb-3">
+            <h3 className="text-sm sm:text-base font-semibold">Financial Overview</h3>
+            <p className="text-xs text-muted-foreground">Revenue, Profit & Discount</p>
+          </div>
+          <div className="h-[200px] sm:h-[240px] md:h-[220px] lg:h-[240px]">
+            <ChartContainer
+              config={{
+                revenue: {
+                  label: "Revenue",
+                  color: "#10b981",
+                },
+                profit: {
+                  label: "Net Profit",
+                  color: "#3b82f6",
+                },
+                discount: {
+                  label: "Discount",
+                  color: "#f59e0b",
+                },
+              }}
+              className="h-full"
+            >
+              <PieChart>
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent hideLabel />}
+                />
+                <Pie
+                  data={[
+                    {
+                      name: "Revenue",
+                      value: netProfitStats.totalRevenue,
+                      fill: "#10b981",
+                      displayValue: `₹${netProfitStats.totalRevenue.toLocaleString('en-IN')}`,
+                    },
+                    {
+                      name: "Net Profit",
+                      value: netProfitStats.totalNetProfit,
+                      fill: "#3b82f6",
+                      displayValue: `₹${netProfitStats.totalNetProfit.toLocaleString('en-IN')}`,
+                    },
+                    {
+                      name: "Discount",
+                      value: stats.totalDiscount,
+                      fill: "#f59e0b",
+                      displayValue: `₹${stats.totalDiscount.toLocaleString('en-IN')}`,
+                    },
+                  ]}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={40}
+                  strokeWidth={1}
+                  label={({ displayValue }) => displayValue}
+                  labelLine={false}
+                >
+                  {[
+                    { name: "Revenue", value: netProfitStats.totalRevenue, fill: "#10b981" },
+                    { name: "Net Profit", value: netProfitStats.totalNetProfit, fill: "#3b82f6" },
+                    { name: "Discount", value: stats.totalDiscount, fill: "#f59e0b" },
+                  ].map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ChartContainer>
+          </div>
+          <div className="flex flex-wrap justify-center mt-4 gap-4 text-xs sm:text-sm">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span>Revenue: ₹{netProfitStats.totalRevenue.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span>Profit: ₹{netProfitStats.totalNetProfit.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <span>Discount: ₹{stats.totalDiscount.toLocaleString('en-IN')}</span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Items Overview Pie Chart */}
+        <Card className="p-3 sm:p-4">
+          <div className="mb-2 sm:mb-3">
+            <h3 className="text-sm sm:text-base font-semibold">Items Overview</h3>
+            <p className="text-xs text-muted-foreground">Regular vs Extra items</p>
+          </div>
+          <div className="h-[180px] sm:h-[200px] md:h-[220px] lg:h-[200px] xl:h-[220px]">
+            <ChartContainer
+              config={{
+                regular: {
+                  label: "Regular Items",
+                  color: "#3b82f6",
+                },
+                extra: {
+                  label: "Extra Items",
+                  color: "#f59e0b",
+                },
+              }}
+              className="h-full"
+            >
+              <PieChart>
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent hideLabel />}
+                />
+                <Pie
+                  data={[
+                    {
+                      name: "Regular Items",
+                      value: netProfitStats.regularItems || netProfitStats.totalItems,
+                      fill: "#3b82f6",
+                      displayValue: (netProfitStats.regularItems || netProfitStats.totalItems).toString(),
+                    },
+                    {
+                      name: "Extra Items",
+                      value: netProfitStats.extraItems || 0,
+                      fill: "#f59e0b",
+                      displayValue: (netProfitStats.extraItems || 0).toString(),
+                    },
+                  ]}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={40}
+                  strokeWidth={1}
+                  label={({ displayValue }) => displayValue}
+                  labelLine={false}
+                >
+                  {[
+                    { name: "Regular Items", value: netProfitStats.regularItems || netProfitStats.totalItems, fill: "#3b82f6" },
+                    { name: "Extra Items", value: netProfitStats.extraItems || 0, fill: "#f59e0b" },
+                  ].map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ChartContainer>
+          </div>
+          <div className="flex flex-wrap justify-center mt-4 gap-4 text-xs sm:text-sm">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span>Regular: {(netProfitStats.regularItems || netProfitStats.totalItems).toLocaleString()}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <span>Extra: {(netProfitStats.extraItems || 0).toLocaleString()}</span>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Additional Charts Row - Two Column Layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        {/* Revenue vs Cost Bar Chart */}
+        <Card className="p-3 sm:p-4 h-full">
+          <div className="mb-2 sm:mb-3">
+            <h3 className="text-sm sm:text-base font-semibold">Revenue vs Cost</h3>
+            <p className="text-xs text-muted-foreground">Monthly comparison</p>
+          </div>
+          <div className="h-[180px] sm:h-[200px] md:h-[220px]">
+            <ChartContainer
+              config={{
+                revenue: {
+                  label: "Revenue",
+                  color: "#10b981",
+                },
+                cost: {
+                  label: "Cost",
+                  color: "#ef4444",
+                },
+                profit: {
+                  label: "Net Profit",
+                  color: "#3b82f6",
+                },
+              }}
+              className="h-full min-w-[280px]"
+            >
+              <BarChart
+                data={[
+                  {
+                    name: "Financials",
+                    revenue: stats.totalRevenue,
+                    cost: netProfitStats.totalCost,
+                    profit: netProfitStats.totalNetProfit,
+                  },
+                ]}
+                margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10 }}
+                />
+                <YAxis 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10 }}
+                  width={40}
+                  tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                />
+                <Tooltip
+                  formatter={(value) => [`₹${value.toLocaleString('en-IN')}`, '']}
+                />
+                <Bar dataKey="revenue" fill="#10b981" name="Revenue" />
+                <Bar dataKey="cost" fill="#ef4444" name="Cost" />
+                <Bar dataKey="profit" fill="#3b82f6" name="Net Profit" />
+              </BarChart>
+            </ChartContainer>
+          </div>
+          <div className="mt-3 flex flex-wrap justify-center gap-4 text-xs px-2">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 mt-0.5"></div>
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Revenue</span>
+                <span className="font-medium">₹{stats.totalRevenue?.toLocaleString('en-IN') || '0'}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-red-500 mt-0.5"></div>
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Cost</span>
+                <span className="font-medium">₹{netProfitStats.totalCost?.toLocaleString('en-IN') || '0'}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-blue-500 mt-0.5"></div>
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Profit</span>
+                <span className="font-medium">₹{netProfitStats.totalNetProfit?.toLocaleString('en-IN') || '0'}</span>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Orders Summary Card */}
+        <Card className="p-4 sm:p-6">
+          <div className="mb-3 sm:mb-4">
+            <h3 className="text-base sm:text-lg font-semibold">Orders Summary</h3>
+            <p className="text-xs sm:text-sm text-muted-foreground">Order statistics overview</p>
+          </div>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Orders</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.totalOrders}</p>
+              </div>
+              <ShoppingCart className="h-8 w-8 text-blue-600" />
+            </div>
+            <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+              <div>
+                <p className="text-sm text-muted-foreground">Average Order Value</p>
+                <p className="text-2xl font-bold text-green-600">
+                  ₹{stats.totalOrders > 0 ? Math.round(stats.totalRevenue / stats.totalOrders).toLocaleString('en-IN') : '0'}
+                </p>
+              </div>
+              <DollarSign className="h-8 w-8 text-green-600" />
+            </div>
+            <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
+              <div>
+                <p className="text-sm text-muted-foreground">Average Net Profit</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  ₹{netProfitStats.averageNetProfit.toLocaleString('en-IN')}
+                </p>
+              </div>
+              <TrendingUp className="h-8 w-8 text-purple-600" />
             </div>
           </div>
         </Card>

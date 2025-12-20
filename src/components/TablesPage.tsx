@@ -55,8 +55,9 @@ interface TablesPageProps {
 
 const filters = [
   { id: "all", label: "All Tables" },
-  { id: "active", label: "Active" },
-  { id: "inactive", label: "Inactive" },
+  { id: "running", label: "Running" },
+  // { id: "active", label: "Active" },
+  // { id: "inactive", label: "Inactive" },
 ];
 
 export function TablesPage({
@@ -174,14 +175,6 @@ export function TablesPage({
     ).values()
   ).filter((s) => !!s.id);
 
-  // Apply space filter
-  const filteredTables = tables.filter((table) => {
-    if (selectedSpace === "all") return true;
-    return table.locationId?._id === selectedSpace;
-  });
-
-  
-
   // Check if table is occupied (has draft with items)
   const isTableOccupied = (table: Table) => {
     const draft = tableDrafts.find(d => d.tableId === table._id);
@@ -199,8 +192,34 @@ export function TablesPage({
     return table.status === "active" ? "available" : "reserved";
   };
 
-  // Compute status counts for current selection
-  const statusCounts = filteredTables.reduce(
+  // Apply space filter and status filter
+  const filteredTables = tables.filter((table) => {
+    // Space filter
+    if (selectedSpace === "all" || !table.locationId?._id || table.locationId._id === selectedSpace) {
+      // Status filter
+      const tableStatus = getTableStatus(table);
+      switch (activeFilter) {
+        case "running":
+          return tableStatus === "occupied";
+        case "active":
+          return table.status === "active";
+        case "inactive":
+          return table.status === "inactive";
+        case "all":
+        default:
+          return true;
+      }
+    }
+    return false;
+  });
+
+  // Compute status counts for all tables (not just filtered ones) in current space
+  const spaceFilteredTables = tables.filter((table) => {
+    if (selectedSpace === "all") return true;
+    return table.locationId?._id === selectedSpace;
+  });
+
+  const statusCounts = spaceFilteredTables.reduce(
     (acc, t) => {
       const s = getTableStatus(t) as "available" | "occupied" | "reserved";
       acc.total += 1;
@@ -258,24 +277,19 @@ export function TablesPage({
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-card shadow-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="text-2xl">Tables</h1>
-          <p className="text-sm text-muted-foreground">Manage restaurant tables</p>
-        </div>
-      </header>
+  
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-6" style={{ marginTop: "90px" }}>
         {/* Spaces horizontal scrollbar */}
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none]">
             <Button
               variant={selectedSpace === "all" ? "default" : "outline"}
               onClick={() => setSelectedSpace("all")}
               className="whitespace-nowrap"
             >
-              Show All
+All Spaces
             </Button>
             {spaces.map((space) => (
               <Button
@@ -285,6 +299,22 @@ export function TablesPage({
                 className="whitespace-nowrap"
               >
                 {space.name}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Status filters */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none]">
+            {filters.map((filter) => (
+              <Button
+                key={filter.id}
+                variant={activeFilter === filter.id ? "default" : "outline"}
+                onClick={() => setActiveFilter(filter.id)}
+                className="whitespace-nowrap"
+              >
+                {filter.label}
               </Button>
             ))}
           </div>

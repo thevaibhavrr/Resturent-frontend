@@ -43,6 +43,8 @@ export interface NetProfitStats {
   totalOrders: number;
   averageNetProfit: number;
   totalItems: number;
+  regularItems: number;
+  extraItems: number;
 }
 
 export interface CreateBillData {

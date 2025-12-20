@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Plus, Edit2, Trash2, UtensilsCrossed, Filter } from "lucide-react";
+import { Plus, Edit2, Trash2, UtensilsCrossed, Filter, RefreshCw } from "lucide-react";
 import { Loader } from "../ui/loader";
 import { getCurrentUser } from "../../utils/auth";
 import { toast } from "sonner";
@@ -30,6 +30,7 @@ import {
   createMenuItem,
   updateMenuItem,
   deleteMenuItem,
+  reactivateMenuItem,
   getCategories,
   getSpaces,
 } from "../../api/menuApi";
@@ -51,9 +52,13 @@ export function MenuManagement() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [loading, setLoading] = useState(false);
+  const [savingItem, setSavingItem] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<string | null>(null);
+  const [reactivatingItem, setReactivatingItem] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -80,14 +85,14 @@ export function MenuManagement() {
 
   useEffect(() => {
     loadItems();
-  }, [filterCategory]);
+  }, [filterCategory, showInactive]);
 
   const loadItems = async () => {
     if (!user?.restaurantId) return;
     try {
       setLoading(true);
       const categoryId = filterCategory !== "all" ? filterCategory : undefined;
-      const data = await getMenuItems(user.restaurantId, categoryId);
+      const data = await getMenuItems(user.restaurantId, categoryId, showInactive);
       setItems(data || []);
     } catch (err) {
       console.error("Error loading menu items:", err);
@@ -320,6 +325,7 @@ export function MenuManagement() {
       .filter(sp => !isNaN(sp.price) && sp.price >= 0);
 
     try {
+      setSavingItem(true);
       let finalImageUrl = "";
 
       // Handle image based on input type - image is optional
@@ -395,6 +401,8 @@ export function MenuManagement() {
     } catch (err) {
       console.error("Error saving item:", err);
       toast.error("Failed to save item");
+    } finally {
+      setSavingItem(false);
     }
   };
 
@@ -403,12 +411,30 @@ export function MenuManagement() {
 
     if (confirm("Are you sure you want to delete this item?")) {
       try {
+        setDeletingItem(item._id);
         await deleteMenuItem(item._id);
         toast.success("Item deleted successfully");
         loadItems();
       } catch (err) {
         toast.error("Failed to delete item");
+      } finally {
+        setDeletingItem(null);
       }
+    }
+  };
+
+  const handleReactivate = async (item: MenuItem) => {
+    if (!item._id) return;
+
+    try {
+      setReactivatingItem(item._id);
+      await reactivateMenuItem(item._id);
+      toast.success("Item reactivated successfully");
+      loadItems();
+    } catch (err) {
+      toast.error("Failed to reactivate item");
+    } finally {
+      setReactivatingItem(null);
     }
   };
 
@@ -441,7 +467,7 @@ export function MenuManagement() {
   });
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-1 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -474,7 +500,7 @@ export function MenuManagement() {
       {/* Filter */}
       <Card className="p-4">
         <div className="flex items-center gap-4">
-          <Filter className="w-5 h-5 text-muted-foreground" />
+          {/* <Filter className="w-5 h-5 text-muted-foreground" /> */}
           <Select value={filterCategory} onValueChange={setFilterCategory}>
             <SelectTrigger className="w-[200px]">
               <SelectValue />
@@ -488,6 +514,18 @@ export function MenuManagement() {
               ))}
             </SelectContent>
           </Select>
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="showInactive"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            <Label htmlFor="showInactive" className="text-sm">
+              Inactive Item
+            </Label>
+          </div>
           <Badge variant="secondary">{filteredItems.length} items</Badge>
         </div>
       </Card>
@@ -511,7 +549,16 @@ export function MenuManagement() {
             <div className="p-4">
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1">
-                  <h3 className="font-semibold mb-1">{item.name}</h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className={`font-semibold ${item.status === 'inactive' ? 'text-muted-foreground line-through' : ''}`}>
+                      {item.name}
+                    </h3>
+                    {item.status === 'inactive' && (
+                      <Badge variant="destructive" className="text-xs">
+                        Inactive
+                      </Badge>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs">
                       {getCategoryName(item)}
@@ -536,22 +583,47 @@ export function MenuManagement() {
                   )}
                 </div>
                 <div className="flex gap-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleEdit(item)}
-                    className="h-8 w-8"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleDelete(item)}
-                    className="h-8 w-8 text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  {item.status === 'active' ? (
+                    <>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleEdit(item)}
+                        className="h-8 w-8"
+                        disabled={deletingItem === item._id || reactivatingItem === item._id}
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDelete(item)}
+                        className="h-8 w-8 text-destructive"
+                        disabled={deletingItem === item._id || reactivatingItem === item._id}
+                      >
+                        {deletingItem === item._id ? (
+                          <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => handleReactivate(item)}
+                      className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700"
+                      disabled={reactivatingItem === item._id}
+                    >
+                      {reactivatingItem === item._id ? (
+                        <div className="w-3 h-3 animate-spin rounded-full border-2 border-current border-t-transparent mr-1" />
+                      ) : (
+                        <RefreshCw className="w-3 h-3 mr-1" />
+                      )}
+                      Reactivate
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -847,8 +919,17 @@ export function MenuManagement() {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>
-              {editingItem ? "Update" : "Add"} Item
+            <Button onClick={handleSave} disabled={savingItem}>
+              {savingItem ? (
+                <>
+                  <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                  {editingItem ? "Updating..." : "Adding..."}
+                </>
+              ) : (
+                <>
+                  {editingItem ? "Update" : "Add"} Item
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

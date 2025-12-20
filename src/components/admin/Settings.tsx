@@ -128,6 +128,7 @@ interface RestaurantSettings {
   };
   billPrinterWidth?: number;
   kotPrinterWidth?: number;
+  removePassword?: string;
 }
 
 export function Settings() {
@@ -155,7 +156,8 @@ export function Settings() {
       name: "",
       status: 'disconnected',
       width: 2
-    }
+    },
+    removePassword: ""
   });
 
   const [loading, setLoading] = useState(false);
@@ -346,7 +348,8 @@ export function Settings() {
             name: "",
             status: 'disconnected' as PrinterStatus,
             width: kotPrinterDefaults.width
-          }
+          },
+          removePassword: response.data.removePassword || ""
         });
       }
     } catch (error) {
@@ -375,7 +378,8 @@ export function Settings() {
           kotBluetoothPrinter: {
             ...(storedSettings.kotBluetoothPrinter || kotPrinterDefaults),
             width: storedSettings.kotPrinterWidth || kotPrinterDefaults.width
-          }
+          },
+          removePassword: storedSettings.removePassword || ""
         });
       } else {
         // If no stored settings, try to load from API response format
@@ -407,7 +411,8 @@ export function Settings() {
                 name: "",
                 status: 'disconnected' as PrinterStatus,
                 width: response.data.kotPrinterWidth || 2
-              }
+              },
+              removePassword: response.data.removePassword || ""
             });
           }
         } catch (apiError) {
@@ -891,6 +896,19 @@ export function Settings() {
                     placeholder="Brief description"
                   />
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="removePassword">Remove Password</Label>
+                <Input
+                  id="removePassword"
+                  type="password"
+                  value={settings.removePassword}
+                  onChange={(e) =>
+                    setSettings({ ...settings, removePassword: e.target.value })
+                  }
+                  placeholder="Enter remove password"
+                />
               </div>
             </div>
           </Card>

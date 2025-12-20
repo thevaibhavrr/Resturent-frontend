@@ -213,7 +213,6 @@ function AppContent() {
     // Load and save printer settings
     try {
       const response = await makeApi(`/api/settings/${user.restaurantId}`, "GET");
-      console.log("Printer settings:", response.data);
       // if (response.data) {
         // Save bill printer settings
         const billKey = getRestaurantKey("billBluetoothPrinter", user.restaurantId);
