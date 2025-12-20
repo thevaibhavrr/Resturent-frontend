@@ -409,6 +409,20 @@ All Spaces
                     })
                   : "-";
 
+                // Extract caption (person managing the table)
+                const caption = draft?.updatedBy || null;
+
+                // Extract unique users who added items
+                const uniqueUsers = draft?.cartItems
+                  ? Array.from(
+                      new Set(
+                        draft.cartItems
+                          .map(item => item.addedBy?.userName)
+                          .filter(userName => userName && userName.trim() !== '')
+                      )
+                    )
+                  : [];
+
                 return (
                   <TableCard
                     key={table._id}
@@ -419,6 +433,8 @@ All Spaces
                     totalAmount={Math.round(draft?.total || 0)}
                     status={getTableStatus(table)}
                     loading={false}
+                    caption={caption}
+                    uniqueUsers={uniqueUsers}
                     onClick={() => handleTableSelect(table)}
                   />
                 );

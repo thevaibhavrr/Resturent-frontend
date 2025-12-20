@@ -1,4 +1,4 @@
-import { Users, Clock, DollarSign } from "lucide-react";
+import { Users, Clock, DollarSign, User, ChefHat } from "lucide-react";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { BouncingCirclesLoader } from "./ui/bouncing-circles-loader";
@@ -12,6 +12,8 @@ interface TableCardProps {
   status: "available" | "occupied" | "reserved";
   loading?: boolean;
   onClick?: () => void;
+  caption?: string; // Person managing the table
+  uniqueUsers?: string[]; // Unique users who added items to this table
 }
 
 export function TableCard({
@@ -23,6 +25,8 @@ export function TableCard({
   status,
   loading = false,
   onClick,
+  caption,
+  uniqueUsers = [],
 }: TableCardProps) {
   const getStatusColor = () => {
     if (loading) {
@@ -105,6 +109,39 @@ export function TableCard({
                 </div>
                 <span className="text-sm">₹{totalAmount}</span>
               </div>
+
+              {/* Caption - Person managing the table */}
+              {caption && (
+                <div className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <ChefHat className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Caption</span>
+                  </div>
+                  <span className="text-sm font-medium">{caption}</span>
+                </div>
+              )}
+
+              {/* Unique users who added items */}
+              {uniqueUsers.length > 0 && (
+                <div className="p-2 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Order Users</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {uniqueUsers.slice(0, 3).map((user, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {user}
+                      </Badge>
+                    ))}
+                    {uniqueUsers.length > 3 && (
+                      <Badge variant="secondary" className="text-xs">
+                        +{uniqueUsers.length - 3} more
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="text-center py-4 text-muted-foreground text-sm">

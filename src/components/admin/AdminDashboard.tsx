@@ -510,18 +510,64 @@ export function AdminDashboard() {
       )}
 
       {/* Stats Grid */}
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-        <Card className="p-4 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Orders</p>
-              <h3 className="text-lg sm:text-2xl font-bold">{loadingStats ? <Loader className="h-4 w-4 sm:h-6 sm:w-6" /> : stats.totalOrders}</h3>
+      <motion.div 
+        className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: { opacity: 0 },
+          visible: {
+            opacity: 1,
+            transition: {
+              staggerChildren: 0.1,
+              delayChildren: 0.2
+            }
+          }
+        }}
+      >
+        <motion.div
+          variants={{
+            hidden: { opacity: 0, y: 20, scale: 0.9 },
+            visible: { 
+              opacity: 1, 
+              y: 0, 
+              scale: 1,
+              transition: {
+                type: "spring",
+                stiffness: 100,
+                damping: 10
+              }
+            }
+          }}
+          whileHover={{
+            scale: 1.05,
+            boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+            transition: { duration: 0.2 }
+          }}
+        >
+          <Card className="p-4 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Orders</p>
+                <motion.h3 
+                  className="text-lg sm:text-2xl font-bold"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5, duration: 0.5 }}
+                >
+                  {loadingStats ? <Loader className="h-4 w-4 sm:h-6 sm:w-6" /> : stats.totalOrders}
+                </motion.h3>
+              </div>
+              <motion.div 
+                className="rounded-full bg-blue-100 p-2 sm:p-3 ml-2"
+                whileHover={{ rotate: 360 }}
+                transition={{ duration: 0.6 }}
+              >
+                <ShoppingCart className="h-4 w-4 sm:h-6 sm:w-6 text-blue-600" />
+              </motion.div>
             </div>
-            <div className="rounded-full bg-blue-100 p-2 sm:p-3 ml-2">
-              <ShoppingCart className="h-4 w-4 sm:h-6 sm:w-6 text-blue-600" />
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </motion.div>
         <Card className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
@@ -589,7 +635,8 @@ export function AdminDashboard() {
             </div>
           </div>
         </Card>
-      </div>
+      </motion.div>
+
 
       {/* Charts Section - Two Column Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
