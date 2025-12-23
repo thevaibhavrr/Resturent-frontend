@@ -12,6 +12,7 @@ import MenuManagementPage from "./pages/admin/MenuManagementPage";
 import CategoryManagementPage from "./pages/admin/CategoryManagementPage";
 import BillHistoryPage from "./pages/admin/BillHistoryPage";
 import ReportsPage from "./pages/admin/ReportsPage";
+import IncomeExpensesPage from "./pages/admin/IncomeExpensesPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import PlansPage from "./pages/admin/PlansPage";
 import AdminOrderTablesPage from "./pages/admin/AdminOrderTablesPage";    
@@ -40,8 +41,10 @@ import { getRestaurantSubscription } from "./api/planApi";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsAndConditionsPage from "./pages/TermsAndConditionsPage";
 import ExpensesListPage from "./pages/ExpensesListPage";
+import IncomeListPage from "./pages/IncomeListPage";
 import AddExpensePage from "./pages/AddExpensePage";
 import EditExpensePage from "./pages/EditExpensePage";
+import EditIncomePage from "./pages/EditIncomePage";
 import BluetoothPrinterPage from "./pages/admin/BluetoothPrinterPage";
 import { makeApi } from "./api/makeapi";
 
@@ -410,6 +413,7 @@ function AppContent() {
             <Route path="/admin/bills" element={<BillHistoryPage />} />
             <Route path="/admin/user-bills" element={<UserBillsPage />} />
             <Route path="/admin/reports" element={<ReportsPage />} />
+            <Route path="/admin/income-expenses" element={<IncomeExpensesPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
             <Route path="/admin/plans" element={<PlansPage />} />
             <Route path="/admin/bluetooth-printer" element={<BluetoothPrinterPage />} />
@@ -417,6 +421,11 @@ function AppContent() {
               <Route path="list" element={<ExpensesListPage />} />
               <Route path="add" element={<AddExpensePage />} />
               <Route path="edit/:id" element={<EditExpensePage />} />
+              <Route path="*" element={<Navigate to="list" replace />} />
+            </Route>
+            <Route path="/admin/income">
+              <Route path="list" element={<IncomeListPage />} />
+              <Route path="edit/:id" element={<EditIncomePage />} />
               <Route path="*" element={<Navigate to="list" replace />} />
             </Route>
             <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />

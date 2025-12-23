@@ -28,7 +28,7 @@ export const makeApi = async <T = any>(
       method,
       // url: `https://resturent-backend-l8jk.onrender.com${endpoint}`,
       url: `https://striking-prosperity-production.up.railway.app${endpoint}`,
-      // url: `http://localhost:3000${endpoint}`,
+      // url: `http://localhost:3000${endpoint}`,  
       headers,
       data
     };

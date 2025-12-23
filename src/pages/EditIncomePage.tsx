@@ -4,32 +4,32 @@ import { toast } from 'sonner';
 import { getCurrentUser } from '../utils/auth';
 import { makeApi } from '../api/makeapi';
 
-type ExpenseData = {
+type IncomeData = {
   _id: string;
-  expenseReason: string;
+  incomeSource: string;
   amount: number;
-  expenseBy: string;
-  expenseDate: string;
+  incomeType: 'cash' | 'online';
+  incomeDate: string;
   description?: string;
   category: string;
-  paymentMethod: string;
-  shopName?: string;
+  paymentReference?: string;
+  recordedBy: string;
   restaurantId: string;
   createdAt: string;
   updatedAt: string;
 };
 
-export default function EditExpensePage() {
+export default function EditIncomePage() {
   const { id } = useParams<{ id: string }>();
   const [formData, setFormData] = useState({
-    expenseReason: '',
+    incomeSource: '',
     amount: '',
-    expenseBy: '',
-    expenseDate: '',
+    incomeType: 'cash' as 'cash' | 'online',
+    incomeDate: '',
     description: '',
     category: '',
-    paymentMethod: '',
-    shopName: ''
+    paymentReference: '',
+    recordedBy: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,37 +38,37 @@ export default function EditExpensePage() {
   const restaurantId = user?.restaurantId;
 
   useEffect(() => {
-    const fetchExpense = async () => {
+    const fetchIncome = async () => {
       if (!id || !restaurantId) return;
 
       try {
         setLoading(true);
-        const response = await makeApi(`/api/expenses/${id}?restaurantId=${restaurantId}`, 'GET');
+        const response = await makeApi(`/api/extra-income/${id}?restaurantId=${restaurantId}`, 'GET');
 
         if (response.data) {
-          const expenseData = response.data;
+          const incomeData = response.data;
           setFormData({
-            expenseReason: expenseData.expenseReason,
-            amount: expenseData.amount.toString(),
-            expenseBy: expenseData.expenseBy,
-            expenseDate: new Date(expenseData.expenseDate).toISOString().split('T')[0],
-            description: expenseData.description || '',
-            category: expenseData.category,
-            paymentMethod: expenseData.paymentMethod,
-            shopName: expenseData.shopName || ''
+            incomeSource: incomeData.incomeSource,
+            amount: incomeData.amount.toString(),
+            incomeType: incomeData.incomeType,
+            incomeDate: new Date(incomeData.incomeDate).toISOString().split('T')[0],
+            description: incomeData.description || '',
+            category: incomeData.category,
+            paymentReference: incomeData.paymentReference || '',
+            recordedBy: incomeData.recordedBy
           });
         } else {
-          toast.error('Failed to load expense details');
+          toast.error('Failed to load income details');
         }
       } catch (error) {
-        console.error('Error fetching expense:', error);
-        toast.error('Failed to load expense details');
+        console.error('Error fetching income:', error);
+        toast.error('Failed to load income details');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchExpense();
+    fetchIncome();
   }, [id, restaurantId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,24 +85,24 @@ export default function EditExpensePage() {
         restaurantId
       };
 
-      const response = await makeApi(`/api/expenses/${id}`, 'PUT', updateData);
+      const response = await makeApi(`/api/extra-income/${id}`, 'PUT', updateData);
 
-      if (response.data && response.data.expense) {
-        toast.success('Expense updated successfully');
-        navigate('/admin/expenses/list');
+      if (response.data && response.data.extraIncome) {
+        toast.success('Income updated successfully');
+        navigate('/admin/income/list');
       } else {
-        toast.error('Failed to update expense');
+        toast.error('Failed to update income');
       }
     } catch (error) {
-      console.error('Error updating expense:', error);
-      toast.error('Failed to update expense');
+      console.error('Error updating income:', error);
+      toast.error('Failed to update income');
     } finally {
       setSaving(false);
     }
   };
 
   const handleCancel = () => {
-    navigate('/admin/expenses/list');
+    navigate('/admin/income/list');
   };
 
   if (loading) {
@@ -118,8 +118,8 @@ export default function EditExpensePage() {
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6 lg:mb-8">
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">Edit Expense</h1>
-            <p className="mt-1 text-sm text-gray-500 hidden sm:block">Update expense details</p>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">Edit Income</h1>
+            <p className="mt-1 text-sm text-gray-500 hidden sm:block">Update income details</p>
           </div>
         </div>
 
@@ -128,15 +128,15 @@ export default function EditExpensePage() {
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Expense Reason *
+                  Income Source *
                 </label>
                 <input
                   type="text"
                   required
-                  value={formData.expenseReason}
-                  onChange={(e) => setFormData({ ...formData, expenseReason: e.target.value })}
+                  value={formData.incomeSource}
+                  onChange={(e) => setFormData({ ...formData, incomeSource: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  placeholder="e.g., Vegetables, Utilities"
+                  placeholder="e.g., Event Catering, Partnership"
                 />
               </div>
 
@@ -159,6 +159,21 @@ export default function EditExpensePage() {
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Income Type *
+                </label>
+                <select
+                  required
+                  value={formData.incomeType}
+                  onChange={(e) => setFormData({ ...formData, incomeType: e.target.value as 'cash' | 'online' })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                >
+                  <option value="cash">Cash</option>
+                  <option value="online">Online</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Category *
                 </label>
                 <select
@@ -168,77 +183,55 @@ export default function EditExpensePage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 >
                   <option value="">Select Category</option>
-                  <option value="Food Supplies">Vegitable</option>
-                  <option value="Rent">Rent</option>
-                  <option value="Salaries">Salaries</option>
-                  <option value="Equipment">Equipment</option>
-                  <option value="Marketing">Marketing</option>
-                  <option value="Maintenance">Maintenance</option>
-                  <option value="Food items">Food items</option>
-                  <option value="Loss">Loss</option>
+                  <option value="Events">Events</option>
+                  <option value="Catering">Catering</option>
+                  <option value="Advertising">Advertising</option>
+                  <option value="Partnerships">Partnerships</option>
+                  <option value="Delivery">Delivery</option>
                   <option value="Other">Other</option>
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Shop Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.shopName}
-                  onChange={(e) => setFormData({ ...formData, shopName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  placeholder="e.g., Big Bazaar, Local Market"
-                />
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Expense By *
+                  Income Date *
                 </label>
                 <input
-                  type="text"
+                  type="date"
                   required
-                  value={formData.expenseBy}
-                  onChange={(e) => setFormData({ ...formData, expenseBy: e.target.value })}
+                  value={formData.incomeDate}
+                  onChange={(e) => setFormData({ ...formData, incomeDate: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  placeholder="Staff member name"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Payment Method *
+                  Recorded By *
                 </label>
-                <select
+                <input
+                  type="text"
                   required
-                  value={formData.paymentMethod}
-                  onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+                  value={formData.recordedBy}
+                  onChange={(e) => setFormData({ ...formData, recordedBy: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                >
-                  <option value="">Select Payment Method</option>
-                  <option value="Cash">Cash</option>
-                  <option value="Card">Card</option>
-                  <option value="UPI">UPI</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Other">Other</option>
-                </select>
+                  placeholder="Staff member name"
+                />
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Expense Date *
+                Payment Reference
               </label>
               <input
-                type="date"
-                required
-                value={formData.expenseDate}
-                onChange={(e) => setFormData({ ...formData, expenseDate: e.target.value })}
+                type="text"
+                value={formData.paymentReference}
+                onChange={(e) => setFormData({ ...formData, paymentReference: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                placeholder="Transaction ID, Invoice #, etc."
               />
             </div>
 
@@ -251,7 +244,7 @@ export default function EditExpensePage() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                placeholder="Additional details about the expense..."
+                placeholder="Additional details about the income..."
               />
             </div>
 
@@ -268,7 +261,7 @@ export default function EditExpensePage() {
                 disabled={saving}
                 className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {saving ? 'Updating...' : 'Update Expense'}
+                {saving ? 'Updating...' : 'Update Income'}
               </button>
             </div>
           </form>

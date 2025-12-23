@@ -143,11 +143,11 @@ export function AdminSidebar({
       label: "Reports",
       icon: FileText,
     },
-    // {
-    //   id: "add-expense",
-    //   label: "Add Expense",
-    //   icon: DollarSign,
-    // },
+    {
+      id: "income-expenses",
+      label: "Income & Expenses",
+      icon: DollarSign,
+    },
     {
       id: "settings",
       label: "Settings",
@@ -173,9 +173,9 @@ export function AdminSidebar({
     "menu-item-management": "/admin/menu",
     "bill-history": "/admin/bills",
     "reports": "/admin/reports",
+    "income-expenses": "/admin/income-expenses",
     "plans": "/admin/plans",
     "settings": "/admin/settings",
-    "add-expense": "/admin/expenses/add",
     "bluetooth-printer": "/admin/bluetooth-printer",
   };
 

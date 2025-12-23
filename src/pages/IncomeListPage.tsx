@@ -7,32 +7,27 @@ import { getCurrentUser } from '../utils/auth';
 import { makeApi } from '../api/makeapi';
 import { Button } from '../components/ui/button';
 
-type Expense = {
+type Income = {
   _id: string;
-  expenseReason: string;
+  incomeSource: string;
   amount: number;
-  expenseBy: string;
-  expenseDate: string;
+  incomeType: 'cash' | 'online';
+  incomeDate: string;
   description: string;
   category: string;
-  paymentMethod: string;
-  shopName?: string;
+  paymentReference?: string;
+  recordedBy: string;
   restaurantId: string;
-  staff?: {
-    _id: string;
-    name: string;
-    position: string;
-  };
   createdAt: string;
   updatedAt: string;
 };
 
-export default function ExpensesListPage() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+export default function IncomeListPage() {
+  const [incomes, setIncomes] = useState<Income[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
+  const [incomeToDelete, setIncomeToDelete] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -46,10 +41,16 @@ export default function ExpensesListPage() {
     startDate: searchParams.get('startDate') || '',
     endDate: searchParams.get('endDate') || '',
     category: searchParams.get('category') || '',
-    paymentMethod: searchParams.get('paymentMethod') || '',
+    paymentType: searchParams.get('paymentType') || '',
     minAmount: searchParams.get('minAmount') || '',
     maxAmount: searchParams.get('maxAmount') || ''
   });
+
+  useEffect(() => {
+    if (restaurantId) {
+      fetchIncomes();
+    }
+  }, [restaurantId]);
 
   // Date filter utility functions
   const getDateRange = (filterType: string) => {
@@ -102,58 +103,51 @@ export default function ExpensesListPage() {
     }
   };
 
-  useEffect(() => {
-    if (restaurantId) {
-      fetchExpenses();
-    }
-  }, [restaurantId]);
-
-  const fetchExpenses = async () => {
+  const fetchIncomes = async () => {
     try {
       setLoading(true);
-      const response = await makeApi(`/api/expenses?restaurantId=${restaurantId}`, 'GET');
-      setExpenses(response.data);
+      const response = await makeApi(`/api/extra-income?restaurantId=${restaurantId}`, 'GET');
+      setIncomes(response.data);
     } catch (error) {
-      console.error('Error fetching expenses:', error);
-      toast.error('Failed to load expenses');
+      console.error('Error fetching incomes:', error);
+      toast.error('Failed to load incomes');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteClick = (expenseId: string) => {
-    setExpenseToDelete(expenseId);
+  const handleDeleteClick = (incomeId: string) => {
+    setIncomeToDelete(incomeId);
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteExpense = async () => {
-    if (!expenseToDelete) return;
+  const handleDeleteIncome = async () => {
+    if (!incomeToDelete) return;
 
     try {
-      await makeApi(`/api/expenses/${expenseToDelete}`, 'DELETE');
+      await makeApi(`/api/extra-income/${incomeToDelete}`, 'DELETE');
 
-      setExpenses(expenses.filter(expense => expense._id !== expenseToDelete));
-      toast.success('Expense deleted successfully');
+      setIncomes(incomes.filter(income => income._id !== incomeToDelete));
+      toast.success('Income deleted successfully');
     } catch (error) {
-      console.error('Error deleting expense:', error);
-      toast.error('Failed to delete expense');
+      console.error('Error deleting income:', error);
+      toast.error('Failed to delete income');
     } finally {
       setDeleteDialogOpen(false);
-      setExpenseToDelete(null);
+      setIncomeToDelete(null);
     }
   };
 
-  const filteredExpenses = expenses.filter(expense => {
+  const filteredIncomes = incomes.filter(income => {
     // Search filter
     if (searchTerm) {
-      const matchesSearch = expense.expenseReason.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           expense.expenseBy.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (expense.description && expense.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                           (expense.shopName && expense.shopName.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesSearch = income.incomeSource.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           income.recordedBy.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (income.description && income.description.toLowerCase().includes(searchTerm.toLowerCase()));
       if (!matchesSearch) return false;
     }
 
-    const expenseDate = new Date(expense.expenseDate);
+    const incomeDate = new Date(income.incomeDate);
 
     // Date filter based on type
     if (filters.dateFilterType !== 'all' && filters.dateFilterType !== 'customRange' && filters.dateFilterType !== 'customDate') {
@@ -164,7 +158,7 @@ export default function ExpensesListPage() {
       if (startDate && endDate) {
         startDate.setHours(0, 0, 0, 0);
         endDate.setHours(23, 59, 59, 999);
-        if (expenseDate < startDate || expenseDate > endDate) return false;
+        if (incomeDate < startDate || incomeDate > endDate) return false;
       }
     } else if ((filters.dateFilterType === 'customRange' || filters.dateFilterType === 'customDate') && (filters.startDate || filters.endDate)) {
       const startDate = filters.startDate ? new Date(filters.startDate) : null;
@@ -173,18 +167,18 @@ export default function ExpensesListPage() {
       if (startDate) startDate.setHours(0, 0, 0, 0);
       if (endDate) endDate.setHours(23, 59, 59, 999);
 
-      if (startDate && expenseDate < startDate) return false;
-      if (endDate && expenseDate > endDate) return false;
+      if (startDate && incomeDate < startDate) return false;
+      if (endDate && incomeDate > endDate) return false;
     }
 
     // Category filter
-    if (filters.category && expense.category !== filters.category) return false;
+    if (filters.category && income.category !== filters.category) return false;
 
-    // Payment method filter
-    if (filters.paymentMethod && expense.paymentMethod !== filters.paymentMethod) return false;
+    // Payment type filter
+    if (filters.paymentType && income.incomeType !== filters.paymentType) return false;
 
     // Amount range filter
-    const amount = expense.amount;
+    const amount = income.amount;
     const minAmount = filters.minAmount ? parseFloat(filters.minAmount) : null;
     const maxAmount = filters.maxAmount ? parseFloat(filters.maxAmount) : null;
 
@@ -195,11 +189,11 @@ export default function ExpensesListPage() {
   });
 
   // Pagination calculations
-  const totalItems = filteredExpenses.length;
+  const totalItems = filteredIncomes.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const currentItems = filteredExpenses.slice(startIndex, endIndex);
+  const currentItems = filteredIncomes.slice(startIndex, endIndex);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -223,18 +217,18 @@ export default function ExpensesListPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 " style={{marginTop: '100px'}}>
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
       <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between mb-6 lg:mb-8">
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">Expense Management</h1>
-          <p className="mt-1 text-sm text-gray-500 hidden sm:block">Manage and track your restaurant expenses</p>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">Income Management</h1>
+          <p className="mt-1 text-sm text-gray-500 hidden sm:block">Manage and track your restaurant extra income</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-4 sm:mt-0">
           <div className="relative flex-1 sm:flex-initial">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <input
               type="search"
-              placeholder="Search expenses..."
+              placeholder="Search incomes..."
               className="pl-10 pr-4 w-full h-10 sm:h-11 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -259,12 +253,12 @@ export default function ExpensesListPage() {
                     startDate: '',
                     endDate: '',
                     category: '',
-                    paymentMethod: '',
+                    paymentType: '',
                     minAmount: '',
                     maxAmount: ''
                   });
                   // Update URL
-                  window.history.replaceState({}, '', '/admin/expenses/list');
+                  window.history.replaceState({}, '', '/admin/income/list');
                 }}
                 className="text-red-600 hover:text-red-700 hover:bg-red-50"
               >
@@ -274,11 +268,11 @@ export default function ExpensesListPage() {
             )}
           </div>
           <Link
-            to="/admin/expenses/add"
+            to="/admin/income/add"
             className="inline-flex items-center justify-center px-4 py-2 sm:px-6 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors min-h-[40px] sm:min-h-[44px]"
           >
             <Plus className="mr-2 h-4 w-4 flex-shrink-0" />
-            <span className="truncate">Add Expense</span>
+            <span className="truncate">Add Income</span>
           </Link>
         </div>
       </div>
@@ -286,7 +280,7 @@ export default function ExpensesListPage() {
       {/* Filter Controls */}
       {showFilters && (
         <div className="mb-6 p-6 bg-slate-50 rounded-lg border border-slate-200">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Filter Expenses</h3>
+          <h3 className="text-lg font-semibold text-slate-800 mb-4">Filter Income</h3>
 
           {/* Date Filters */}
           <div className="mb-4">
@@ -371,7 +365,7 @@ export default function ExpensesListPage() {
                     type="date"
                     value={filters.startDate}
                     onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                   />
                 </div>
                 {filters.dateFilterType === 'customRange' && (
@@ -381,7 +375,7 @@ export default function ExpensesListPage() {
                       type="date"
                       value={filters.endDate}
                       onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                     />
                   </div>
                 )}
@@ -396,34 +390,28 @@ export default function ExpensesListPage() {
               <select
                 value={filters.category}
                 onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
               >
                 <option value="">All Categories</option>
-                <option value="Food Supplies">Vegitable</option>
-                <option value="Rent">Rent</option>
-                <option value="Salaries">Salaries</option>
-                <option value="Equipment">Equipment</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Maintenance">Maintenance</option>
-                <option value="Food items">Food items</option>
-                <option value="Loss">Loss</option>
+                <option value="Events">Events</option>
+                <option value="Catering">Catering</option>
+                <option value="Advertising">Advertising</option>
+                <option value="Partnerships">Partnerships</option>
+                <option value="Delivery">Delivery</option>
                 <option value="Other">Other</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Payment Method</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Payment Type</label>
               <select
-                value={filters.paymentMethod}
-                onChange={(e) => setFilters({ ...filters, paymentMethod: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                value={filters.paymentType}
+                onChange={(e) => setFilters({ ...filters, paymentType: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
               >
-                <option value="">All Methods</option>
-                <option value="Cash">Cash</option>
-                <option value="Card">Card</option>
-                <option value="UPI">UPI</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-                <option value="Other">Other</option>
+                <option value="">All Types</option>
+                <option value="cash">Cash</option>
+                <option value="online">Online</option>
               </select>
             </div>
 
@@ -439,7 +427,7 @@ export default function ExpensesListPage() {
                 value={filters.minAmount}
                 onChange={(e) => setFilters({ ...filters, minAmount: e.target.value })}
                 placeholder="0"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
               />
             </div>
             <div>
@@ -449,7 +437,7 @@ export default function ExpensesListPage() {
                 value={filters.maxAmount}
                 onChange={(e) => setFilters({ ...filters, maxAmount: e.target.value })}
                 placeholder="10000"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
               />
             </div>
           </div>
@@ -457,7 +445,7 @@ export default function ExpensesListPage() {
       )}
 
       {/* Active Filters Display */}
-      {(filters.dateFilterType !== 'all' || filters.category || filters.paymentMethod || filters.minAmount || filters.maxAmount) && (
+      {(filters.dateFilterType !== 'all' || filters.category || filters.paymentType || filters.minAmount || filters.maxAmount) && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-center justify-between">
             <div className="flex flex-wrap gap-2">
@@ -478,9 +466,9 @@ export default function ExpensesListPage() {
                   Category: {filters.category}
                 </span>
               )}
-              {filters.paymentMethod && (
+              {filters.paymentType && (
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  Payment: {filters.paymentMethod}
+                  Type: {filters.paymentType}
                 </span>
               )}
               {filters.minAmount && (
@@ -495,7 +483,7 @@ export default function ExpensesListPage() {
               )}
             </div>
             <Link
-              to="/admin/expenses/list"
+              to="/admin/income/list"
               className="text-sm text-blue-600 hover:text-blue-800 font-medium"
             >
               Clear Filters
@@ -508,42 +496,42 @@ export default function ExpensesListPage() {
       <div className="block md:hidden">
         <div className="space-y-3">
           {currentItems.length > 0 ? (
-            currentItems.map((expense) => (
-              <div key={expense._id} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+            currentItems.map((income) => (
+              <div key={income._id} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <div className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-semibold text-gray-900 truncate">{expense.expenseReason}</h3>
-                      <p className="text-xs text-gray-500 mt-1">By {expense.expenseBy}</p>
+                      <h3 className="text-sm font-semibold text-gray-900 truncate">{income.incomeSource}</h3>
+                      <p className="text-xs text-gray-500 mt-1">By {income.recordedBy}</p>
                     </div>
                     <div className="ml-3 flex-shrink-0">
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        expense.paymentMethod === 'Cash'
+                        income.incomeType === 'cash'
                           ? 'bg-green-100 text-green-800'
                           : 'bg-blue-100 text-blue-800'
                       }`}>
-                        {expense.paymentMethod || 'Cash'}
+                        {income.incomeType}
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2 mb-3">
                     <div className="flex items-center text-xs text-gray-500">
                       <CalendarIcon className="h-3 w-3 mr-1 flex-shrink-0" />
-                      {format(new Date(expense.expenseDate), 'MMM dd, yyyy')}
+                      {format(new Date(income.incomeDate), 'MMM dd, yyyy')}
                     </div>
-                    {expense.description && (
-                      <p className="text-xs text-gray-600 line-clamp-2">{expense.description}</p>
+                    {income.description && (
+                      <p className="text-xs text-gray-600 line-clamp-2">{income.description}</p>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                     <div className="text-base font-semibold text-gray-900">
-                      {formatCurrency(expense.amount)}
+                      {formatCurrency(income.amount)}
                     </div>
                     <div className="flex items-center space-x-1">
                       <Link
-                        to={`/admin/expenses/edit/${expense._id}`}
+                        to={`/admin/income/edit/${income._id}`}
                         className="inline-flex items-center justify-center p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                         title="Edit"
                       >
@@ -552,7 +540,7 @@ export default function ExpensesListPage() {
                       </Link>
                       <button
                         className="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors"
-                        onClick={() => handleDeleteClick(expense._id)}
+                        onClick={() => handleDeleteClick(income._id)}
                         title="Delete"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -569,9 +557,9 @@ export default function ExpensesListPage() {
                 <Search className="h-12 w-12 mx-auto" />
               </div>
               <p className="text-sm text-gray-500">
-                {searchTerm || (filters.dateFilterType !== 'all' || filters.category || filters.paymentMethod || filters.minAmount || filters.maxAmount)
-                  ? 'No matching expenses found'
-                  : 'No expenses recorded yet'}
+                {searchTerm || (filters.dateFilterType !== 'all' || filters.category || filters.paymentType || filters.minAmount || filters.maxAmount)
+                  ? 'No matching incomes found'
+                  : 'No incomes recorded yet'}
               </p>
             </div>
           )}
@@ -586,9 +574,10 @@ export default function ExpensesListPage() {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">By</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recorded By</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                   <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -596,32 +585,33 @@ export default function ExpensesListPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {currentItems.length > 0 ? (
-                  currentItems.map((expense) => (
-                    <tr key={expense._id} className="hover:bg-gray-50 transition-colors">
+                  currentItems.map((income) => (
+                    <tr key={income._id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {format(new Date(expense.expenseDate), 'MMM dd, yyyy')}
+                        {format(new Date(income.incomeDate), 'MMM dd, yyyy')}
                       </td>
-                      <td className="px-6 py-4 font-medium text-sm text-gray-900">{expense.expenseReason}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{expense.expenseBy}</td>
+                      <td className="px-6 py-4 font-medium text-sm text-gray-900">{income.incomeSource}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{income.recordedBy}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                          expense.paymentMethod === 'Cash'
+                          income.incomeType === 'cash'
                             ? 'bg-green-100 text-green-800'
                             : 'bg-blue-100 text-blue-800'
                         }`}>
-                          {expense.paymentMethod || 'Cash'}
+                          {income.incomeType}
                         </span>
                       </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{income.category}</td>
                       <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                        {expense.description || '-'}
+                        {income.description || '-'}
                       </td>
                       <td className="px-6 py-4 text-right font-medium text-sm text-gray-900">
-                        {formatCurrency(expense.amount)}
+                        {formatCurrency(income.amount)}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-2">
                           <Link
-                            to={`/admin/expenses/edit/${expense._id}`}
+                            to={`/admin/income/edit/${income._id}`}
                             className="inline-flex items-center justify-center p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                             title="Edit"
                           >
@@ -630,7 +620,7 @@ export default function ExpensesListPage() {
                           </Link>
                           <button
                             className="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors"
-                            onClick={() => handleDeleteClick(expense._id)}
+                            onClick={() => handleDeleteClick(income._id)}
                             title="Delete"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -642,12 +632,12 @@ export default function ExpensesListPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-500">
+                    <td colSpan={8} className="px-6 py-12 text-center text-sm text-gray-500">
                       <div className="flex flex-col items-center">
                         <Search className="h-12 w-12 text-gray-400 mb-2" />
-                        {searchTerm || (filters.dateFilterType !== 'all' || filters.category || filters.paymentMethod || filters.minAmount || filters.maxAmount)
-                          ? 'No matching expenses found'
-                          : 'No expenses recorded yet'}
+                        {searchTerm || (filters.dateFilterType !== 'all' || filters.category || filters.paymentType || filters.minAmount || filters.maxAmount)
+                          ? 'No matching incomes found'
+                          : 'No incomes recorded yet'}
                       </div>
                     </td>
                   </tr>
@@ -748,15 +738,15 @@ export default function ExpensesListPage() {
                   <Trash2 className="h-5 w-5 text-red-600" />
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-lg font-semibold text-gray-900">Delete Expense</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Delete Income</h3>
                   <p className="text-sm text-gray-500 mt-1">This action cannot be undone</p>
                 </div>
               </div>
-              
+
               <p className="text-sm text-gray-600 mb-6">
-                Are you sure you want to delete this expense record? This will permanently remove the data from your system.
+                Are you sure you want to delete this income record? This will permanently remove the data from your system.
               </p>
-              
+
               <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-3">
                 <button
                   className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
@@ -766,10 +756,10 @@ export default function ExpensesListPage() {
                 </button>
                 <button
                   className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                  onClick={handleDeleteIncome}
                   style={{background:"red"}}
-                  onClick={handleDeleteExpense}
                 >
-                  Delete Expense
+                  Delete Income
                 </button>
               </div>
             </div>
