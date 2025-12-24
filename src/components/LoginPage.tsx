@@ -69,7 +69,7 @@ export function LoginPage({ onLogin, redirectPath = '/admin/order-tables' }: Log
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full  text-primary-foreground mb-4 overflow-hidden">
             <img
-              src="/src/images/logo.png"
+              src="/logo.png"
               alt="Restaurant Logo"
               className="w-12 h-12 object-contain"
             />

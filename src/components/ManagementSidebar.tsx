@@ -265,7 +265,7 @@ export function ManagementSidebar({ onUpdate }: ManagementSidebarProps) {
           <SheetHeader>
             <div className="flex items-center gap-3 mb-4">
               <img
-                src="/src/images/logo.png"
+                src="/logo.png"
                 alt="Restaurant Logo"
                 className="w-10 h-10 object-contain"
               />

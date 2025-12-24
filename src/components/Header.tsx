@@ -72,7 +72,7 @@ export default function Header({ onToggleMenu, onLogout }: HeaderProps) {
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-lg bg-transparent text-primary-foreground flex items-center justify-center overflow-hidden">
                 <img
-                  src="/src/images/logo.png"
+                  src="/logo.png"
                   alt="logo"
                   className="w-12 h-12 object-contain "
                 />
