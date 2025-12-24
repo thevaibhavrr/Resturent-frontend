@@ -30,8 +30,8 @@ import {
 } from "./ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Card } from "./ui/card";
-import { Settings, Plus, Edit2, Trash2, UtensilsCrossed, TableProperties } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { Settings, Plus, Edit2, Trash2, UtensilsCrossed, TableProperties, Clock } from "lucide-react";
+import { toast } from "sonner";
 
 interface MenuItem {
   id: number;
@@ -56,6 +56,7 @@ export function ManagementSidebar({ onUpdate }: ManagementSidebarProps) {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [loginTime, setLoginTime] = useState<string>('');
   
   // Menu Item Dialog States
   const [isMenuDialogOpen, setIsMenuDialogOpen] = useState(false);
@@ -75,6 +76,20 @@ export function ManagementSidebar({ onUpdate }: ManagementSidebarProps) {
     tableName: "",
     location: "garden",
   });
+
+  useEffect(() => {
+    // Set login time when component mounts
+    const loginTimeStr = localStorage.getItem('loginTime');
+    if (loginTimeStr) {
+      setLoginTime(loginTimeStr);
+    } else {
+      // If no login time stored, set current time
+      const now = new Date();
+      const timeString = now.toLocaleString();
+      localStorage.setItem('loginTime', timeString);
+      setLoginTime(timeString);
+    }
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -248,10 +263,25 @@ export function ManagementSidebar({ onUpdate }: ManagementSidebarProps) {
         </SheetTrigger>
         <SheetContent side="left" className="w-full sm:w-[450px]">
           <SheetHeader>
-            <SheetTitle>Restaurant Management</SheetTitle>
+            <div className="flex items-center gap-3 mb-4">
+              <img
+                src="/src/images/logo.png"
+                alt="Restaurant Logo"
+                className="w-10 h-10 object-contain"
+              />
+              <div>
+                <SheetTitle>VR Billing</SheetTitle>
+              </div>
+            </div>
             <SheetDescription>
               Manage menu items and tables
             </SheetDescription>
+            {loginTime && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Clock className="w-3 h-3" />
+                <span>Login: {loginTime}</span>
+              </div>
+            )}
           </SheetHeader>
 
           <Tabs defaultValue="menu" className="mt-6">
@@ -417,7 +447,7 @@ export function ManagementSidebar({ onUpdate }: ManagementSidebarProps) {
               <Label htmlFor="category">Category</Label>
               <Select
                 value={menuForm.category}
-                onValueChange={(value) =>
+                onValueChange={(value: string) =>
                   setMenuForm({ ...menuForm, category: value })
                 }
               >
@@ -487,7 +517,7 @@ export function ManagementSidebar({ onUpdate }: ManagementSidebarProps) {
               <Label htmlFor="location">Location</Label>
               <Select
                 value={tableForm.location}
-                onValueChange={(value) =>
+                onValueChange={(value: string) =>
                   setTableForm({ ...tableForm, location: value })
                 }
               >

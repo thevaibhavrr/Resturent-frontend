@@ -67,10 +67,14 @@ export function LoginPage({ onLogin, redirectPath = '/admin/order-tables' }: Log
       <Card className="w-full max-w-md p-8 shadow-2xl">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary text-primary-foreground mb-4">
-            <UtensilsCrossed className="w-8 h-8" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full  text-primary-foreground mb-4 overflow-hidden">
+            <img
+              src="/src/images/logo.png"
+              alt="Restaurant Logo"
+              className="w-12 h-12 object-contain"
+            />
           </div>
-          <h1 className="text-3xl mb-2">Restaurant Management</h1>
+          <h1 className="text-3xl mb-2">VR Billing</h1>
           <p className="text-muted-foreground">Sign in to continue</p>
         </div>
 

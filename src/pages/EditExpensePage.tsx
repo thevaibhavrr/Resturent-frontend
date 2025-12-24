@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getCurrentUser } from '../utils/auth';
 import { makeApi } from '../api/makeapi';
+import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 
 type ExpenseData = {
   _id: string;
@@ -15,6 +16,7 @@ type ExpenseData = {
   paymentMethod: string;
   shopName?: string;
   restaurantId: string;
+  billImageUrl?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -29,10 +31,12 @@ export default function EditExpensePage() {
     description: '',
     category: '',
     paymentMethod: '',
-    shopName: ''
+    shopName: '',
+    billImageUrl: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const navigate = useNavigate();
   const user = getCurrentUser();
   const restaurantId = user?.restaurantId;
@@ -47,16 +51,17 @@ export default function EditExpensePage() {
 
         if (response.data) {
           const expenseData = response.data;
-          setFormData({
+        setFormData({
             expenseReason: expenseData.expenseReason,
             amount: expenseData.amount.toString(),
             expenseBy: expenseData.expenseBy,
             expenseDate: new Date(expenseData.expenseDate).toISOString().split('T')[0],
-            description: expenseData.description || '',
+          description: expenseData.description || '',
             category: expenseData.category,
             paymentMethod: expenseData.paymentMethod,
-            shopName: expenseData.shopName || ''
-          });
+            shopName: expenseData.shopName || '',
+            billImageUrl: expenseData.billImageUrl || ''
+        });
         } else {
           toast.error('Failed to load expense details');
         }
@@ -73,22 +78,23 @@ export default function EditExpensePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     if (!id || !restaurantId) return;
 
     try {
       setSaving(true);
 
       const updateData = {
-        ...formData,
+          ...formData,
         amount: parseFloat(formData.amount),
-        restaurantId
+          restaurantId,
+          billImageUrl: formData.billImageUrl || undefined
       };
 
       const response = await makeApi(`/api/expenses/${id}`, 'PUT', updateData);
-
+      
       if (response.data && response.data.expense) {
-        toast.success('Expense updated successfully');
+      toast.success('Expense updated successfully');
         navigate('/admin/expenses/list');
       } else {
         toast.error('Failed to update expense');
@@ -103,6 +109,25 @@ export default function EditExpensePage() {
 
   const handleCancel = () => {
     navigate('/admin/expenses/list');
+  };
+
+  const handleImageUpload = async (file: File) => {
+    if (!file) return;
+
+    try {
+      setImageUploading(true);
+      const result = await uploadToCloudinary(file);
+      setFormData(prev => ({
+        ...prev,
+        billImageUrl: result.secure_url
+      }));
+      toast.success('Bill image uploaded successfully');
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image');
+    } finally {
+      setImageUploading(false);
+    }
   };
 
   if (loading) {
@@ -121,37 +146,37 @@ export default function EditExpensePage() {
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">Edit Expense</h1>
             <p className="mt-1 text-sm text-gray-500 hidden sm:block">Update expense details</p>
           </div>
-        </div>
-
+      </div>
+      
         <div className="bg-white shadow-sm rounded-lg border border-gray-200">
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Expense Reason *
-                </label>
-                <input
-                  type="text"
-                  required
+              </label>
+              <input
+                type="text"
+                required
                   value={formData.expenseReason}
                   onChange={(e) => setFormData({ ...formData, expenseReason: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   placeholder="e.g., Vegetables, Utilities"
-                />
-              </div>
-
+              />
+            </div>
+            
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Amount *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
+              </label>
+              <input
+                type="number"
+                step="0.01"
                   required
-                  value={formData.amount}
+                value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  placeholder="0.00"
+                placeholder="0.00"
                 />
               </div>
             </div>
@@ -162,7 +187,7 @@ export default function EditExpensePage() {
                   Category *
                 </label>
                 <select
-                  required
+                required
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
@@ -190,10 +215,10 @@ export default function EditExpensePage() {
                   onChange={(e) => setFormData({ ...formData, shopName: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   placeholder="e.g., Big Bazaar, Local Market"
-                />
+              />
               </div>
             </div>
-
+            
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -212,23 +237,23 @@ export default function EditExpensePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Payment Method *
-                </label>
-                <select
+              </label>
+              <select 
                   required
                   value={formData.paymentMethod}
                   onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                >
+              >
                   <option value="">Select Payment Method</option>
                   <option value="Cash">Cash</option>
                   <option value="Card">Card</option>
                   <option value="UPI">UPI</option>
                   <option value="Bank Transfer">Bank Transfer</option>
                   <option value="Other">Other</option>
-                </select>
+              </select>
               </div>
             </div>
-
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Expense Date *
@@ -241,7 +266,7 @@ export default function EditExpensePage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               />
             </div>
-
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Description
@@ -253,25 +278,59 @@ export default function EditExpensePage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 placeholder="Additional details about the expense..."
               />
-            </div>
+          </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bill Image
+              </label>
+              <div className="space-y-2">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleImageUpload(file);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100"
+                  disabled={imageUploading}
+                />
+                {imageUploading && (
+                  <div className="text-sm text-blue-600">Uploading image...</div>
+                )}
+                {formData.billImageUrl && (
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-600 mb-2">Current bill image:</p>
+                    <img
+                      src={formData.billImageUrl}
+                      alt="Bill preview"
+                      className="w-20 h-20 object-cover rounded-lg border border-gray-300 cursor-pointer hover:scale-110 transition-transform"
+                      onClick={() => window.open(formData.billImageUrl, '_blank')}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          
             <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-3 pt-6 border-t border-gray-200">
-              <button
-                type="button"
+            <button
+              type="button"
                 onClick={handleCancel}
                 className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              disabled={saving}
                 className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
+            >
                 {saving ? 'Updating...' : 'Update Expense'}
-              </button>
-            </div>
-          </form>
+            </button>
+          </div>
+        </form>
         </div>
       </div>
     </div>

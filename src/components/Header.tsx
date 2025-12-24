@@ -10,6 +10,20 @@ interface HeaderProps {
 
 export default function Header({ onToggleMenu, onLogout }: HeaderProps) {
   const user = getCurrentUser();
+  
+  // Get restaurant name from localStorage settings
+  const [restaurantName, setRestaurantName] = useState(() => {
+    const settings = localStorage.getItem('restaurantSettings');
+    if (settings) {
+      try {
+        const parsedSettings = JSON.parse(settings);
+        return parsedSettings.name || 'Restaurant Managment';
+      } catch {
+        return 'Restaurant Managment';
+      }
+    }
+    return 'Restaurant Managment';
+  });
 
   const [hidden, setHidden] = useState(false);
   const lastYRef = useRef(0);
@@ -58,14 +72,14 @@ export default function Header({ onToggleMenu, onLogout }: HeaderProps) {
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-lg bg-transparent text-primary-foreground flex items-center justify-center overflow-hidden">
                 <img
-                  src="https://img.freepik.com/premium-vector/blue-symbol-that-is-white-background_1061618-334.jpg"
+                  src="/src/images/logo.png"
                   alt="logo"
-                  className="w-12 h-12 object-cover"
+                  className="w-12 h-12 object-contain "
                 />
               </div>
               <div>
-                <div className="text-lg font-semibold">Restaurant Management</div>
-                <div className="text-xs text-muted-foreground">{user?.restaurantName || 'Your Restaurant'}</div>
+                <div className="text-lg font-semibold">VR Billing</div>
+                <div className="text-xs text-muted-foreground">{restaurantName}</div>
               </div>
             </div>
           </div>

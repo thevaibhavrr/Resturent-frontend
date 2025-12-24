@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { getCurrentUser } from '../utils/auth';
 import { makeApi } from '../api/makeapi';
 import { Button } from '../components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 
 type Expense = {
   _id: string;
@@ -23,6 +25,7 @@ type Expense = {
     name: string;
     position: string;
   };
+    billImageUrl?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -37,6 +40,8 @@ export default function ExpensesListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchParams] = useSearchParams();
+  const [addExpenseDialogOpen, setAddExpenseDialogOpen] = useState(false);
+  const [expenseImageUploading, setExpenseImageUploading] = useState(false);
   const user = getCurrentUser();
   const restaurantId = user?.restaurantId;
 
@@ -121,6 +126,74 @@ export default function ExpensesListPage() {
     }
   };
 
+  const [expenseForm, setExpenseForm] = useState({
+    expenseReason: '',
+    amount: '',
+    category: '',
+    description: '',
+    expenseBy: '',
+    paymentMethod: '',
+    shopName: '',
+    expenseDate: new Date().toISOString().slice(0, 16),
+    billImage: null as File | null,
+    billImageUrl: ''
+  });
+
+  const handleExpenseImageUpload = async (file: File) => {
+    if (!file) return;
+
+    try {
+      setExpenseImageUploading(true);
+      const result = await uploadToCloudinary(file);
+      setExpenseForm(prev => ({
+        ...prev,
+        billImageUrl: result.secure_url
+      }));
+      toast.success('Bill image uploaded successfully');
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image');
+    } finally {
+      setExpenseImageUploading(false);
+    }
+  };
+
+  const handleExpenseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!restaurantId) return;
+
+    try {
+      const expenseData = {
+        ...expenseForm,
+        amount: parseFloat(expenseForm.amount),
+        restaurantId,
+        expenseDate: new Date(expenseForm.expenseDate).toISOString(),
+        billImage: undefined,
+        billImageUrl: expenseForm.billImageUrl || undefined
+      };
+
+      await makeApi('/api/expenses', 'POST', expenseData);
+      toast.success('Expense added successfully');
+      setAddExpenseDialogOpen(false);
+      setExpenseForm({
+        expenseReason: '',
+        amount: '',
+        category: '',
+        description: '',
+        expenseBy: '',
+        paymentMethod: '',
+        shopName: '',
+        expenseDate: new Date().toISOString().slice(0, 16),
+        billImage: null,
+        billImageUrl: ''
+      });
+      fetchExpenses();
+    } catch (error) {
+      console.error('Error submitting expense:', error);
+      toast.error('Failed to save expense');
+    }
+  };
+
   const handleDeleteClick = (expenseId: string) => {
     setExpenseToDelete(expenseId);
     setDeleteDialogOpen(true);
@@ -147,7 +220,7 @@ export default function ExpensesListPage() {
     // Search filter
     if (searchTerm) {
       const matchesSearch = expense.expenseReason.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           expense.expenseBy.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    expense.expenseBy.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            (expense.description && expense.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
                            (expense.shopName && expense.shopName.toLowerCase().includes(searchTerm.toLowerCase()));
       if (!matchesSearch) return false;
@@ -273,13 +346,176 @@ export default function ExpensesListPage() {
               </Button>
             )}
           </div>
-          <Link
-            to="/admin/expenses/add"
-            className="inline-flex items-center justify-center px-4 py-2 sm:px-6 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors min-h-[40px] sm:min-h-[44px]"
-          >
-            <Plus className="mr-2 h-4 w-4 flex-shrink-0" />
-            <span className="truncate">Add Expense</span>
-          </Link>
+          <Dialog open={addExpenseDialogOpen} onOpenChange={setAddExpenseDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="inline-flex items-center justify-center px-4 py-2 sm:px-6 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors min-h-[40px] sm:min-h-[44px]"
+              >
+                <Plus className="mr-2 h-4 w-4 flex-shrink-0" />
+                <span className="truncate">Add Expense</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold ">Add New Expense</DialogTitle>
+                <DialogDescription className="text-slate-600">
+                  Fill in the expense details below to record a new transaction.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleExpenseSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Expense Reason *</label>
+                    <input
+                      type="text"
+                      value={expenseForm.expenseReason}
+                      onChange={(e) => setExpenseForm({ ...expenseForm, expenseReason: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                      placeholder="e.g., Vegetables, Utilities"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Amount *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={expenseForm.amount}
+                      onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Category *</label>
+                    <select
+                      value={expenseForm.category}
+                      onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                      required
+                    >
+                      <option value="">Select Category</option>
+                      <option value="Food Supplies">Vegitable</option>
+                      <option value="Rent">Rent</option>
+                      <option value="Salaries">Salaries</option>
+                      <option value="Equipment">Equipment</option>
+                      <option value="Marketing">Marketing</option>
+                      <option value="Maintenance">Maintenance</option>
+                      <option value="Food items">Food items</option>
+                      <option value="Loss">Loss</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Shop Name</label>
+                    <input
+                      type="text"
+                      value={expenseForm.shopName}
+                      onChange={(e) => setExpenseForm({ ...expenseForm, shopName: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                      placeholder="e.g., Big Bazaar, Local Market"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Expense By *</label>
+                    <input
+                      type="text"
+                      value={expenseForm.expenseBy}
+                      onChange={(e) => setExpenseForm({ ...expenseForm, expenseBy: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                      placeholder="Staff member name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Payment Method *</label>
+                    <select
+                      value={expenseForm.paymentMethod}
+                      onChange={(e) => setExpenseForm({ ...expenseForm, paymentMethod: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                      required
+                    >
+                      <option value="">Select Payment Method</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Card">Card</option>
+                      <option value="UPI">UPI</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Expense Date & Time *</label>
+                    <input
+                      type="datetime-local"
+                      value={expenseForm.expenseDate}
+                      onChange={(e) => setExpenseForm({ ...expenseForm, expenseDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Bill Image</label>
+                    <div className="space-y-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setExpenseForm({ ...expenseForm, billImage: file });
+                            handleExpenseImageUpload(file);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100"
+                        disabled={expenseImageUploading}
+                      />
+                      {expenseImageUploading && (
+                        <div className="text-sm text-blue-600">Uploading image...</div>
+                      )}
+                      {expenseForm.billImageUrl && (
+                        <div className="mt-2">
+                          <img
+                            src={expenseForm.billImageUrl}
+                            alt="Bill preview"
+                            className="w-20 h-20 object-cover rounded-lg border border-slate-300"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                  <textarea
+                    value={expenseForm.description}
+                    onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                    rows={3}
+                    placeholder="Additional details about the expense..."
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4 gap-4">
+                  <Button type="button" variant="outline" onClick={() => setAddExpenseDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" style={{background:"black"}} className="bg-red-600 hover:bg-red-700 text-white">
+                    Save Expense
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -516,7 +752,16 @@ export default function ExpensesListPage() {
                       <h3 className="text-sm font-semibold text-gray-900 truncate">{expense.expenseReason}</h3>
                       <p className="text-xs text-gray-500 mt-1">By {expense.expenseBy}</p>
                     </div>
-                    <div className="ml-3 flex-shrink-0">
+                    <div className="ml-3 flex-shrink-0 flex items-center space-x-2">
+                      {expense.billImageUrl && (
+                        <img
+                          src={expense.billImageUrl}
+                          alt="Bill"
+                          className="w-8 h-8 object-cover rounded border border-gray-300"
+                          onClick={() => window.open(expense.billImageUrl, '_blank')}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      )}
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                         expense.paymentMethod === 'Cash'
                           ? 'bg-green-100 text-green-800'
@@ -588,6 +833,7 @@ export default function ExpensesListPage() {
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">By</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                   <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
@@ -603,6 +849,18 @@ export default function ExpensesListPage() {
                       </td>
                       <td className="px-6 py-4 font-medium text-sm text-gray-900">{expense.expenseReason}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{expense.expenseBy}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {expense.billImageUrl ? (
+                          <img
+                            src={expense.billImageUrl}
+                            alt="Bill"
+                            className="w-10 h-10 object-cover rounded border border-gray-300 cursor-pointer hover:scale-110 transition-transform"
+                            onClick={() => window.open(expense.billImageUrl, '_blank')}
+                          />
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                           expense.paymentMethod === 'Cash'
@@ -642,7 +900,7 @@ export default function ExpensesListPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-500">
+                    <td colSpan={8} className="px-6 py-12 text-center text-sm text-gray-500">
                       <div className="flex flex-col items-center">
                         <Search className="h-12 w-12 text-gray-400 mb-2" />
                         {searchTerm || (filters.dateFilterType !== 'all' || filters.category || filters.paymentMethod || filters.minAmount || filters.maxAmount)

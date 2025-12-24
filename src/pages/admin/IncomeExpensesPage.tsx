@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { makeApi } from '../../api/makeapi';
+import { uploadToCloudinary } from '../../utils/cloudinaryUpload';
 import {
   Plus,
   DollarSign,
@@ -29,7 +30,6 @@ import { getCurrentUser } from '../../utils/auth';
 import { formatCurrency } from '../../utils/formatters';
 import { getNetProfitStats } from '../../api/billApi';
 import ExpenseForm from './ExpenseForm';
-import IncomeForm from './IncomeForm';
 
 interface Expense {
   _id: string;
@@ -73,6 +73,10 @@ export default function IncomeExpensesPage() {
   const [showIncomeDialog, setShowIncomeDialog] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [editingIncome, setEditingIncome] = useState<ExtraIncome | null>(null);
+
+  // Image upload states
+  const [expenseImageUploading, setExpenseImageUploading] = useState(false);
+  const [incomeImageUploading, setIncomeImageUploading] = useState(false);
 
   // Filter states
   const [showExpenseFilters, setShowExpenseFilters] = useState(false);
@@ -140,6 +144,11 @@ export default function IncomeExpensesPage() {
     dateFilterType: 'today' as 'all' | 'today' | 'yesterday' | 'thisWeek' | 'thisMonth' | 'thisYear' | 'customRange' | 'customDate',
     startDate: todayRange.startDate || '',
     endDate: todayRange.endDate || '',
+    category: '',
+    paymentType: '',
+    paymentMethod: '',
+    minAmount: '',
+    maxAmount: ''
   });
 
 
@@ -174,7 +183,10 @@ export default function IncomeExpensesPage() {
     description: '',
     expenseBy: '',
     paymentMethod: '',
-    shopName: ''
+    shopName: '',
+    expenseDate: new Date().toISOString().slice(0, 16), // YYYY-MM-DDTHH:mm format for datetime-local
+    billImage: null as File | null,
+    billImageUrl: ''
   });
 
   const [incomeForm, setIncomeForm] = useState({
@@ -184,7 +196,10 @@ export default function IncomeExpensesPage() {
     category: '',
     description: '',
     recordedBy: '',
-    paymentReference: ''
+    paymentReference: '',
+    incomeDate: new Date().toISOString().slice(0, 16), // YYYY-MM-DDTHH:mm format for datetime-local
+    billImage: null as File | null,
+    billImageUrl: ''
   });
 
   const user = getCurrentUser();
@@ -418,7 +433,10 @@ export default function IncomeExpensesPage() {
       description: '',
       expenseBy: '',
       paymentMethod: '',
-      shopName: ''
+      shopName: '',
+      expenseDate: new Date().toISOString().slice(0, 16),
+      billImage: null,
+      billImageUrl: ''
     });
   };
 
@@ -430,7 +448,10 @@ export default function IncomeExpensesPage() {
       category: '',
       description: '',
       recordedBy: '',
-      paymentReference: ''
+      paymentReference: '',
+      incomeDate: new Date().toISOString().slice(0, 16),
+      billImage: null,
+      billImageUrl: ''
     });
   };
 
@@ -443,7 +464,9 @@ export default function IncomeExpensesPage() {
         ...expenseForm,
         amount: parseFloat(expenseForm.amount),
         restaurantId,
-        expenseDate: new Date().toISOString()
+        expenseDate: new Date(expenseForm.expenseDate).toISOString(),
+        billImage: undefined, // Remove file object before sending
+        billImageUrl: expenseForm.billImageUrl || undefined
       };
 
       const endpoint = editingExpense
@@ -454,11 +477,11 @@ export default function IncomeExpensesPage() {
 
       await makeApi(endpoint, method, expenseData);
 
-      toast.success(editingExpense ? 'Expense updated successfully' : 'Expense added successfully');
-      setShowExpenseDialog(false);
-      setEditingExpense(null);
-      resetExpenseForm();
-      loadExpenses();
+        toast.success(editingExpense ? 'Expense updated successfully' : 'Expense added successfully');
+        setShowExpenseDialog(false);
+        setEditingExpense(null);
+        resetExpenseForm();
+        loadExpenses();
     } catch (error) {
       console.error('Error submitting expense:', error);
       toast.error('Failed to save expense');
@@ -474,7 +497,9 @@ export default function IncomeExpensesPage() {
         ...incomeForm,
         amount: parseFloat(incomeForm.amount),
         restaurantId,
-        incomeDate: new Date().toISOString()
+        incomeDate: new Date(incomeForm.incomeDate).toISOString(),
+        billImage: undefined, // Remove file object before sending
+        billImageUrl: incomeForm.billImageUrl || undefined
       };
 
       const endpoint = editingIncome
@@ -485,11 +510,11 @@ export default function IncomeExpensesPage() {
 
       await makeApi(endpoint, method, incomeData);
 
-      toast.success(editingIncome ? 'Extra income updated successfully' : 'Extra income added successfully');
-      setShowIncomeDialog(false);
-      setEditingIncome(null);
-      resetIncomeForm();
-      loadExtraIncomes();
+        toast.success(editingIncome ? 'Extra income updated successfully' : 'Extra income added successfully');
+        setShowIncomeDialog(false);
+        setEditingIncome(null);
+        resetIncomeForm();
+        loadExtraIncomes();
     } catch (error) {
       console.error('Error submitting income:', error);
       toast.error('Failed to save extra income');
@@ -530,11 +555,50 @@ export default function IncomeExpensesPage() {
     try {
       await makeApi(`/api/expenses/${id}`, 'DELETE');
 
-      toast.success('Expense deleted successfully');
-      loadExpenses();
+        toast.success('Expense deleted successfully');
+        loadExpenses();
     } catch (error) {
       console.error('Error deleting expense:', error);
-      toast.error('Failed to delete expense');
+          toast.error('Failed to delete expense');
+        }
+  };
+
+  // Image upload handlers
+  const handleExpenseImageUpload = async (file: File) => {
+    if (!file) return;
+
+    try {
+      setExpenseImageUploading(true);
+      const result = await uploadToCloudinary(file);
+      setExpenseForm(prev => ({
+        ...prev,
+        billImageUrl: result.secure_url
+      }));
+      toast.success('Bill image uploaded successfully');
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image');
+    } finally {
+      setExpenseImageUploading(false);
+    }
+  };
+
+  const handleIncomeImageUpload = async (file: File) => {
+    if (!file) return;
+
+    try {
+      setIncomeImageUploading(true);
+      const result = await uploadToCloudinary(file);
+      setIncomeForm(prev => ({
+        ...prev,
+        billImageUrl: result.secure_url
+      }));
+      toast.success('Bill image uploaded successfully');
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image');
+    } finally {
+      setIncomeImageUploading(false);
     }
   };
 
@@ -544,8 +608,8 @@ export default function IncomeExpensesPage() {
     try {
       await makeApi(`/api/extra-income/${id}`, 'DELETE');
 
-      toast.success('Extra income entry deleted successfully');
-      loadExtraIncomes();
+        toast.success('Extra income entry deleted successfully');
+        loadExtraIncomes();
     } catch (error) {
       console.error('Error deleting extra income:', error);
       toast.error('Failed to delete extra income entry');
@@ -611,6 +675,8 @@ export default function IncomeExpensesPage() {
                   setEditingExpense(null);
                   resetExpenseForm();
                 }}
+                onImageUpload={handleExpenseImageUpload}
+                imageUploading={expenseImageUploading}
               />
             </DialogContent>
           </Dialog>
@@ -649,6 +715,8 @@ export default function IncomeExpensesPage() {
                   setEditingIncome(null);
                   resetIncomeForm();
                 }}
+                onImageUpload={handleIncomeImageUpload}
+                imageUploading={incomeImageUploading}
               />
             </DialogContent>
           </Dialog>
@@ -978,11 +1046,13 @@ export default function IncomeExpensesPage() {
 }
 
 // Expense Form Component
-function ExpenseForm({ form, setForm, onSubmit, onCancel }: {
+function ExpenseForm({ form, setForm, onSubmit, onCancel, onImageUpload, imageUploading }: {
   form: any;
   setForm: (form: any) => void;
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
+  onImageUpload?: (file: File) => void;
+  imageUploading?: boolean;
 }) {
   return (
     <form onSubmit={onSubmit} className="space-y-4" >
@@ -1086,6 +1156,49 @@ function ExpenseForm({ form, setForm, onSubmit, onCancel }: {
         />
       </div>
 
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Expense Date & Time *</label>
+          <input
+            type="datetime-local"
+            value={form.expenseDate}
+            onChange={(e) => setForm({ ...form, expenseDate: e.target.value })}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Bill Image</label>
+          <div className="space-y-2">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setForm({ ...form, billImage: file });
+                  onImageUpload?.(file);
+                }
+              }}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100"
+              disabled={imageUploading}
+            />
+            {imageUploading && (
+              <div className="text-sm text-blue-600">Uploading image...</div>
+            )}
+            {form.billImageUrl && (
+              <div className="mt-2">
+                <img
+                  src={form.billImageUrl}
+                  alt="Bill preview"
+                  className="w-20 h-20 object-cover rounded-lg border border-slate-300"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-evenly w-100 gap-4 space-x-3 pt-4">
         <Button type="button" variant="outline" onClick={onCancel} className="px-6">
           Cancel
@@ -1099,11 +1212,13 @@ function ExpenseForm({ form, setForm, onSubmit, onCancel }: {
 }
 
 // Income Form Component
-function IncomeForm({ form, setForm, onSubmit, onCancel }: {
+function IncomeForm({ form, setForm, onSubmit, onCancel, onImageUpload, imageUploading }: {
   form: any;
   setForm: (form: any) => void;
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
+  onImageUpload?: (file: File) => void;
+  imageUploading?: boolean;
 }) {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
@@ -1195,6 +1310,49 @@ function IncomeForm({ form, setForm, onSubmit, onCancel }: {
           rows={3}
           placeholder="Additional details about the income..."
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Income Date & Time *</label>
+          <input
+            type="datetime-local"
+            value={form.incomeDate}
+            onChange={(e) => setForm({ ...form, incomeDate: e.target.value })}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Bill Image</label>
+          <div className="space-y-2">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setForm({ ...form, billImage: file });
+                  onImageUpload?.(file);
+                }
+              }}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+              disabled={imageUploading}
+            />
+            {imageUploading && (
+              <div className="text-sm text-blue-600">Uploading image...</div>
+            )}
+            {form.billImageUrl && (
+              <div className="mt-2">
+                <img
+                  src={form.billImageUrl}
+                  alt="Bill preview"
+                  className="w-20 h-20 object-cover rounded-lg border border-slate-300"
+                />
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="flex justify-end space-x-3 pt-4">

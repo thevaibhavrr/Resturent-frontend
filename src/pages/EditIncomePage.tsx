@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getCurrentUser } from '../utils/auth';
 import { makeApi } from '../api/makeapi';
+import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 
 type IncomeData = {
   _id: string;
@@ -15,6 +16,7 @@ type IncomeData = {
   paymentReference?: string;
   recordedBy: string;
   restaurantId: string;
+  billImageUrl?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -29,10 +31,12 @@ export default function EditIncomePage() {
     description: '',
     category: '',
     paymentReference: '',
-    recordedBy: ''
+    recordedBy: '',
+    billImageUrl: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const navigate = useNavigate();
   const user = getCurrentUser();
   const restaurantId = user?.restaurantId;
@@ -55,7 +59,8 @@ export default function EditIncomePage() {
             description: incomeData.description || '',
             category: incomeData.category,
             paymentReference: incomeData.paymentReference || '',
-            recordedBy: incomeData.recordedBy
+            recordedBy: incomeData.recordedBy,
+            billImageUrl: incomeData.billImageUrl || ''
           });
         } else {
           toast.error('Failed to load income details');
@@ -82,7 +87,8 @@ export default function EditIncomePage() {
       const updateData = {
         ...formData,
         amount: parseFloat(formData.amount),
-        restaurantId
+        restaurantId,
+        billImageUrl: formData.billImageUrl || undefined
       };
 
       const response = await makeApi(`/api/extra-income/${id}`, 'PUT', updateData);
@@ -103,6 +109,25 @@ export default function EditIncomePage() {
 
   const handleCancel = () => {
     navigate('/admin/income/list');
+  };
+
+  const handleImageUpload = async (file: File) => {
+    if (!file) return;
+
+    try {
+      setImageUploading(true);
+      const result = await uploadToCloudinary(file);
+      setFormData(prev => ({
+        ...prev,
+        billImageUrl: result.secure_url
+      }));
+      toast.success('Bill image uploaded successfully');
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image');
+    } finally {
+      setImageUploading(false);
+    }
   };
 
   if (loading) {
@@ -246,6 +271,40 @@ export default function EditIncomePage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 placeholder="Additional details about the income..."
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bill Image
+              </label>
+              <div className="space-y-2">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleImageUpload(file);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                  disabled={imageUploading}
+                />
+                {imageUploading && (
+                  <div className="text-sm text-blue-600">Uploading image...</div>
+                )}
+                {formData.billImageUrl && (
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-600 mb-2">Current bill image:</p>
+                    <img
+                      src={formData.billImageUrl}
+                      alt="Bill preview"
+                      className="w-20 h-20 object-cover rounded-lg border border-gray-300 cursor-pointer hover:scale-110 transition-transform"
+                      onClick={() => window.open(formData.billImageUrl, '_blank')}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-3 pt-6 border-t border-gray-200">

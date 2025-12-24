@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { getCurrentUser } from '../utils/auth';
 import { makeApi } from '../api/makeapi';
 import { Button } from '../components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 
 type Income = {
   _id: string;
@@ -18,6 +20,7 @@ type Income = {
   paymentReference?: string;
   recordedBy: string;
   restaurantId: string;
+  billImageUrl?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -32,6 +35,8 @@ export default function IncomeListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchParams] = useSearchParams();
+  const [addIncomeDialogOpen, setAddIncomeDialogOpen] = useState(false);
+  const [incomeImageUploading, setIncomeImageUploading] = useState(false);
   const user = getCurrentUser();
   const restaurantId = user?.restaurantId;
 
@@ -113,6 +118,74 @@ export default function IncomeListPage() {
       toast.error('Failed to load incomes');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [incomeForm, setIncomeForm] = useState({
+    incomeSource: '',
+    amount: '',
+    incomeType: 'cash' as 'cash' | 'online',
+    incomeDate: new Date().toISOString().slice(0, 16),
+    description: '',
+    category: '',
+    paymentReference: '',
+    recordedBy: '',
+    billImage: null as File | null,
+    billImageUrl: ''
+  });
+
+  const handleIncomeImageUpload = async (file: File) => {
+    if (!file) return;
+
+    try {
+      setIncomeImageUploading(true);
+      const result = await uploadToCloudinary(file);
+      setIncomeForm(prev => ({
+        ...prev,
+        billImageUrl: result.secure_url
+      }));
+      toast.success('Bill image uploaded successfully');
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image');
+    } finally {
+      setIncomeImageUploading(false);
+    }
+  };
+
+  const handleIncomeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!restaurantId) return;
+
+    try {
+      const incomeData = {
+        ...incomeForm,
+        amount: parseFloat(incomeForm.amount),
+        restaurantId,
+        incomeDate: new Date(incomeForm.incomeDate).toISOString(),
+        billImage: undefined,
+        billImageUrl: incomeForm.billImageUrl || undefined
+      };
+
+      await makeApi('/api/extra-income', 'POST', incomeData);
+      toast.success('Income added successfully');
+      setAddIncomeDialogOpen(false);
+      setIncomeForm({
+        incomeSource: '',
+        amount: '',
+        incomeType: 'cash',
+        incomeDate: new Date().toISOString().slice(0, 16),
+        description: '',
+        category: '',
+        paymentReference: '',
+        recordedBy: '',
+        billImage: null,
+        billImageUrl: ''
+      });
+      fetchIncomes();
+    } catch (error) {
+      console.error('Error submitting income:', error);
+      toast.error('Failed to save income');
     }
   };
 
@@ -267,13 +340,169 @@ export default function IncomeListPage() {
               </Button>
             )}
           </div>
-          <Link
-            to="/admin/income/add"
-            className="inline-flex items-center justify-center px-4 py-2 sm:px-6 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors min-h-[40px] sm:min-h-[44px]"
-          >
-            <Plus className="mr-2 h-4 w-4 flex-shrink-0" />
-            <span className="truncate">Add Income</span>
-          </Link>
+          <Dialog open={addIncomeDialogOpen} onOpenChange={setAddIncomeDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="inline-flex items-center justify-center px-4 py-2 sm:px-6 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors min-h-[40px] sm:min-h-[44px]"
+              >
+                <Plus className="mr-2 h-4 w-4 flex-shrink-0" />
+                <span className="truncate">Add Income</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold ">Add New Income</DialogTitle>
+                <DialogDescription className="text-slate-600">
+                  Fill in income details below to record a new transaction.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleIncomeSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Income Source *</label>
+                    <input
+                      type="text"
+                      value={incomeForm.incomeSource}
+                      onChange={(e) => setIncomeForm({ ...incomeForm, incomeSource: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                      placeholder="e.g., Event Catering, Partnership"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Amount *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={incomeForm.amount}
+                      onChange={(e) => setIncomeForm({ ...incomeForm, amount: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Income Type *</label>
+                    <select
+                      value={incomeForm.incomeType}
+                      onChange={(e) => setIncomeForm({ ...incomeForm, incomeType: e.target.value as 'cash' | 'online' })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                      required
+                    >
+                      <option value="cash">Cash</option>
+                      <option value="online">Online</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Category *</label>
+                    <select
+                      value={incomeForm.category}
+                      onChange={(e) => setIncomeForm({ ...incomeForm, category: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                      required
+                    >
+                      <option value="">Select Category</option>
+                      <option value="Events">Events</option>
+                      <option value="Catering">Catering</option>
+                      <option value="Advertising">Advertising</option>
+                      <option value="Partnerships">Partnerships</option>
+                      <option value="Delivery">Delivery</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Recorded By *</label>
+                    <input
+                      type="text"
+                      value={incomeForm.recordedBy}
+                      onChange={(e) => setIncomeForm({ ...incomeForm, recordedBy: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                      placeholder="Staff member name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Payment Reference</label>
+                    <input
+                      type="text"
+                      value={incomeForm.paymentReference}
+                      onChange={(e) => setIncomeForm({ ...incomeForm, paymentReference: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                      placeholder="Transaction ID, Invoice #, etc."
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Income Date & Time *</label>
+                    <input
+                      type="datetime-local"
+                      value={incomeForm.incomeDate}
+                      onChange={(e) => setIncomeForm({ ...incomeForm, incomeDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Bill Image</label>
+                    <div className="space-y-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setIncomeForm({ ...incomeForm, billImage: file });
+                            handleIncomeImageUpload(file);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                        disabled={incomeImageUploading}
+                      />
+                      {incomeImageUploading && (
+                        <div className="text-sm text-blue-600">Uploading image...</div>
+                      )}
+                      {incomeForm.billImageUrl && (
+                        <div className="mt-2">
+                          <img
+                            src={incomeForm.billImageUrl}
+                            alt="Bill preview"
+                            className="w-20 h-20 object-cover rounded-lg border border-slate-300"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                  <textarea
+                    value={incomeForm.description}
+                    onChange={(e) => setIncomeForm({ ...incomeForm, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                    rows={3}
+                    placeholder="Additional details about income..."
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 space-x-3 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setAddIncomeDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="bg-green-600 hover:bg-green-700 text-white" style={{background:"black"}} >
+                    Save Income
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -504,7 +733,16 @@ export default function IncomeListPage() {
                       <h3 className="text-sm font-semibold text-gray-900 truncate">{income.incomeSource}</h3>
                       <p className="text-xs text-gray-500 mt-1">By {income.recordedBy}</p>
                     </div>
-                    <div className="ml-3 flex-shrink-0">
+                    <div className="ml-3 flex-shrink-0 flex items-center space-x-2">
+                      {income.billImageUrl && (
+                        <img
+                          src={income.billImageUrl}
+                          alt="Bill"
+                          className="w-8 h-8 object-cover rounded border border-gray-300"
+                          onClick={() => window.open(income.billImageUrl, '_blank')}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      )}
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                         income.incomeType === 'cash'
                           ? 'bg-green-100 text-green-800'
@@ -576,6 +814,7 @@ export default function IncomeListPage() {
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recorded By</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
@@ -592,6 +831,18 @@ export default function IncomeListPage() {
                       </td>
                       <td className="px-6 py-4 font-medium text-sm text-gray-900">{income.incomeSource}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{income.recordedBy}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {income.billImageUrl ? (
+                          <img
+                            src={income.billImageUrl}
+                            alt="Bill"
+                            className="w-10 h-10 object-cover rounded border border-gray-300 cursor-pointer hover:scale-110 transition-transform"
+                            onClick={() => window.open(income.billImageUrl, '_blank')}
+                          />
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                           income.incomeType === 'cash'
@@ -632,7 +883,7 @@ export default function IncomeListPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-sm text-gray-500">
+                    <td colSpan={9} className="px-6 py-12 text-center text-sm text-gray-500">
                       <div className="flex flex-col items-center">
                         <Search className="h-12 w-12 text-gray-400 mb-2" />
                         {searchTerm || (filters.dateFilterType !== 'all' || filters.category || filters.paymentType || filters.minAmount || filters.maxAmount)
