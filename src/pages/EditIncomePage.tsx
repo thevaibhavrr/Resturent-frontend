@@ -159,7 +159,7 @@ export default function EditIncomePage() {
                   type="text"
                   required
                   value={formData.incomeSource}
-                  onChange={(e) => setFormData({ ...formData, incomeSource: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, incomeSource: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   placeholder="e.g., Event Catering, Partnership"
                 />
@@ -174,7 +174,7 @@ export default function EditIncomePage() {
                   step="0.01"
                   required
                   value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   placeholder="0.00"
                 />
@@ -189,7 +189,7 @@ export default function EditIncomePage() {
                 <select
                   required
                   value={formData.incomeType}
-                  onChange={(e) => setFormData({ ...formData, incomeType: e.target.value as 'cash' | 'online' })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, incomeType: e.target.value as 'cash' | 'online' }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 >
                   <option value="cash">Cash</option>
@@ -204,7 +204,7 @@ export default function EditIncomePage() {
                 <select
                   required
                   value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 >
                   <option value="">Select Category</option>
@@ -227,7 +227,7 @@ export default function EditIncomePage() {
                   type="date"
                   required
                   value={formData.incomeDate}
-                  onChange={(e) => setFormData({ ...formData, incomeDate: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, incomeDate: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 />
               </div>
@@ -240,7 +240,7 @@ export default function EditIncomePage() {
                   type="text"
                   required
                   value={formData.recordedBy}
-                  onChange={(e) => setFormData({ ...formData, recordedBy: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, recordedBy: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   placeholder="Staff member name"
                 />
@@ -254,7 +254,7 @@ export default function EditIncomePage() {
               <input
                 type="text"
                 value={formData.paymentReference}
-                onChange={(e) => setFormData({ ...formData, paymentReference: e.target.value })}
+                onChange={(e) => setFormData(prev => ({ ...prev, paymentReference: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 placeholder="Transaction ID, Invoice #, etc."
               />
@@ -267,7 +267,7 @@ export default function EditIncomePage() {
               <textarea
                 rows={3}
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 placeholder="Additional details about the income..."
               />

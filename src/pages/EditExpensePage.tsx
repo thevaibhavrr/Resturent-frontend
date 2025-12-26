@@ -159,7 +159,7 @@ export default function EditExpensePage() {
                 type="text"
                 required
                   value={formData.expenseReason}
-                  onChange={(e) => setFormData({ ...formData, expenseReason: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, expenseReason: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   placeholder="e.g., Vegetables, Utilities"
               />
@@ -174,7 +174,7 @@ export default function EditExpensePage() {
                 step="0.01"
                   required
                 value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 placeholder="0.00"
                 />
@@ -189,7 +189,7 @@ export default function EditExpensePage() {
                 <select
                 required
                   value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 >
                   <option value="">Select Category</option>
@@ -212,7 +212,7 @@ export default function EditExpensePage() {
                 <input
                   type="text"
                   value={formData.shopName}
-                  onChange={(e) => setFormData({ ...formData, shopName: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, shopName: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   placeholder="e.g., Big Bazaar, Local Market"
               />
@@ -228,7 +228,7 @@ export default function EditExpensePage() {
                   type="text"
                   required
                   value={formData.expenseBy}
-                  onChange={(e) => setFormData({ ...formData, expenseBy: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, expenseBy: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   placeholder="Staff member name"
                 />
@@ -241,7 +241,7 @@ export default function EditExpensePage() {
               <select 
                   required
                   value={formData.paymentMethod}
-                  onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               >
                   <option value="">Select Payment Method</option>
@@ -262,7 +262,7 @@ export default function EditExpensePage() {
                 type="date"
                 required
                 value={formData.expenseDate}
-                onChange={(e) => setFormData({ ...formData, expenseDate: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, expenseDate: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               />
             </div>
@@ -274,7 +274,7 @@ export default function EditExpensePage() {
               <textarea
                 rows={3}
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 placeholder="Additional details about the expense..."
               />

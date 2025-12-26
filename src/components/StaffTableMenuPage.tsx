@@ -201,9 +201,9 @@ const generateKotId = async (): Promise<string> => {
   } catch (error) {
     console.error('Failed to generate KOT number:', error);
     // Fallback to timestamp-based ID if API fails
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
-    return `KOT-${timestamp}-${random}`;
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8);
+  return `KOT-${timestamp}-${random}`;
   }
 };
 
