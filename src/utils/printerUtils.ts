@@ -38,11 +38,11 @@ export const getPrinterDimensions = (widthInches: number): PrinterDimensions => 
   // Calculate padding based on printer width
   const padding = Math.max(8, Math.min(16, widthPx * 0.05));
 
-  // Calculate font sizes based on printer width
-  const baseFontSize = Math.max(10, Math.min(16, widthPx * 0.04));
-  const titleFontSize = Math.max(14, Math.min(20, widthPx * 0.055));
-  const smallFontSize = Math.max(8, Math.min(12, widthPx * 0.03));
-  const tinyFontSize = Math.max(6, Math.min(10, widthPx * 0.025));
+  // Calculate font sizes based on printer width - Increased for better readability
+  const baseFontSize = Math.max(14, Math.min(20, widthPx * 0.05));
+  const titleFontSize = Math.max(18, Math.min(24, widthPx * 0.07));
+  const smallFontSize = Math.max(12, Math.min(14, widthPx * 0.04));
+  const tinyFontSize = Math.max(10, Math.min(12, widthPx * 0.03));
 
   return {
     width: widthInches,

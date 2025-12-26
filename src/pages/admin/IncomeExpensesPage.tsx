@@ -24,12 +24,10 @@ import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { Badge } from '../../components/ui/badge';
 import { getCurrentUser } from '../../utils/auth';
-import { formatCurrency } from '../../utils/formatters';
 import { getNetProfitStats } from '../../api/billApi';
-import ExpenseForm from './ExpenseForm';
 
 interface Expense {
   _id: string;
@@ -80,6 +78,10 @@ export default function IncomeExpensesPage() {
 
   // Filter states
   const [showExpenseFilters, setShowExpenseFilters] = useState(false);
+
+  // Category management popup states
+  const [showCategoryManagement, setShowCategoryManagement] = useState(false);
+  const [categoryManagementType, setCategoryManagementType] = useState<'expense' | 'income' | null>(null);
 
   // Date filter utility functions
   const getDateRange = (filterType: string) => {
@@ -201,6 +203,422 @@ export default function IncomeExpensesPage() {
     billImage: null as File | null,
     billImageUrl: ''
   });
+
+  // Category management states
+  const [expenseCategories, setExpenseCategories] = useState<string[]>([]);
+  const [incomeCategories, setIncomeCategories] = useState<string[]>([]);
+  const [newExpenseCategory, setNewExpenseCategory] = useState('');
+  const [newIncomeCategory, setNewIncomeCategory] = useState('');
+
+  // Initialize categories from localStorage or defaults
+  useEffect(() => {
+    const defaultExpenseCategories = [
+      'Food Supplies', 'Rent', 'Salaries', 'Equipment', 'Marketing',
+      'Maintenance', 'Food items', 'Loss', 'Other'
+    ];
+
+    const defaultIncomeCategories = [
+      'belivmart', 'Online payment', 'item sales', 'old money', 'Other'
+    ];
+
+    const storedExpenseCategories = localStorage.getItem('expenseCategories');
+    const storedIncomeCategories = localStorage.getItem('incomeCategories');
+
+    if (storedExpenseCategories) {
+      setExpenseCategories(JSON.parse(storedExpenseCategories));
+    } else {
+      setExpenseCategories(defaultExpenseCategories);
+      localStorage.setItem('expenseCategories', JSON.stringify(defaultExpenseCategories));
+    }
+
+    if (storedIncomeCategories) {
+      setIncomeCategories(JSON.parse(storedIncomeCategories));
+    } else {
+      setIncomeCategories(defaultIncomeCategories);
+      localStorage.setItem('incomeCategories', JSON.stringify(defaultIncomeCategories));
+    }
+  }, []);
+
+  // Category management functions
+  const addExpenseCategory = () => {
+    if (newExpenseCategory.trim() && !expenseCategories.includes(newExpenseCategory.trim())) {
+      const updatedCategories = [...expenseCategories, newExpenseCategory.trim()];
+      setExpenseCategories(updatedCategories);
+      localStorage.setItem('expenseCategories', JSON.stringify(updatedCategories));
+      setNewExpenseCategory('');
+      toast.success('Expense category added successfully');
+    } else if (expenseCategories.includes(newExpenseCategory.trim())) {
+      toast.error('Category already exists');
+    }
+  };
+
+  const removeExpenseCategory = (category: string) => {
+    const updatedCategories = expenseCategories.filter(cat => cat !== category);
+    setExpenseCategories(updatedCategories);
+    localStorage.setItem('expenseCategories', JSON.stringify(updatedCategories));
+    toast.success('Expense category removed successfully');
+  };
+
+  const addIncomeCategory = () => {
+    if (newIncomeCategory.trim() && !incomeCategories.includes(newIncomeCategory.trim())) {
+      const updatedCategories = [...incomeCategories, newIncomeCategory.trim()];
+      setIncomeCategories(updatedCategories);
+      localStorage.setItem('incomeCategories', JSON.stringify(updatedCategories));
+      setNewIncomeCategory('');
+      toast.success('Income category added successfully');
+    } else if (incomeCategories.includes(newIncomeCategory.trim())) {
+      toast.error('Category already exists');
+    }
+  };
+
+  const removeIncomeCategory = (category: string) => {
+    const updatedCategories = incomeCategories.filter(cat => cat !== category);
+    setIncomeCategories(updatedCategories);
+    localStorage.setItem('incomeCategories', JSON.stringify(updatedCategories));
+    toast.success('Income category removed successfully');
+  };
+
+  // Expense Form Component
+  function ExpenseForm({ form, setForm, onSubmit, onCancel, onImageUpload, imageUploading }: {
+    form: any;
+    setForm: (form: any) => void;
+    onSubmit: (e: React.FormEvent) => void;
+    onCancel: () => void;
+    onImageUpload?: (file: File) => void;
+    imageUploading?: boolean;
+  }) {
+    return (
+      <form onSubmit={onSubmit} className="space-y-4" >
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Expense Reason *</label>
+            <input
+              type="text"
+              value={form.expenseReason}
+              onChange={(e) => setForm({ ...form, expenseReason: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+              placeholder="e.g., Vegetables, Utilities"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Amount *</label>
+            <input
+              type="number"
+              step="0.01"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+              placeholder="0.00"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Category *</label>
+          <div className="relative">
+            <select
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors pr-16"
+              required
+            >
+              <option value="">All Categories</option>
+              {expenseCategories.map((category, index) => (
+                <option key={index} value={category}>{category}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                setCategoryManagementType('expense');
+                setShowCategoryManagement(true);
+              }}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
+              title="Edit Categories"
+            >
+              Edit
+            </button>
+          </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Shop Name</label>
+            <input
+              type="text"
+              value={form.shopName}
+              onChange={(e) => setForm({ ...form, shopName: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+              placeholder="e.g., Big Bazaar, Local Market"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Expense By *</label>
+            <input
+              type="text"
+              value={form.expenseBy}
+              onChange={(e) => setForm({ ...form, expenseBy: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+              placeholder="Staff member name"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Payment Method *</label>
+            <select
+              value={form.paymentMethod}
+              onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+              required
+            >
+              <option value="">Select Payment Method</option>
+              <option value="Cash">Cash</option>
+              <option value="Card">Card</option>
+              <option value="UPI">UPI</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+          <textarea
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+            rows={3}
+            placeholder="Additional details about the expense..."
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Expense Date & Time *</label>
+            <input
+              type="datetime-local"
+              value={form.expenseDate}
+              onChange={(e) => setForm({ ...form, expenseDate: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Bill Image</label>
+            <div className="space-y-2">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setForm({ ...form, billImage: file });
+                    onImageUpload?.(file);
+                  }
+                }}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100"
+                disabled={imageUploading}
+              />
+              {imageUploading && (
+                <div className="text-sm text-blue-600">Uploading image...</div>
+              )}
+              {form.billImageUrl && (
+                <div className="mt-2">
+                  <img
+                    src={form.billImageUrl}
+                    alt="Bill preview"
+                    className="w-20 h-20 object-cover rounded-lg border border-slate-300"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-evenly w-100 gap-4 space-x-3 pt-4">
+          <Button type="button" variant="outline" onClick={onCancel} className="px-6">
+            Cancel
+          </Button>
+          <Button type="submit" style={{ background: "black" }} className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6">
+            Save Expense
+        </Button>
+      </div>
+    </form>
+  );
+  }
+
+  // Income Form Component
+  function IncomeForm({ form, setForm, onSubmit, onCancel, onImageUpload, imageUploading }: {
+    form: any;
+    setForm: (form: any) => void;
+    onSubmit: (e: React.FormEvent) => void;
+    onCancel: () => void;
+    onImageUpload?: (file: File) => void;
+    imageUploading?: boolean;
+  }) {
+    return (
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Income Source *</label>
+            <input
+              type="text"
+              value={form.incomeSource}
+              onChange={(e) => setForm({ ...form, incomeSource: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+              placeholder="e.g., Event Catering, Partnership"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Amount *</label>
+            <input
+              type="number"
+              step="0.01"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+              placeholder="0.00"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Income Type *</label>
+            <select
+              value={form.incomeType}
+              onChange={(e) => setForm({ ...form, incomeType: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+              required
+            >
+              <option value="cash">Cash</option>
+              <option value="online">Online</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Category *</label>
+          <div className="relative">
+            <select
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors pr-16"
+              required
+            >
+              <option value="">Select Category</option>
+              {incomeCategories.map((category, index) => (
+                <option key={index} value={category}>{category}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                setCategoryManagementType('income');
+                setShowCategoryManagement(true);
+              }}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 text-xs bg-green-100 text-green-600 rounded hover:bg-green-200 transition-colors"
+              title="Edit Categories"
+            >
+              Edit
+            </button>
+          </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Recorded By *</label>
+            <input
+              type="text"
+              value={form.recordedBy}
+              onChange={(e) => setForm({ ...form, recordedBy: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+              placeholder="Staff member name"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Payment Reference</label>
+            <input
+              type="text"
+              value={form.paymentReference}
+              onChange={(e) => setForm({ ...form, paymentReference: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+              placeholder="Transaction ID, Invoice #, etc."
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+          <textarea
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+            rows={3}
+            placeholder="Additional details about the income..."
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Income Date & Time *</label>
+            <input
+              type="datetime-local"
+              value={form.incomeDate}
+              onChange={(e) => setForm({ ...form, incomeDate: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Bill Image</label>
+            <div className="space-y-2">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setForm({ ...form, billImage: file });
+                    onImageUpload?.(file);
+                  }
+                }}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                disabled={imageUploading}
+              />
+              {imageUploading && (
+                <div className="text-sm text-blue-600">Uploading image...</div>
+              )}
+              {form.billImageUrl && (
+                <div className="mt-2">
+                  <img
+                    src={form.billImageUrl}
+                    alt="Bill preview"
+                    className="w-20 h-20 object-cover rounded-lg border border-slate-300"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end space-x-3 pt-4">
+          <Button type="button" variant="outline" onClick={onCancel} className="px-6">
+            Cancel
+          </Button>
+          <Button type="submit" style={{background:"black"}} className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6">
+            Save Income
+          </Button>
+        </div>
+      </form>
+    );
+  }
 
   const user = getCurrentUser();
   const restaurantId = user?.restaurantId;
@@ -530,7 +948,10 @@ export default function IncomeExpensesPage() {
       description: expense.description || '',
       expenseBy: expense.expenseBy,
       paymentMethod: expense.paymentMethod,
-      shopName: expense.shopName || ''
+      shopName: expense.shopName || '',
+      expenseDate: new Date(expense.expenseDate).toISOString().slice(0, 16),
+      billImage: null,
+      billImageUrl: ''
     });
     setShowExpenseDialog(true);
   };
@@ -544,7 +965,10 @@ export default function IncomeExpensesPage() {
       category: income.category,
       description: income.description || '',
       recordedBy: income.recordedBy,
-      paymentReference: income.paymentReference || ''
+      paymentReference: income.paymentReference || '',
+      incomeDate: new Date(income.incomeDate).toISOString().slice(0, 16),
+      billImage: null,
+      billImageUrl: ''
     });
     setShowIncomeDialog(true);
   };
@@ -722,6 +1146,138 @@ export default function IncomeExpensesPage() {
           </Dialog>
         </div>
       </div>
+
+      {/* Category Management Modal */}
+      <Dialog open={showCategoryManagement} onOpenChange={setShowCategoryManagement}>
+        <DialogContent style={{background:"white"}} className="max-w-2xl max-h-[90vh] overflow-y-auto mx-4 bg-white/95 backdrop-blur-lg border-0 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold bg-gradient-to-r from-slate-600 to-slate-700 bg-clip-text text-transparent flex items-center">
+              <Tag className="w-5 h-5 mr-2" />
+              Manage {categoryManagementType === 'expense' ? 'Expense' : 'Income'} Categories
+            </DialogTitle>
+            <DialogDescription className="text-slate-600">
+              Add, edit, or remove {categoryManagementType === 'expense' ? 'expense' : 'income'} categories. Changes are saved automatically.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {categoryManagementType === 'expense' && (
+              <div className="space-y-4">
+                <h4 className="text-md font-medium text-red-600 flex items-center">
+                  <TrendingDown className="w-4 h-4 mr-2" />
+                  Expense Categories
+                </h4>
+
+                {/* Add Expense Category */}
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newExpenseCategory}
+                      onChange={(e) => setNewExpenseCategory(e.target.value)}
+                      placeholder="Add new expense category"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                      onKeyPress={(e) => e.key === 'Enter' && addExpenseCategory()}
+                    />
+                    <Button
+                      onClick={addExpenseCategory}
+                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg whitespace-nowrap"
+                      disabled={!newExpenseCategory.trim()}
+                      style={{background:"black"}}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                  <p className="text-xs text-slate-500">Press Enter or click Save to add category</p>
+                </div>
+
+                {/* Expense Categories List */}
+                <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3 bg-slate-50">
+                  {expenseCategories.map((category, index) => (
+                    <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border">
+                      <span className="text-sm font-medium text-slate-700">{category}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeExpenseCategory(category)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-100 p-2"
+                        disabled={expenseCategories.length <= 1}
+                        title={expenseCategories.length <= 1 ? "Cannot delete the last category" : "Delete category"}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {categoryManagementType === 'income' && (
+              <div className="space-y-4">
+                <h4 className="text-md font-medium text-green-600 flex items-center">
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Income Categories
+                </h4>
+
+                {/* Add Income Category */}
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newIncomeCategory}
+                      onChange={(e) => setNewIncomeCategory(e.target.value)}
+                      placeholder="Add new income category"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                      onKeyPress={(e) => e.key === 'Enter' && addIncomeCategory()}
+                    />
+                    <Button
+                      onClick={addIncomeCategory}
+                      className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg whitespace-nowrap"
+                      disabled={!newIncomeCategory.trim()}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                  <p className="text-xs text-slate-500">Press Enter or click Save to add category</p>
+                </div>
+
+                {/* Income Categories List */}
+                <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3 bg-slate-50">
+                  {incomeCategories.map((category, index) => (
+                    <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm border">
+                      <span className="text-sm font-medium text-slate-700">{category}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeIncomeCategory(category)}
+                        className="text-green-500 hover:text-green-700 hover:bg-green-100 p-2"
+                        disabled={incomeCategories.length <= 1}
+                        title={incomeCategories.length <= 1 ? "Cannot delete the last category" : "Delete category"}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setShowCategoryManagement(false);
+                setCategoryManagementType(null);
+                setNewExpenseCategory('');
+                setNewIncomeCategory('');
+              }}
+              className="bg-slate-500 hover:bg-slate-600 text-white"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Expense Filters */}
       <div className="bg-white/70 backdrop-blur-lg rounded-2xl border border-slate-200/50 shadow-xl p-6">
@@ -1045,324 +1601,3 @@ export default function IncomeExpensesPage() {
   );
 }
 
-// Expense Form Component
-function ExpenseForm({ form, setForm, onSubmit, onCancel, onImageUpload, imageUploading }: {
-  form: any;
-  setForm: (form: any) => void;
-  onSubmit: (e: React.FormEvent) => void;
-  onCancel: () => void;
-  onImageUpload?: (file: File) => void;
-  imageUploading?: boolean;
-}) {
-  return (
-    <form onSubmit={onSubmit} className="space-y-4" >
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Expense Reason *</label>
-          <input
-            type="text"
-            value={form.expenseReason}
-            onChange={(e) => setForm({ ...form, expenseReason: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-            placeholder="e.g., Vegetables, Utilities"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Amount *</label>
-          <input
-            type="number"
-            step="0.01"
-            value={form.amount}
-            onChange={(e) => setForm({ ...form, amount: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-            placeholder="0.00"
-            required
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Category *</label>
-          <select
-            value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-            required
-          >
-            <option value="">All Categories</option>
-            <option value="Food Supplies">Vegitable</option>
-            <option value="Rent">Rent</option>
-            <option value="Salaries">Salaries</option>
-            <option value="Equipment">Equipment</option>
-            <option value="Marketing">Marketing</option>
-            <option value="Maintenance">Maintenance</option>
-            <option value="Food items">Food items</option>
-            <option value="Loss">Loss</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Shop Name</label>
-          <input
-            type="text"
-            value={form.shopName}
-            onChange={(e) => setForm({ ...form, shopName: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-            placeholder="e.g., Big Bazaar, Local Market"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Expense By *</label>
-          <input
-            type="text"
-            value={form.expenseBy}
-            onChange={(e) => setForm({ ...form, expenseBy: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-            placeholder="Staff member name"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Payment Method *</label>
-          <select
-            value={form.paymentMethod}
-            onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-            required
-          >
-            <option value="">Select Payment Method</option>
-            <option value="Cash">Cash</option>
-            <option value="Card">Card</option>
-            <option value="UPI">UPI</option>
-            <option value="Bank Transfer">Bank Transfer</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-        <textarea
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-          rows={3}
-          placeholder="Additional details about the expense..."
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Expense Date & Time *</label>
-          <input
-            type="datetime-local"
-            value={form.expenseDate}
-            onChange={(e) => setForm({ ...form, expenseDate: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Bill Image</label>
-          <div className="space-y-2">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  setForm({ ...form, billImage: file });
-                  onImageUpload?.(file);
-                }
-              }}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100"
-              disabled={imageUploading}
-            />
-            {imageUploading && (
-              <div className="text-sm text-blue-600">Uploading image...</div>
-            )}
-            {form.billImageUrl && (
-              <div className="mt-2">
-                <img
-                  src={form.billImageUrl}
-                  alt="Bill preview"
-                  className="w-20 h-20 object-cover rounded-lg border border-slate-300"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex justify-evenly w-100 gap-4 space-x-3 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel} className="px-6">
-          Cancel
-        </Button>
-        <Button type="submit" style={{ background: "black" }} className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6">
-          Save Expense
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-// Income Form Component
-function IncomeForm({ form, setForm, onSubmit, onCancel, onImageUpload, imageUploading }: {
-  form: any;
-  setForm: (form: any) => void;
-  onSubmit: (e: React.FormEvent) => void;
-  onCancel: () => void;
-  onImageUpload?: (file: File) => void;
-  imageUploading?: boolean;
-}) {
-  return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Income Source *</label>
-          <input
-            type="text"
-            value={form.incomeSource}
-            onChange={(e) => setForm({ ...form, incomeSource: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-            placeholder="e.g., Event Catering, Partnership"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Amount *</label>
-          <input
-            type="number"
-            step="0.01"
-            value={form.amount}
-            onChange={(e) => setForm({ ...form, amount: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-            placeholder="0.00"
-            required
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Income Type *</label>
-          <select
-            value={form.incomeType}
-            onChange={(e) => setForm({ ...form, incomeType: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-            required
-          >
-            <option value="cash">Cash</option>
-            <option value="online">Online</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Category *</label>
-          <select
-            value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-            required
-          >
-            <option value="">Select Category</option>
-            <option value="belivmart">Belivmart</option>
-            <option value="item sales">Item sales</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Recorded By *</label>
-          <input
-            type="text"
-            value={form.recordedBy}
-            onChange={(e) => setForm({ ...form, recordedBy: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-            placeholder="Staff member name"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Payment Reference</label>
-          <input
-            type="text"
-            value={form.paymentReference}
-            onChange={(e) => setForm({ ...form, paymentReference: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-            placeholder="Transaction ID, Invoice #, etc."
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-        <textarea
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-          rows={3}
-          placeholder="Additional details about the income..."
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Income Date & Time *</label>
-          <input
-            type="datetime-local"
-            value={form.incomeDate}
-            onChange={(e) => setForm({ ...form, incomeDate: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Bill Image</label>
-          <div className="space-y-2">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  setForm({ ...form, billImage: file });
-                  onImageUpload?.(file);
-                }
-              }}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
-              disabled={imageUploading}
-            />
-            {imageUploading && (
-              <div className="text-sm text-blue-600">Uploading image...</div>
-            )}
-            {form.billImageUrl && (
-              <div className="mt-2">
-                <img
-                  src={form.billImageUrl}
-                  alt="Bill preview"
-                  className="w-20 h-20 object-cover rounded-lg border border-slate-300"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex justify-end space-x-3 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel} className="px-6">
-          Cancel
-        </Button>
-        <Button type="submit" style={{background:"black"}} className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6">
-          Save Income
-        </Button>
-      </div>
-    </form>
-  );
-}

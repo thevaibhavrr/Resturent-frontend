@@ -749,7 +749,7 @@ export function Reports() {
                 </p>
               </div>
               <div className="text-right">
-                <DollarSign className="w-12 h-12 text-green-600 mx-auto mb-2" />
+                {/* <DollarSign className="w-12 h-12 text-green-600 mx-auto mb-2" /> */}
                 <p className={`text-4xl font-bold ${stats.netIncome >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                   ₹{stats.netIncome.toFixed(2)}
                 </p>

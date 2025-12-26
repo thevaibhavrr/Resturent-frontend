@@ -102,3 +102,9 @@ export const markKotsAsPrinted = async (tableId: string, restaurantId: string, k
   });
   return response.data;
 };
+
+// Get next KOT number for a restaurant (restaurantId comes from JWT token)
+export const getNextKotNumber = async () => {
+  const response = await makeApi('/api/table-draft/next-kot-number', 'GET', undefined);
+  return response.data;
+};

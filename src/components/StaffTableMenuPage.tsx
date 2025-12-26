@@ -33,7 +33,7 @@ import { getCurrentUser } from "../utils/auth";
 import { toast } from "sonner";
 import { getMenuItems, getCategories } from "../api/menuApi";
 import { getTableById } from "../api/tableApi";
-import { saveTableDraft, getTableDraft, clearTableDraft, markKotsAsPrinted, TableDraft } from "../api/tableDraftApi";
+import { saveTableDraft, getTableDraft, clearTableDraft, markKotsAsPrinted, getNextKotNumber, TableDraft } from "../api/tableDraftApi";
 import { useNavigate } from "react-router-dom";
 import { motion, useScroll, useMotionValueEvent, useSpring } from "framer-motion";
 
@@ -193,11 +193,18 @@ const generateKotDifferences = (
   return differences;
 };
 
-// Generate unique KOT ID
-const generateKotId = (): string => {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 8);
-  return `KOT-${timestamp}-${random}`;
+// Generate sequential KOT number
+const generateKotId = async (): Promise<string> => {
+  try {
+    const response = await getNextKotNumber();
+    return response.kotNumber.toString();
+  } catch (error) {
+    console.error('Failed to generate KOT number:', error);
+    // Fallback to timestamp-based ID if API fails
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    return `KOT-${timestamp}-${random}`;
+  }
 };
 
 // Helper function to check if an item was added in the last KOT
@@ -850,8 +857,10 @@ export function StaffTableMenuPage({ tableId, tableName, onBack, onPlaceOrder }:
           note: item.note
         }));
 
+        // Generate KOT ID asynchronously
+        const kotId = await generateKotId();
         newKotEntry = {
-          kotId: generateKotId(),
+          kotId: kotId,
           items: validatedItems,
           timestamp: new Date().toISOString()
         };

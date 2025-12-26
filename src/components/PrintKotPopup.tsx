@@ -8,6 +8,15 @@ import { getCurrentUser, getRestaurantKey } from "../utils/auth";
 import { getRestaurantPrinterAddress } from "../config/bluetoothPrinter";
 import { getKotPrinterDimensions, getPrintContainerStyles, getPrinterWidthFromStorage } from "../utils/printerUtils";
 
+// Declare global interface for mobile app communication
+declare global {
+  interface Window {
+    MOBILE_CHANNEL?: {
+      postMessage: (message: string) => void;
+    };
+  }
+}
+
 interface PrintKotPopupProps {
   tableName: string;
   persons: number;
@@ -387,14 +396,12 @@ const getBluetoothPrinterSettings = () => {
  
                     return (
                       <React.Fragment key={kot.kotId}>
-                        {/* KOT Header if multiple */}
-                        {printData.unprintedKots.length > 1 && (
-                          <tr>
-                            <td colSpan={2} style={{ textAlign: "center", padding: `${printerDimensions.padding * 0.25}px`, borderTop: "1px solid black", fontWeight: "bold", fontSize: `${printerDimensions.fontSize.small}px` }}>
-                              KOT #{kotIndex + 1}
-                            </td>
-                          </tr>
-                        )}
+                        {/* KOT Header - always show KOT number */}
+                        <tr>
+                          <td colSpan={2} style={{ textAlign: "center", padding: `${printerDimensions.padding * 0.25}px`, borderTop: printData.unprintedKots.length > 1 ? "1px solid black" : "none", fontWeight: "bold", fontSize: `${printerDimensions.fontSize.small}px` }}>
+                            K.O.T. {kot.kotId}
+                          </td>
+                        </tr>
 
                         {/* Items (only positive quantities) */}
                         {visibleItems.map((item: any, itemIndex: number) => (
